@@ -1,0 +1,14 @@
+Extract 3-5 key entities/topics from this headline.
+Output ONLY comma-separated keywords, no explanation.
+
+Headline: {{title}}
+Language: {{language}}
+
+Examples:
+"Brazil approves new climate law" → brazil, climate law, approval
+"Tesla CEO announces new factory" → tesla, ceo, factory, announcement
+"Biden meets Xi Jinping in summit" → biden, xi jinping, summit, meeting
+"新的气候协议获得批准" → climate, agreement, approval
+"España aprueba nueva ley energética" → spain, energy law, approval
+
+Keywords:

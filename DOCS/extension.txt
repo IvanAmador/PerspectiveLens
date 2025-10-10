@@ -1,0 +1,1194 @@
+Página inicial
+Docs
+Chrome Extensions
+Get started
+Isso foi útil?
+
+Extensão Hello World
+
+bookmark_border
+Aprenda o básico do desenvolvimento de extensões do Chrome criando sua primeira extensão Hello World.
+
+Visão geral
+Você vai criar um exemplo "Hello World", carregar a extensão localmente, localizar registros e conferir outras recomendações.
+
+Hello World
+Essa extensão vai mostrar "Hello Extensions" quando o usuário clicar no ícone da barra de ferramentas da extensão.
+
+Extensão Hello
+Pop-up da extensão Hello
+Comece criando um novo diretório para armazenar os arquivos de extensão. Se preferir, faça o download do código-fonte completo no GitHub.
+
+Em seguida, crie um novo arquivo nesse diretório chamado manifest.json. Esse arquivo JSON descreve os recursos e a configuração da extensão. Por exemplo, a maioria dos arquivos de manifesto contém uma chave "action" que declara a imagem que o Chrome precisa usar como ícone de ação da extensão e a página HTML que será mostrada em um pop-up quando o ícone de ação da extensão for clicado.
+
+
+{
+  "name": "Hello Extensions",
+  "description": "Base Level Extension",
+  "version": "1.0",
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "hello.html",
+    "default_icon": "hello_extensions.png"
+  }
+}
+Faça o download do ícone no seu diretório e mude o nome dele para corresponder ao que está na chave "default_icon".
+
+Para o pop-up, crie um arquivo chamado hello.html e adicione o seguinte código:
+
+
+<html>
+  <body>
+    <h1>Hello Extensions</h1>
+  </body>
+</html>
+A extensão agora mostra um pop-up quando o ícone de ação (ícone da barra de ferramentas) é clicado. Para testar no Chrome, carregue-o localmente. Confira se todos os arquivos foram salvos.
+
+Carregar uma extensão descompactada
+Para carregar uma extensão descompactada no modo de desenvolvedor:
+
+Acesse a página "Extensões" digitando chrome://extensions em uma nova guia. Os URLs chrome:// não podem ser vinculados.
+Como alternativa, clique no botão de quebra-cabeça do menu "Extensões" e selecione Gerenciar extensões na parte de baixo do menu.
+Ou clique no menu do Chrome, passe o cursor sobre Mais ferramentas e selecione Extensões.
+Ative o modo de desenvolvedor clicando no botão ao lado de Modo de desenvolvedor.
+Clique no botão Carregar descompactado e selecione o diretório de extensão.
+Página &quot;Extensões&quot;
+Página de extensões (chrome://extensions)
+Tcham! A extensão foi instalada. Se nenhum ícone de extensão for incluído no manifesto, um ícone genérico será criado para a extensão.
+
+Fixar a extensão
+Por padrão, quando você carrega a extensão localmente, ela aparece no menu de extensões (Quebra-cabeça). Fixe a extensão na barra de ferramentas para acessar rapidamente durante o desenvolvimento.
+
+Fixar a extensão
+Fixar a extensão
+Clique no ícone de ação da extensão (ícone da barra de ferramentas). Um pop-up vai aparecer.
+
+extensão hello world
+Extensão Hello World
+Recarregar a extensão
+Volte ao código e mude o nome da extensão para "Hello Extensions of the world!" no manifesto.
+
+
+{
+  "manifest_version": 3,
+  "name": "Hello Extensions of the world!",
+  ...
+}
+Depois de salvar o arquivo, para ver essa mudança no navegador, você também precisa atualizar a extensão. Acesse a página "Extensões" e clique no ícone de atualização ao lado do botão ativado/desativado:
+
+Recarregar uma extensão
+
+Quando recriar a extensão
+A tabela a seguir mostra quais componentes precisam ser recarregados para mostrar as mudanças:
+
+Componente da extensão	É necessário atualizar a extensão
+O manifesto	Sim
+Service worker	Sim
+Scripts de conteúdo	Sim (e a página de hospedagem)
+O pop-up	Não
+Página de opções	Não
+Outras páginas HTML da extensão	Não
+Encontrar registros e erros do console
+Registros do console
+Durante o desenvolvimento, é possível depurar o código acessando os registros do console do navegador. Nesse caso, vamos localizar os registros do pop-up. Comece adicionando uma tag de script a hello.html.
+
+
+<html>
+  <body>
+    <h1>Hello Extensions</h1>
+    <script src="popup.js"></script>
+  </body>
+</html>
+Crie um arquivo popup.js e adicione o seguinte código:
+
+
+console.log("This is a popup!")
+Para conferir essa mensagem registrada no console:
+
+Abra o pop-up.
+Clique com o botão direito do mouse no pop-up.
+Selecione Inspecionar.
+Inspeção do pop-up.
+Inspeção de um pop-up.
+Nas DevTools, navegue até o painel Console.
+Painel de código das DevTools
+Como inspecionar um pop-up
+Registros de erro
+Agora vamos interromper a extensão. Para fazer isso, remova a citação final em popup.js:
+
+
+console.log("This is a popup!) // ❌ broken code
+Acesse a página "Extensões" e abra o pop-up. O botão Errors vai aparecer.
+
+Página de extensões com o botão de erro
+
+Clique no botão Errors para saber mais sobre o erro:
+
+Detalhes do erro da extensão
+
+Para saber mais sobre como depurar o service worker, a página de opções e os scripts de conteúdo, consulte Como depurar extensões.
+
+Estruturar um projeto de extensão
+Há muitas maneiras de estruturar um projeto de extensão. No entanto, o único pré-requisito é colocar o arquivo manifest.json no diretório raiz da extensão, como no exemplo abaixo:
+
+O conteúdo de uma pasta de extensão: manifest.json, background.js, pasta de scripts, pasta de pop-ups e pasta de imagens.
+
+Usar o TypeScript
+Se você estiver desenvolvendo usando um editor de código, use o pacote npm chrome-types para aproveitar o preenchimento automático da API Chrome. Esse pacote do npm é atualizado automaticamente quando o código-fonte do Chromium é alterado.
+
+Ponto-chave:atualize esse pacote npm com frequência para que ele funcione com a versão mais recente do Chromium.
+🚀 Tudo pronto para começar a criar?
+Escolha um dos tutoriais a seguir para começar sua jornada de aprendizado.
+
+Extensão	O que você vai aprender
+Executar scripts em todas as páginas	Para inserir um elemento em cada página automaticamente.
+Injetar scripts na guia ativa	Para executar o código na página atual depois de clicar na ação da extensão.
+Gerenciar guias	Para criar um pop-up que gerencie as guias do navegador.
+Processar eventos com service workers	Como um worker de serviço de extensão processa eventos.
+
+Página inicial
+Docs
+Chrome Extensions
+Get started
+Isso foi útil?
+
+Executar scripts em todas as páginas
+
+bookmark_border
+Crie sua primeira extensão que insere um novo elemento na página.
+
+Visão geral
+Este tutorial cria uma extensão que adiciona o tempo de leitura esperado a qualquer extensão do Chrome e à página de documentação da Chrome Web Store.
+
+Extensão de tempo de leitura na página de boas-vindas da extensão
+Extensão do tempo de leitura na página de boas-vindas da extensão.
+Neste guia, vamos explicar os seguintes conceitos:
+
+O manifesto da extensão.
+Quais tamanhos de ícone uma extensão usa.
+Como injetar código em páginas usando scripts de conteúdo.
+Como usar padrões de correspondência.
+Permissões de extensão.
+Antes de começar
+Neste guia, presumimos que você tenha experiência básica em desenvolvimento da Web. Recomendamos conferir o tutorial Hello World para uma introdução ao fluxo de trabalho de desenvolvimento de extensões.
+
+Criar a extensão
+Para começar, crie um novo diretório chamado reading-time para armazenar os arquivos da extensão. Se preferir, faça o download do código-fonte completo no GitHub.
+
+Etapa 1: adicionar informações sobre a extensão
+O arquivo JSON do manifesto é o único obrigatório. Ela contém informações importantes sobre a extensão. Crie um arquivo manifest.json na raiz do projeto e adicione o seguinte código:
+
+
+{
+  "manifest_version": 3,
+  "name": "Reading time",
+  "version": "1.0",
+  "description": "Add the reading time to Chrome Extension documentation articles"
+}
+Essas chaves contêm metadados básicos da extensão. Eles controlam como a extensão aparece na página de extensões e, quando publicada, na Chrome Web Store. Para saber mais, confira as chaves "name", "version" e "description" na página de visão geral do manifesto.
+
+💡 Outros fatos sobre o manifesto de extensão
+
+Ele precisa estar localizado na raiz do projeto.
+As únicas chaves obrigatórias são "manifest_version", "name" e "version".
+Ele oferece suporte a comentários (//) durante o desenvolvimento, mas eles precisam ser removidos antes de fazer upload do código para a Chrome Web Store.
+Etapa 2: fornecer os ícones
+Por que você precisa de ícones? Embora os ícones sejam opcionais durante o desenvolvimento, eles são necessários se você planeja distribuir a extensão na Chrome Web Store. Elas também aparecem em outros lugares, como a página "Gerenciamento de extensões".
+
+Crie uma pasta images e coloque os ícones nela. Faça o download dos ícones no GitHub. Em seguida, adicione o código destacado ao manifesto para declarar ícones:
+
+
+{
+  "icons": {
+    "16": "images/icon-16.png",
+    "32": "images/icon-32.png",
+    "48": "images/icon-48.png",
+    "128": "images/icon-128.png"
+  }
+}
+Recomendamos o uso de arquivos PNG, mas outros formatos são permitidos, exceto SVG.
+
+💡 Onde esses ícones de tamanhos diferentes são exibidos?
+
+Tamanho do ícone	Uso do ícone
+16x16	Ícone nas páginas da extensão e no menu de contexto.
+32x32	Os computadores Windows geralmente exigem esse tamanho.
+48x48	É exibido na página "Extensões".
+128x128	É exibido na instalação e na Chrome Web Store.
+Etapa 3: declarar o script de conteúdo
+As extensões podem executar scripts que leem e modificam o conteúdo de uma página. Eles são chamados de scripts de conteúdo. Eles vivem em um mundo isolado, o que significa que podem fazer mudanças no ambiente do JavaScript sem entrar em conflito com a página de destino ou outros scripts de conteúdo de extensões.
+
+Adicione o código abaixo ao manifest.json para registrar um script de conteúdo chamado content.js.
+
+
+{
+  "content_scripts": [
+    {
+      "js": ["scripts/content.js"],
+      "matches": [
+        "https://developer.chrome.com/docs/extensions/*",
+        "https://developer.chrome.com/docs/webstore/*"
+      ]
+    }
+  ]
+}
+O campo "matches" pode ter um ou mais padrões de correspondência. Eles permitem que o navegador identifique em quais sites injetar os scripts de conteúdo. Os padrões de correspondência consistem em três partes: <scheme>://<host><path>. Eles podem conter caracteres *.
+
+💡 Essa extensão mostra um aviso de permissão?
+
+Quando um usuário instala uma extensão, o navegador informa o que ela pode fazer. Os scripts de conteúdo solicitam permissão para serem executados em sites que atendem aos critérios do padrão de correspondência.
+
+Neste exemplo, o usuário vai receber o seguinte aviso de permissão:
+
+Aviso de permissão que o usuário vai receber ao instalar a extensão do Reading Time
+Aviso de permissão de tempo de leitura.
+Para saber mais sobre as permissões de extensões, consulte Declarar permissões e avisar os usuários.
+
+Etapa 4: calcular e inserir o tempo de leitura
+Os scripts de conteúdo podem usar o modelo de objeto de documento (DOM) padrão para ler e mudar o conteúdo de uma página. A extensão primeiro verifica se a página contém o elemento <article>. Em seguida, ele vai contar todas as palavras dentro desse elemento e criar um parágrafo que mostra o tempo total de leitura.
+
+Crie um arquivo chamado content.js dentro de uma pasta chamada scripts e adicione o seguinte código:
+
+
+function renderReadingTime(article) {
+  // If we weren't provided an article, we don't need to render anything.
+  if (!article) {
+    return;
+  }
+
+  const text = article.textContent;
+  const wordMatchRegExp = /[^\s]+/g; // Regular expression
+  const words = text.matchAll(wordMatchRegExp);
+  // matchAll returns an iterator, convert to array to get word count
+  const wordCount = [...words].length;
+  const readingTime = Math.round(wordCount / 200);
+  const badge = document.createElement("p");
+  // Use the same styling as the publish information in an article's header
+  badge.classList.add("color-secondary-text", "type--caption");
+  badge.textContent = `⏱️ ${readingTime} min read`;
+
+  // Support for API reference docs
+  const heading = article.querySelector("h1");
+  // Support for article docs with date
+  const date = article.querySelector("time")?.parentNode;
+
+  (date ?? heading).insertAdjacentElement("afterend", badge);
+}
+
+renderReadingTime(document.querySelector("article"));
+💡 JavaScript interessante usado neste código
+
+Expressões regulares usadas para contar apenas as palavras dentro do elemento <article>.
+insertAdjacentElement() usado para inserir o nó de tempo de leitura após o elemento.
+A propriedade classList usada para adicionar nomes de classes CSS ao atributo de classe do elemento.
+Vinculação opcional usada para acessar uma propriedade de objeto que pode ser indefinida ou nula.
+A coalescência de nulos retorna <heading> se <date> for nulo ou indefinido.
+Etapa 5: detectar mudanças
+Com o código atual, se você alternar entre artigos usando a navegação à esquerda, o tempo de leitura não será adicionado ao novo artigo. Isso ocorre porque nosso site é implementado como um aplicativo de página única (SPA) que realiza navegações suaves usando a API History.
+
+Para corrigir isso, podemos usar um MutationObserver para detectar mudanças e adicionar o tempo de leitura a novos artigos.
+
+Para fazer isso, adicione o seguinte à parte de baixo de content.js:
+
+Aviso: o uso de MutationObserver pode ter um custo de desempenho. Por isso, use-os com moderação e observe apenas as mudanças mais relevantes.
+
+const observer = new MutationObserver((mutations) => {
+  for (const mutation of mutations) {
+    // If a new article was added.
+    for (const node of mutation.addedNodes) {
+      if (node instanceof Element && node.tagName === 'ARTICLE') {
+        // Render the reading time for this particular article.
+        renderReadingTime(node);
+      }
+    }
+  }
+});
+
+// https://developer.chrome.com/ is a SPA (Single Page Application) so can
+// update the address bar and render new content without reloading. Our content
+// script won't be reinjected when this happens, so we need to watch for
+// changes to the content.
+observer.observe(document.querySelector('devsite-content'), {
+  childList: true
+});
+Testar se funciona
+Verifique se a estrutura de arquivos do projeto tem a seguinte aparência:
+
+O conteúdo da pasta &quot;Tempo de leitura&quot;: manifest.json, content.js na pasta de scripts e imagens.
+
+Carregar a extensão localmente
+Para carregar uma extensão descompactada no modo de desenvolvedor, siga as etapas em Noções básicas de desenvolvimento.
+
+Abrir a documentação de uma extensão ou da Chrome Web Store
+Confira algumas páginas que você pode abrir para saber quanto tempo cada artigo vai levar para ser lido.
+
+Publicar na Chrome Web Store
+Como entender os scripts de conteúdo
+Ele será parecido com o seguinte:
+
+Tempo de leitura na página de boas-vindas
+Página de boas-vindas da extensão com a extensão Reading Time
+🎯 Possíveis melhorias
+Com base no que você aprendeu hoje, tente implementar uma das seguintes opções:
+
+Adicione outro padrão de correspondência no arquivo manifest.json para oferecer suporte a outras páginas do desenvolvedor do Chrome, como, por exemplo, o Chrome DevTools ou o Workbox.
+Adicione um novo script de conteúdo que calcula o tempo de leitura em qualquer um dos seus blogs ou sites de documentação favoritos.
+Dica: você pode usar as DevTools para inspecionar elementos DOM.
+Continuar criando
+Parabéns por concluir este tutorial 🎉. Continue desenvolvendo suas habilidades concluindo outros tutoriais desta série:
+
+Extensão	O que você vai aprender
+Modo sem distrações	Para executar o código na página atual depois de clicar na ação de extensão.
+Gerenciador de guias	Para criar um pop-up que gerencie as guias do navegador.
+Continue descobrindo
+Esperamos que você tenha gostado de criar essa extensão do Chrome e que continue sua jornada de aprendizado de desenvolvimento do Chrome. Recomendamos o seguinte caminho de aprendizagem:
+
+O guia para desenvolvedores tem dezenas de links adicionais para partes da documentação relevantes à criação de extensões avançadas.
+As extensões têm acesso a APIs poderosas além do que está disponível na Web aberta. A documentação das APIs do Chrome explica cada uma delas.
+
+Página inicial
+Docs
+Chrome Extensions
+Get started
+Isso foi útil?
+
+Injete scripts na guia ativa
+
+bookmark_border
+Simplifique o estilo da página atual clicando no ícone da barra de ferramentas da extensão.
+
+Visão geral
+Este tutorial cria uma extensão que simplifica o estilo da extensão do Chrome e das páginas de documentação da Chrome Web Store para que elas sejam mais fáceis de ler.
+
+Neste guia, vamos explicar como fazer o seguinte:
+
+Use o worker de serviço de extensão como o coordenador de eventos.
+Preserve a privacidade do usuário com a permissão "activeTab".
+Executa o código quando o usuário clica no ícone da barra de ferramentas da extensão.
+Insira e remova uma folha de estilo usando a API Scripting.
+Use um atalho de teclado para executar o código.
+Antes de começar
+Neste guia, presumimos que você tenha experiência básica em desenvolvimento da Web. Recomendamos conferir Hello World para uma introdução ao fluxo de trabalho de desenvolvimento de extensões.
+
+Criar a extensão
+Para começar, crie um novo diretório chamado focus-mode que vai conter os arquivos da extensão. Se preferir, faça o download do código-fonte completo no GitHub.
+
+Etapa 1: adicionar os dados e ícones da extensão
+Crie um arquivo chamado manifest.json e inclua o código abaixo.
+
+
+{
+  "manifest_version": 3,
+  "name": "Focus Mode",
+  "description": "Enable focus mode on Chrome's official Extensions and Chrome Web Store documentation.",
+  "version": "1.0",
+  "icons": {
+    "16": "images/icon-16.png",
+    "32": "images/icon-32.png",
+    "48": "images/icon-48.png",
+    "128": "images/icon-128.png"
+  }
+}
+Para saber mais sobre essas chaves, consulte o tutorial "Executar scripts em todas as guias", que explica os metadata e os ícones da extensão em mais detalhes.
+
+Crie uma pasta images e faça o download dos ícones nela.
+
+Etapa 2: inicializar a extensão
+As extensões podem monitorar eventos do navegador em segundo plano usando o worker de serviço da extensão. Os workers de serviço são ambientes JavaScript especiais que processam eventos e são encerrados quando não são mais necessários.
+
+Comece registrando o service worker no arquivo manifest.json:
+
+
+{
+  ...
+  "background": {
+    "service_worker": "background.js"
+  },
+  ...
+}
+Crie um arquivo chamado background.js e adicione o seguinte código:
+
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.action.setBadgeText({
+    text: "OFF",
+  });
+});
+O primeiro evento que o worker de serviço vai detectar é runtime.onInstalled(). Esse método permite que a extensão defina um estado inicial ou conclua algumas tarefas na instalação. As extensões podem usar a API Storage e o IndexedDB para armazenar o estado do aplicativo. No entanto, neste caso, como estamos lidando apenas com dois estados, vamos usar o texto do selo da ação para rastrear se a extensão está "ATIVADA" ou "DESATIVADA".
+
+Termo-chave:o selo da ação é um banner colorido na parte de cima da ação de extensão (ícone da barra de ferramentas).
+Etapa 3: ativar a ação de extensão
+A ação da extensão controla o ícone da barra de ferramentas da extensão. Assim, sempre que o usuário clicar no ícone da extensão, ele vai executar algum código (como neste exemplo) ou mostrar um pop-up. Adicione o código abaixo para declarar a ação de extensão no arquivo manifest.json:
+
+
+{
+  ...
+  "action": {
+    "default_icon": {
+      "16": "images/icon-16.png",
+      "32": "images/icon-32.png",
+      "48": "images/icon-48.png",
+      "128": "images/icon-128.png"
+    }
+  },
+  ...
+}
+Usar a permissão activeTab para proteger a privacidade do usuário
+A permissão activeTab concede à extensão a capacidade temporária de executar código na guia ativa. Ele também permite o acesso a propriedades sensíveis da guia atual.
+
+Essa permissão é ativada quando o usuário invocar a extensão. Nesse caso, o usuário invoca a extensão clicando na ação de extensão.
+
+💡 Quais outras interações do usuário ativam a permissão activeTab na minha extensão?
+
+Pressionando uma combinação de atalho do teclado.
+Como selecionar um item do menu de contexto.
+Aceitar uma sugestão da omnibox.
+A abertura de um pop-up de extensão.
+A permissão "activeTab" permite que os usuários escolham executar a extensão na guia focada. Dessa forma, a privacidade do usuário é protegida. Outro benefício é que ele não aciona um aviso de permissão.
+
+Para usar a permissão "activeTab", adicione-a à matriz de permissões do manifesto:
+
+
+{
+  ...
+  "permissions": ["activeTab"],
+  ...
+}
+Etapa 4: acompanhar o estado da guia atual
+Depois que o usuário clicar na ação da extensão, ela vai verificar se o URL corresponde a uma página de documentação. Em seguida, ele vai verificar o estado da guia atual e definir o próximo estado. Adicione o seguinte código a background.js:
+
+
+const extensions = 'https://developer.chrome.com/docs/extensions';
+const webstore = 'https://developer.chrome.com/docs/webstore';
+
+chrome.action.onClicked.addListener(async (tab) => {
+  if (tab.url.startsWith(extensions) || tab.url.startsWith(webstore)) {
+    // Retrieve the action badge to check if the extension is 'ON' or 'OFF'
+    const prevState = await chrome.action.getBadgeText({ tabId: tab.id });
+    // Next state will always be the opposite
+    const nextState = prevState === 'ON' ? 'OFF' : 'ON';
+
+    // Set the action badge to the next state
+    await chrome.action.setBadgeText({
+      tabId: tab.id,
+      text: nextState,
+    });
+  }
+});
+Etapa 5: adicionar ou remover a folha de estilo
+Agora é hora de mudar o layout da página. Crie um arquivo chamado focus-mode.css e inclua o seguinte código:
+
+
+* {
+  display: none !important;
+}
+
+html,
+body,
+*:has(article),
+article,
+article * {
+  display: revert !important;
+}
+
+[role='navigation'] {
+  display: none !important;
+}
+
+article {
+  margin: auto;
+  max-width: 700px;
+}
+Insira ou remova a folha de estilo usando a API Scripting. Comece declarando a permissão "scripting" no manifesto:
+
+
+{
+  ...
+  "permissions": ["activeTab", "scripting"],
+  ...
+}
+Sucesso:a API Scripting não aciona um aviso de permissão.
+Por fim, em background.js, adicione o seguinte código para mudar o layout da página:
+
+
+  ...
+    if (nextState === "ON") {
+      // Insert the CSS file when the user turns the extension on
+      await chrome.scripting.insertCSS({
+        files: ["focus-mode.css"],
+        target: { tabId: tab.id },
+      });
+    } else if (nextState === "OFF") {
+      // Remove the CSS file when the user turns the extension off
+      await chrome.scripting.removeCSS({
+        files: ["focus-mode.css"],
+        target: { tabId: tab.id },
+      });
+    }
+  }
+});
+💡 Posso usar a API Scripting para injetar código em vez de uma folha de estilo?
+
+Sim. É possível usar scripting.executeScript() para injetar JavaScript.
+
+Opcional: atribuir um atalho de teclado
+Só por diversão, adicione um atalho para facilitar a ativação ou desativação do modo de foco. Adicione a chave "commands" ao manifesto.
+
+
+{
+  ...
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+B",
+        "mac": "Command+B"
+      }
+    }
+  }
+}
+A chave "_execute_action" executa o mesmo código do evento action.onClicked(). Portanto, nenhum código adicional é necessário.
+
+Testar se funciona
+Verifique se a estrutura de arquivos do projeto tem a seguinte aparência:
+
+O conteúdo da pasta do modo de foco: manifest.json, background.js, focus-mode.css e a pasta de imagens.
+
+Carregar a extensão localmente
+Para carregar uma extensão descompactada no modo de desenvolvedor, siga as etapas em Hello World.
+
+Testar a extensão em uma página de documentação
+Primeiro, abra uma das seguintes páginas:
+
+Este é o guia de documentação das extensões do Chrome
+Publicar na Chrome Web Store
+API Scripting
+Em seguida, clique na ação de extensão. Se você configurar um atalho de teclado, poderá testá-lo pressionando Ctrl + B ou Cmd + B.
+
+A mudança deve ser esta:
+
+Extensão do modo sem distrações DESATIVADA
+Extensão do Modo sem distrações desativada
+Para:
+
+Extensão do Modo sem distrações ATIVADA
+Extensão do modo sem distrações ativada
+🎯 Possíveis melhorias
+Com base no que você aprendeu hoje, tente fazer o seguinte:
+
+Melhore a folha de estilo CSS.
+Atribuir um atalho diferente do teclado.
+Mudar o layout do seu blog ou site de documentação favorito.
+Continue desenvolvendo.
+Parabéns por concluir este tutorial 🎉. Continue melhorando suas habilidades concluindo outros tutoriais desta série:
+
+Extensão	O que você vai aprender
+Tempo de leitura	Para inserir um elemento em um conjunto específico de páginas automaticamente.
+Gerenciador de guias	Para criar um pop-up que gerencie as guias do navegador.
+Continue descobrindo
+Esperamos que você tenha gostado de criar essa extensão do Chrome e que continue sua jornada de aprendizado de desenvolvimento de extensões. Recomendamos os seguintes caminhos de aprendizagem:
+
+O guia para desenvolvedores tem dezenas de links adicionais para partes da documentação relevantes à criação de extensões avançadas.
+As extensões têm acesso a APIs poderosas além do que está disponível na Web aberta. A documentação das APIs do Chrome explica cada uma delas.
+Isso foi útil?
+
+Exceto em caso de indicação contrária, o conteúdo desta página é licenciado de acordo com a Licença de atribuição 4.0 do Creative Commons, e as amostras de código são licenciadas de acordo com a Licença Apache 2.0. Para mais detalhes, consulte as políticas do site do Google Developers. Java é uma marca registrada da Oracle e/ou afiliadas.
+
+Última atualização 2022-10-04 UTC.
+
+Processar eventos com service workers
+
+bookmark_border
+Tutorial que aborda conceitos de service worker de extensão
+
+Visão geral
+Este tutorial apresenta os service workers de extensões do Chrome. Como parte deste tutorial, você vai criar uma extensão que permite aos usuários navegar rapidamente até as páginas de referência da API Chrome usando a omnibox. Você aprenderá o seguinte:
+
+Registre o service worker e importe módulos.
+Depure o service worker da extensão.
+Gerenciar estado e processar eventos.
+Acionar eventos periódicos.
+Comunicar com scripts de conteúdo.
+Antes de começar
+Neste guia, presumimos que você tenha experiência básica em desenvolvimento da Web. Recomendamos que você leia Noções básicas sobre extensões e Hello World para uma introdução ao desenvolvimento de extensões.
+
+Criar a extensão
+Comece criando um novo diretório chamado quick-api-reference para armazenar os arquivos de extensão ou faça o download do código-fonte no repositório de exemplos do GitHub.
+
+Etapa 1: registrar o service worker
+Crie o arquivo manifest na raiz do projeto e adicione o seguinte código:
+
+manifest.json:
+
+
+{
+  "manifest_version": 3,
+  "name": "Open extension API reference",
+  "version": "1.0.0",
+  "icons": {
+    "16": "images/icon-16.png",
+    "128": "images/icon-128.png"
+  },
+  "background": {
+    "service_worker": "service-worker.js"
+  }
+}
+As extensões registram o service worker no manifesto, que usa apenas um arquivo JavaScript. Não é necessário chamar navigator.serviceWorker.register(), como faria em uma página da Web.
+
+Crie uma pasta images e faça o download dos ícones nela.
+
+Confira as primeiras etapas do tutorial "Tempo de leitura" para saber mais sobre os metadados e ícones da extensão no manifesto.
+
+Etapa 2: importar vários módulos de service worker
+Nosso service worker implementa dois recursos. Para facilitar a manutenção, vamos implementar cada recurso em um módulo separado. Primeiro, precisamos declarar o service worker como um módulo ES no manifesto, o que permite importar módulos no service worker:
+
+manifest.json:
+
+
+{
+ "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+}
+Crie o arquivo service-worker.js e importe dois módulos:
+
+
+import './sw-omnibox.js';
+import './sw-tips.js';
+Crie esses arquivos e adicione um registro do console a cada um deles.
+
+sw-omnibox.js:
+
+
+console.log("sw-omnibox.js");
+sw-tips.js:
+
+
+console.log("sw-tips.js");
+Consulte Como importar scripts para saber mais sobre outras maneiras de importar vários arquivos em um service worker.
+
+Dica:não se esqueça de definir "type.module" ao usar uma estrutura de agrupamento de módulos moderna, como o plug-in CRXjs Vite.
+Opcional: depurar o service worker
+Vou explicar como encontrar os registros do service worker e saber quando ele foi encerrado. Primeiro, siga as instruções para carregar uma extensão descompactada.
+
+Após 30 segundos, você vai ver "service worker (inactive)", o que significa que o service worker foi encerrado. Clique no link "service worker (inactive)" para inspecionar. A animação a seguir mostra isso.
+
+Você percebeu que inspecionar o service worker o ativou? Abrir o service worker nas devtools o mantém ativo. Para garantir que a extensão se comporte corretamente quando o service worker for encerrado, feche o DevTools.
+
+Agora, divida a extensão para saber onde localizar erros. Uma maneira de fazer isso é excluir ".js" da importação './sw-omnibox.js' no arquivo service-worker.js. O Chrome não poderá registrar o service worker.
+
+Volte para chrome://extensions e atualize a extensão. Você vai encontrar dois erros:
+
+
+Service worker registration failed. Status code: 3.
+
+An unknown error occurred when fetching the script.
+Consulte Depuração de extensões para mais maneiras de depurar o service worker de extensão.
+
+Cuidado:não se esqueça de corrigir o nome do arquivo antes de continuar.
+Etapa 4: inicializar o estado
+O Chrome encerra os service workers se eles não forem necessários. Usamos a API chrome.storage para manter o estado nas sessões do service worker. Para acesso ao armazenamento, precisamos solicitar permissão no manifesto:
+
+manifest.json:
+
+
+{
+  ...
+  "permissions": ["storage"],
+}
+Primeiro, salve as sugestões padrão no armazenamento. Podemos inicializar o estado quando a extensão é instalada pela primeira vez detectando o evento runtime.onInstalled():
+
+sw-omnibox.js:
+
+
+...
+// Save default API suggestions
+chrome.runtime.onInstalled.addListener(({ reason }) => {
+  if (reason === 'install') {
+    chrome.storage.local.set({
+      apiSuggestions: ['tabs', 'storage', 'scripting']
+    });
+  }
+});
+Os service workers não têm acesso direto ao objeto window e, portanto, não podem usar window.localStorage para armazenar valores. Além disso, os service workers são ambientes de execução de curta duração. Eles são encerrados repetidamente durante a sessão do navegador de um usuário, o que os torna incompatíveis com variáveis globais. Em vez disso, use chrome.storage.local, que armazena dados na máquina local.
+
+Consulte Persistir dados em vez de usar variáveis globais para saber mais sobre outras opções de armazenamento para service workers de extensão.
+
+Etapa 5: registrar seus eventos
+Todos os listeners de eventos precisam ser registrados de forma estática no escopo global do service worker. Em outras palavras, os listeners de eventos não podem ser aninhados em funções assíncronas. Assim, o Chrome pode garantir que todos os manipuladores de eventos sejam restaurados em caso de reinicialização de um service worker.
+
+Neste exemplo, vamos usar a API chrome.omnibox, mas primeiro precisamos declarar o gatilho de palavra-chave da omnibox no manifesto:
+
+manifest.json:
+
+
+{
+  ...
+  "minimum_chrome_version": "102",
+  "omnibox": {
+    "keyword": "api"
+  },
+}
+Ponto-chave:a referência "minimum_chrome_version" explica como essa chave se comporta quando um usuário tenta instalar sua extensão, mas não está usando uma versão compatível do Chrome.
+Agora, registre os listeners de eventos da omnibox no nível superior do script. Quando o usuário digita a palavra-chave da omnibox (api) na barra de endereço seguida de tabulação ou espaço, o Chrome mostra uma lista de sugestões com base nas palavras-chave armazenadas. O evento onInputChanged(), que usa a entrada do usuário atual e um objeto suggestResult, é responsável por preencher essas sugestões.
+
+sw-omnibox.js:
+
+
+...
+const URL_CHROME_EXTENSIONS_DOC =
+  'https://developer.chrome.com/docs/extensions/reference/';
+const NUMBER_OF_PREVIOUS_SEARCHES = 4;
+
+// Display the suggestions after user starts typing
+chrome.omnibox.onInputChanged.addListener(async (input, suggest) => {
+  await chrome.omnibox.setDefaultSuggestion({
+    description: 'Enter a Chrome API or choose from past searches'
+  });
+  const { apiSuggestions } = await chrome.storage.local.get('apiSuggestions');
+  const suggestions = apiSuggestions.map((api) => {
+    return { content: api, description: `Open chrome.${api} API` };
+  });
+  suggest(suggestions);
+});
+Depois que o usuário selecionar uma sugestão, o onInputEntered() vai abrir a página de referência da API do Chrome correspondente.
+
+sw-omnibox.js:
+
+
+...
+// Open the reference page of the chosen API
+chrome.omnibox.onInputEntered.addListener((input) => {
+  chrome.tabs.create({ url: URL_CHROME_EXTENSIONS_DOC + input });
+  // Save the latest keyword
+  updateHistory(input);
+});
+A função updateHistory() recebe a entrada da omnibox e a salva em storage.local. Assim, o termo de pesquisa mais recente pode ser usado depois como uma sugestão da omnibox.
+
+sw-omnibox.js:
+
+
+...
+async function updateHistory(input) {
+  const { apiSuggestions } = await chrome.storage.local.get('apiSuggestions');
+  apiSuggestions.unshift(input);
+  apiSuggestions.splice(NUMBER_OF_PREVIOUS_SEARCHES);
+  return chrome.storage.local.set({ apiSuggestions });
+}
+Ponto principal:os workers de serviço de extensão podem usar APIs da Web e do Chrome, com algumas exceções. Para mais informações, consulte Eventos do Service Worker.
+Etapa 6: configurar um evento recorrente
+Os métodos setTimeout() ou setInterval() são usados com frequência para realizar tarefas atrasadas ou periódicas. No entanto, essas APIs podem falhar porque o programador cancela os timers quando o service worker é encerrado. Em vez disso, as extensões podem usar a API chrome.alarms.
+
+Comece solicitando a permissão "alarms" no manifesto:
+
+manifest.json:
+
+
+{
+  ...
+  "permissions": ["storage"],
+  "permissions": ["storage", "alarms"],
+}
+A extensão vai buscar todas as dicas, escolher uma aleatoriamente e salvar no armazenamento. Vamos criar um alarme que será acionado uma vez por dia para atualizar a dica. Os alarmes não são salvos quando você fecha o Chrome. Portanto, precisamos verificar se o alarme existe e criá-lo se não existir.
+
+Observação: o chrome.dev tem cabeçalhos CORS que permitem que sua extensão acesse a resposta. Se você precisar buscar conteúdo de uma API sem cabeçalhos CORS, solicite permissões de host para o host relevante.
+sw-tips.js:
+
+
+// Fetch tip & save in storage
+const updateTip = async () => {
+  const response = await fetch('https://chrome.dev/f/extension_tips/');
+  const tips = await response.json();
+  const randomIndex = Math.floor(Math.random() * tips.length);
+  return chrome.storage.local.set({ tip: tips[randomIndex] });
+};
+
+const ALARM_NAME = 'tip';
+
+// Check if alarm exists to avoid resetting the timer.
+// The alarm might be removed when the browser session restarts.
+async function createAlarm() {
+  const alarm = await chrome.alarms.get(ALARM_NAME);
+  if (typeof alarm === 'undefined') {
+    chrome.alarms.create(ALARM_NAME, {
+      delayInMinutes: 1,
+      periodInMinutes: 1440
+    });
+    updateTip();
+  }
+}
+
+createAlarm();
+
+// Update tip once a day
+chrome.alarms.onAlarm.addListener(updateTip);
+Importante:todos os listeners de eventos e métodos da API Chrome reiniciam o timer de encerramento de 30 segundos do service worker. Para mais informações, consulte o ciclo de vida do service worker de extensão.
+Etapa 7: comunicar-se com outros contextos
+As extensões usam scripts de conteúdo para ler e modificar o conteúdo da página. Quando um usuário visita uma página de referência da API Chrome, o script de conteúdo da extensão atualiza a página com a dica do dia. Ele envia uma mensagem para solicitar a dica do dia do service worker.
+
+Comece declarando o script de conteúdo no manifesto e adicione o padrão de correspondência correspondente à documentação de referência da API Chrome.
+
+manifest.json:
+
+
+{
+  ...
+  "content_scripts": [
+    {
+      "matches": ["https://developer.chrome.com/docs/extensions/reference/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
+
+Crie um arquivo de conteúdo. O código a seguir envia uma mensagem ao service worker solicitando a dica. Em seguida, adiciona um botão que abre um popover com a dica da extensão. Esse código usa a nova API Popover da plataforma da Web.
+
+content.js:
+
+
+(async () => {
+  // Sends a message to the service worker and receives a tip in response
+  const { tip } = await chrome.runtime.sendMessage({ greeting: 'tip' });
+
+  const nav = document.querySelector('.upper-tabs > nav');
+  
+  const tipWidget = createDomElement(`
+    <button type="button" popovertarget="tip-popover" popovertargetaction="show" style="padding: 0 12px; height: 36px;">
+      <span style="display: block; font: var(--devsite-link-font,500 14px/20px var(--devsite-primary-font-family));">Tip</span>
+    </button>
+  `);
+
+  const popover = createDomElement(
+    `<div id='tip-popover' popover style="margin: auto;">${tip}</div>`
+  );
+
+  document.body.append(popover);
+  nav.append(tipWidget);
+})();
+
+function createDomElement(html) {
+  const dom = new DOMParser().parseFromString(html, 'text/html');
+  return dom.body.firstElementChild;
+}
+A etapa final é adicionar um gerenciador de mensagens ao service worker que envia uma resposta ao script de conteúdo com a dica diária.
+
+sw-tips.js:
+
+
+...
+// Send tip to content script via messaging
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.greeting === 'tip') {
+    chrome.storage.local.get('tip').then(sendResponse);
+    return true;
+  }
+});
+Testar se ele funciona
+Verifique se a estrutura de arquivos do seu projeto é semelhante a esta:
+
+O conteúdo da pasta de extensão: pasta &quot;images&quot;, manifest.json, service-worker.js, sw-omnibox.js, sw-tips.js e content.js
+
+Carregar a extensão localmente
+Para carregar uma extensão descompactada no modo de desenvolvedor, siga as etapas em Hello world.
+
+Abrir uma página de referência
+Digite a palavra-chave "api" na barra de endereço do navegador.
+Pressione "tab" ou "espaço".
+Insira o nome completo da API.
+OU escolha uma opção na lista de pesquisas anteriores
+Uma nova página será aberta com a página de referência da API Chrome.
+Ele será parecido com o seguinte:
+
+Referência rápida da API que abre a referência da API de tempo de execução
+Extensão rápida da API que abre a API Runtime.
+Abrir a dica do dia
+Clique no botão "Dica" na barra de navegação para abrir a dica da extensão.
+
+Abrir dica diária em 
+Extensão rápida da API que abre a dica do dia.
+Observação:a API Popover foi lançada no Chrome 114.
+🎯 Melhorias possíveis
+Com base no que você aprendeu hoje, tente fazer o seguinte:
+
+Use outra maneira de implementar as sugestões da omnibox.
+Crie seu próprio modal personalizado para mostrar a dica da extensão.
+Abra outra página para as páginas de referência da API Web Extensions da MDN.
+Continue criando!
+Parabéns por concluir este tutorial 🎉. Continue aprimorando suas habilidades com outros tutoriais para iniciantes:
+
+Extensão	O que você vai aprender
+Tempo de leitura	Para inserir um elemento em um conjunto específico de páginas automaticamente.
+Gerenciador de guias	Para criar um pop-up que gerencia guias do navegador.
+Modo sem distrações	Para executar o código na página atual depois de clicar na ação da extensão.
+Continue descobrindo
+Para continuar o programa de aprendizado sobre service workers de extensão, recomendamos que você leia os seguintes artigos:
+
+Sobre os service workers de extensão.
+O ciclo de vida do service worker da extensão.
+Eventos em service workers
+Isso foi útil?
+
+Exceto em caso de indicação contrária, o conteúdo desta página é licenciado de acordo com a Licença de atribuição 4.0 do Creative Commons, e as amostras de código são licenciadas de acordo com a Licença Apache 2.0. Para mais detalhes, consulte as políticas do site do Google Developers. Java é uma marca registrada da Oracle e/ou afiliadas.
+
+Última atualização 2023-04-02 UTC.
+
+Página inicial
+Docs
+Chrome Extensions
+Get started
+Isso foi útil?
+
+Gerenciar guias
+
+bookmark_border
+Crie seu primeiro gerenciador de guias.
+
+Visão geral
+Este tutorial cria um gerenciador de guias para organizar as guias da documentação da extensão e da Chrome Web Store.
+
+Pop-up da extensão do Gerenciador de guias
+Extensão do Gerenciador de guias
+Neste guia, vamos explicar como fazer o seguinte:
+
+Crie um pop-up de extensão usando a API Action.
+Faça consultas para guias específicas usando a API Tabs.
+Preserve a privacidade do usuário com permissões restritas do host.
+Mude o foco da guia.
+Mova as guias para a mesma janela e agrupe-as.
+Renomeie grupos de guias usando a API TabGroups.
+Antes de começar
+Neste guia, presumimos que você tenha experiência básica em desenvolvimento da Web. Recomendamos conferir Hello World para uma introdução ao fluxo de trabalho de desenvolvimento de extensões.
+
+Criar a extensão
+Para começar, crie um novo diretório chamado tabs-manager para armazenar os arquivos da extensão. Se preferir, faça o download do código-fonte completo no GitHub.
+
+Etapa 1: adicionar os dados e ícones da extensão
+Crie um arquivo chamado manifest.json e adicione o seguinte código:
+
+
+{
+  "manifest_version": 3,
+  "name": "Tab Manager for Chrome Dev Docs",
+  "version": "1.0",
+  "icons": {
+    "16": "images/icon-16.png",
+    "32": "images/icon-32.png",
+    "48": "images/icon-48.png",
+    "128": "images/icon-128.png"
+  }
+}
+Para saber mais sobre essas chaves, confira o tutorial "Tempo de leitura", que explica os metadata e os ícones da extensão em mais detalhes.
+
+Crie uma pasta images e faça o download dos ícones nela.
+
+Etapa 2: criar e estilizar o pop-up
+A API Action controla a ação da extensão (ícone da barra de ferramentas). Quando o usuário clica na ação de extensão, ela executa um código ou abre um pop-up, como neste caso. Comece declarando o pop-up no manifest.json:
+
+
+{
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
+Um pop-up é semelhante a uma página da Web, com uma exceção: ele não pode executar JavaScript inline. Crie um arquivo popup.html e adicione o seguinte código:
+
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <template id="li_template">
+      <li>
+        <a>
+          <h3 class="title">Tab Title</h3>
+          <p class="pathname">Tab Pathname</p>
+        </a>
+      </li>
+    </template>
+
+    <h1>Google Dev Docs</h1>
+    <button>Group Tabs</button>
+    <ul></ul>
+
+    <script src="./popup.js" type="module"></script>
+  </body>
+</html>
+Dica: é possível usar espera de nível superior adicionando type="module" à tag de script.
+Em seguida, você vai estilizar o pop-up. Crie um arquivo popup.css e adicione o seguinte código:
+
+
+body {
+  width: 20rem;
+}
+
+ul {
+  list-style-type: none;
+  padding-inline-start: 0;
+  margin: 1rem 0;
+}
+
+li {
+  padding: 0.25rem;
+}
+li:nth-child(odd) {
+  background: #80808030;
+}
+li:nth-child(even) {
+  background: #ffffff;
+}
+
+h3,
+p {
+  margin: 0;
+}
+Etapa 3: gerenciar as guias
+A API Tabs permite que uma extensão crie, consulte, modifique e reorganize guias no navegador.
+
+Solicitar permissão
+Muitos métodos na API Tabs podem ser usados sem solicitar nenhuma permissão. No entanto, precisamos ter acesso ao title e ao URL das guias. Essas propriedades sensíveis exigem permissão. Poderíamos solicitar a permissão "tabs", mas isso daria acesso às propriedades sensíveis de todas as guias. Como estamos gerenciando apenas as guias de um site específico, vamos solicitar permissões de host restritas.
+
+As permissões do host restritas nos permitem proteger a privacidade do usuário concedendo permissões elevadas a sites específicos. Isso vai conceder acesso às propriedades title e URL, além de recursos adicionais. Adicione o código destacado ao arquivo manifest.json:
+
+
+{
+  "host_permissions": [
+    "https://developer.chrome.com/*"
+  ]
+}
+💡 Quais são as principais diferenças entre a permissão de guias e as permissões do host?
+
+As permissões "tabs" e do host têm desvantagens.
+
+A permissão "tabs" concede a uma extensão a capacidade de ler dados sensíveis em todas as guias. Com o tempo, essas informações podem ser usadas para coletar o histórico de navegação de um usuário. Portanto, se você solicitar essa permissão, o Chrome vai mostrar a seguinte mensagem de aviso no momento da instalação:
+
+Caixa de diálogo de aviso sobre permissões das guias
+
+As permissões do host permitem que uma extensão leia e consulte as propriedades sensíveis de uma guia correspondente, além de injetar scripts nessas guias. Os usuários vão receber a seguinte mensagem de aviso no momento da instalação:
+
+Caixa de diálogo de aviso de permissão do host
+
+Esse aviso pode ser alarmante para os usuários. Para uma melhor experiência de integração, recomendamos implementar permissões opcionais.
+
+Consultar as guias
+É possível recuperar as guias de URLs específicos usando o método tabs.query(). Crie um arquivo popup.js e adicione o seguinte código:
+
+
+const tabs = await chrome.tabs.query({
+  url: [
+    "https://developer.chrome.com/docs/webstore/*",
+    "https://developer.chrome.com/docs/extensions/*",
+  ]
+});
+💡 Posso usar APIs do Chrome diretamente no pop-up?
+
+Um pop-up e outras páginas de extensão podem chamar qualquer API do Chrome porque são veiculados no esquema do Chrome. Por exemplo, chrome-extension://EXTENSION_ID/popup.html.
+
+Focar em uma guia
+Primeiro, a extensão vai classificar os nomes das guias (os títulos das páginas HTML contidas) em ordem alfabética. Em seguida, quando um item da lista for clicado, ele vai se concentrar nessa guia usando tabs.update() e trazer a janela para a frente usando windows.update(). Adicione o seguinte código ao arquivo popup.js:
+
+
+...
+const collator = new Intl.Collator();
+tabs.sort((a, b) => collator.compare(a.title, b.title));
+
+const template = document.getElementById("li_template");
+const elements = new Set();
+for (const tab of tabs) {
+  const element = template.content.firstElementChild.cloneNode(true);
+
+  const title = tab.title.split("-")[0].trim();
+  const pathname = new URL(tab.url).pathname.slice("/docs".length);
+
+  element.querySelector(".title").textContent = title;
+  element.querySelector(".pathname").textContent = pathname;
+  element.querySelector("a").addEventListener("click", async () => {
+    // need to focus window as well as the active tab
+    await chrome.tabs.update(tab.id, { active: true });
+    await chrome.windows.update(tab.windowId, { focused: true });
+  });
+
+  elements.add(element);
+}
+document.querySelector("ul").append(...elements);
+...
+💡 JavaScript interessante usado neste código
+
+O Collator usado para classificar a matriz de guias pelo idioma preferido do usuário.
+A tag de modelo usada para definir um elemento HTML que pode ser clonado em vez de usar document.createElement() para criar cada item.
+O construtor de URL usado para criar e analisar URLs.
+A sintaxe de propagação usada para converter o conjunto de elementos em argumentos na chamada append().
+Agrupar as guias
+A API TabGroups permite que a extensão nomeie o grupo e escolha uma cor de plano de fundo. Adicione a permissão "tabGroups" ao manifesto adicionando o código destacado:
+
+
+{
+  "permissions": [
+    "tabGroups"
+  ]
+}
+Em popup.js, adicione o código abaixo para criar um botão que vai agrupar todas as guias usando tabs.group() e movimentá-las para a janela atual.
+
+
+const button = document.querySelector("button");
+button.addEventListener("click", async () => {
+  const tabIds = tabs.map(({ id }) => id);
+  if (tabIds.length) {
+    const group = await chrome.tabs.group({ tabIds });
+    await chrome.tabGroups.update(group, { title: "DOCS" });
+  }
+});
+Testar se funciona
+Verifique se a estrutura de arquivos do projeto corresponde à seguinte árvore de diretórios:
+
+O conteúdo da pasta do gerenciador de guias: manifest.json, popup.js, popup.css, popup.html e a pasta de imagens.
+
+Carregar a extensão localmente
+Para carregar uma extensão descompactada no modo de desenvolvedor, siga as etapas em Hello World.
+
+Abrir algumas páginas de documentação
+Abra os seguintes documentos em janelas diferentes:
+
+Projetar a interface do usuário
+Descoberta na Chrome Web Store
+Visão geral do desenvolvimento de extensões
+Formato do arquivo de manifesto
+Publicar na Chrome Web Store
+Clique no pop-up. Ele será parecido com o seguinte:
+
+Pop-up da extensão do Gerenciador de guias
+Pop-up da extensão do Gerenciador de guias
+Clique no botão "Agrupar guias". Ele será parecido com o seguinte:
+
+Guias agrupadas do Gerenciador de guias
+Guias agrupadas usando a extensão Gerenciador de guias
+🎯 Possíveis melhorias
+Com base no que você aprendeu hoje, tente implementar uma das seguintes opções:
+
+Personalize a folha de estilo do pop-up.
+Mude a cor e o título do grupo de guias.
+Gerenciar as guias de outro site de documentação.
+Adição de suporte para desfazer o agrupamento das guias agrupadas.
+Continue desenvolvendo!
+Parabéns por concluir este tutorial 🎉. Continue desenvolvendo suas habilidades concluindo outros tutoriais desta série:
+
+Extensão	O que você vai aprender
+Tempo de leitura	Para inserir um elemento em todas as páginas automaticamente.
+Modo sem distrações	Para executar o código na página atual depois de clicar na ação da extensão.
+Continue descobrindo
+Esperamos que você tenha gostado de criar essa extensão do Chrome e que continue sua jornada de aprendizado de desenvolvimento do Chrome. Recomendamos o seguinte caminho de aprendizagem:
+
+O guia para desenvolvedores
+ tem dezenas de links adicionais para partes da documentação relevantes à criação de extensões avançadas.
+As extensões têm acesso a APIs poderosas além do que está disponível na Web aberta. A documentação das APIs do Chrome explica cada uma delas.
+Isso foi útil?
+
+Exceto em caso de indicação contrária, o conteúdo desta página é licenciado de acordo com a Licença de atribuição 4.0 do Creative Commons, e as amostras de código são licenciadas de acordo com a Licença Apache 2.0. Para mais detalhes, consulte as políticas do site do Google Developers. Java é uma marca registrada da Oracle e/ou afiliadas.
+
+Última atualização 2022-10-04 UTC.
+
+

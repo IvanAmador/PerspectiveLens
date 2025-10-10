@@ -1,0 +1,299 @@
+Home
+Docs
+AI on Chrome
+Built-in
+Was this helpful?
+
+Built-in AI
+
+bookmark_border
+
+Kenji Baheux
+Kenji Baheux
+Alexandra Klepper
+Alexandra Klepper
+
+Published: May 14, 2024, Last updated: May 20, 2024
+
+We're developing web platform APIs and browser features designed to work with AI models, expert models, and large language models (LLMs), built in the browser. With built-in AI, your website or web application can perform AI-powered tasks, without needing to deploy, manage, or self-host models.
+
+Discover the benefits of built-in AI, our implementation plan, and how you can start implementing these tools.
+
+Important: Chrome implements built-in AI APIs with expert models and Gemini Nano. We continue to change and adapt the model as we test and address feedback.
+If you're new to AI on the web, read our web AI glossary and concepts.
+
+Benefits of built-in AI for web developers
+With built-in AI, your browser provides and manages foundation and expert models.
+
+Key Term: Expert models focus on a specific use case, resulting in higher performance and quality. For example, the Translator API works with an expert model that's focused on translating content to new languages. Expert models tend to have low hardware requirements.
+
+With built-in AI, your website connects with browser APIs to the local processor (CPU, GPU, or NPU). Then it communicates with a local model, which sends a response. The API returns the response.
+Built-in AI offers the following benefits:
+
+Ease of deployment: The browser distributes the models, accounting for device capability, and manages updates. This means you aren't responsible for downloading or updating large models over a network. You don't have to solve for storage eviction, runtime memory budget, serving costs, and other challenges.
+Access to hardware acceleration: The browser's AI runtime is optimized to make the most out of the available hardware, whether with GPU, NPU, or falling back to CPU. Consequently, your app can get the best performance on each device.
+Benefits of running client-side
+With built-in AI, you can perform AI client-side, which means you get these benefits:
+
+Local processing of sensitive data: Client-side AI can improve your privacy story. For example, if you work with sensitive data, you can offer AI features to users with end-to-end encryption.
+Snappy user experience: In some cases, ditching the round trip to the server means you can offer near-instant results. Client-side AI can be the difference between a viable feature and a sub-optimal user experience.
+Greater access to AI: Your users' devices can shoulder some of the processing load in exchange for more access to features. For example, if you offer premium AI features, you could preview these features with client-side AI so that potential customers can see the benefits of your product, without additional cost to you. This hybrid approach can also help you manage inference costs especially on frequently used user flows.
+Offline AI usage: Your users can access AI features even when there is no internet connection. This means your sites and web apps can work as expected offline or with variable connectivity.
+Hybrid AI: Client-side and server-side
+While client-side AI can handle a large array of use cases, some use cases require server-side support. Server-side AI is a great option for large models, and it can support a wider range of platforms and devices.
+
+You may consider a hybrid approach if your application requires:
+
+Complexity: Specific, approachable use cases are easier to support with on-device AI. For complex use cases, consider server-side implementation.
+Resiliency: Use server-side by default, and use on-device when the device is offline or on a spotty connection.
+Graceful fallback: Adoption of browsers with built-in AI will take time, some models may be unavailable, and older or less powerful devices may not meet the hardware requirements for running all models optimally. Offer server-side AI for those users.
+For example, if you use the built-in Prompt API, the API is only available in Chrome Extensions, on Windows, macOS, and Linux. To make sure all of your users can benefit from your AI feature, set up a hybrid architecture with Firebase AI Logic.
+
+Access built-in AI
+You can access built-in AI capabilities primarily with task APIs, such as the Translator API or the Summarizer API. Task APIs are designed to run inference against the best model for the assignment, be it a language or expert model.
+
+Key Term: Fine tuning is a way to dynamically improve a model's ability to perform a specific task, without having to download a new model for each task.
+When to use built-in AI
+Here are a few ways built-in AI can benefit you and your users:
+
+AI-enhanced content consumption: Including summarization, translation, categorization, characterization, and as a knowledge provider.
+AI-supported content creation: Such as writing assistance, proofreading, grammar correction, and rephrasing.
+Several of the built-in AI APIs are available in Chrome stable and origin trials. Exploratory APIs and early-stage APIs are available to Early Preview Program (EPP) participants.
+
+Preview new features
+We need your input to shape the APIs to help fulfill your use cases, and inform our discussions with other browser vendors for standardization.
+
+Join the EPP to provide feedback on early-stage built-in AI ideas, and discover opportunities to test in-progress APIs through local prototyping.
+
+Note: Giving feedback through the EPP helps us build the best features possible, and focuses on unreleased, early-stage tools. You can sign up for origin trials or use stable APIs without joining the EPP.
+Standardization effort
+We're working to standardize all of these APIs for cross-browser compatibility.
+
+The Language Detector API and Translator API have been adopted by the W3C WebML Working Group. We've asked Mozilla and WebKit for their standards positions.
+
+The Summarizer API, Writer API, and Rewriter API have also been adopted by the W3C WebML Working Group. We've asked asked Mozilla and WebKit for their standards positions.
+
+Was this helpful?
+
+Except as otherwise noted, the content of this page is licensed under the Creative Commons Attribution 4.0 License, and code samples are licensed under the Apache 2.0 License. For details, see the Google Developers Site Policies. Java is a registered trademark of Oracle and/or its affiliates.
+
+Last updated 2025-05-20 UTC.
+
+Home
+Docs
+AI on Chrome
+Built-in
+Was this helpful?
+
+Get started with built-in AI
+
+bookmark_border
+
+Alexandra Klepper
+Alexandra Klepper
+
+Published: December 12, 2024, Last updated: May 20, 2025
+
+With built-in AI APIs, your web application can perform AI-powered tasks without needing to deploy or manage its own AI models. We are working to standardize these APIs across browsers.
+
+Tip: If you're new to AI on the web, we recommend that you read our web AI glossary and concepts.
+Requirements
+To use built-in AI, there are model and hardware requirements.
+
+Models
+Important: Gemini Nano is a generative AI model. Before you build with APIs that use Gemini Nano, you should review the People + AI Guidebook for best practices, methods, and examples for designing with AI.
+The Translator and Language Detector APIs use expert models. All other APIs use a language model, designed to run locally on desktops and laptops.
+
+The Summarizer API, Writer API, Rewriter API, and Proofreader API, only support text-to-text modality. The Prompt API has multimodal capabilities.
+
+Gemini Nano in Chrome
+On Chrome, the language model is Gemini Nano. Gemini Nano is not available on mobile devices.
+
+From Chrome 140, Gemini Nano supports English, Spanish, and Japanese for input and output text.
+
+Before you use the built-in AI APIs, acknowledge Google's Generative AI Prohibited Uses Policy.
+
+Hardware
+The following requirements exist for developers and the users who operate features using these APIs in Chrome. Other browsers may have different operating requirements.
+
+The Language Detector and Translator APIs work in Chrome on desktop. These APIs do not work on mobile devices. The Prompt API, Summarizer API, Writer API, Rewriter API, and Proofreader API work in Chrome when the following conditions are met:
+
+Operating system: Windows 10 or 11; macOS 13+ (Ventura and onwards); Linux; or ChromeOS (from Platform 16389.0.0 and onwards) on Chromebook Plus devices. Chrome for Android, iOS, and ChromeOS on non-Chromebook Plus devices are not yet supported by the APIs which use Gemini Nano.
+Storage: At least 22 GB of free space on the volume that contains your Chrome profile.
+Built-in models should be significantly smaller. The exact size may vary slightly with updates.
+GPU inference: Strictly more than 4 GB of VRAM.
+CPU inference: 16 GB of RAM or more and 4 CPU cores or more.
+Network: Unlimited data or an unmetered connection.
+Key term: A metered connection is a data-limited internet connection. Wi-Fi and ethernet connections tend to be unmetered by default, while cellular connections are often metered.
+Gemini Nano's exact size may vary as the browser updates the model. To determine the current size, visit chrome://on-device-internals.
+
+Note: If the available storage space falls to less than 10 GB after the download, the model is removed from your device. The model redownloads once the requirements are met.
+Start building
+There are several built-in AI APIs available at different stages of development. Some are in Chrome stable, some are available participants of origin trials, and others are only available to Early Preview Program participants.
+
+Each API has its own set of instructions to get started and download the model, both for local prototyping and in production environments with the origin trials.
+
+Translator API
+Language Detector API
+Summarizer API
+Writer API and Rewriter API
+Proofreader API
+Prompt API
+All of these APIs can be used when building Chrome Extensions.
+
+Note: If the API is available in an origin trial, you must register your extension for the origin trial.
+Model download
+APIs are built into Chrome, as are the models. The first time a user interacts with these APIs, the model must be downloaded to the browser.
+
+To determine if an API is usable and ready, call the asynchronous availability() function, which returns a promise with one of the following values:
+
+"unavailable": The user's device or requested session options are not supported. The device may have insufficient power or disk space.
+"downloadable": Additional downloads are needed to create a session, which may include an expert model, a language model, or fine-tuning. User activation may be required to call create().
+"downloading": Downloads are ongoing and must complete before you can use a a session.
+"available": You can create a session immediately.
+User activation
+If the device could support the built-in AI APIs, but the model is not yet available, a user interaction is required to start a session with create().
+
+Use the UserActivation.isActive property to confirm a user activation, which could be a click, tap, or key press.
+
+
+// Check for user activation.
+if (navigator.userActivation.isActive) {
+  // Create an instance of a built-in API
+}
+For example with the Summarizer API, you could ask users to interact with button that says "Summarize" to activate Summarizer.create().
+
+Use APIs on localhost
+All of the APIs are available on localhost in Chrome.
+
+Go to chrome://flags/#prompt-api-for-gemini-nano-multimodal-input.
+Select Enabled.
+Click Relaunch or restart Chrome.
+To confirm Gemini Nano has downloaded and works as intended, open DevTools and type await LanguageModel.availability(); into the console. This should return available.
+
+Troubleshoot localhost
+If the model doesn't work as expected, follow these steps:
+
+Restart Chrome.
+Go to chrome://on-device-internals.
+Select the Model Status tab and make sure there are no errors.
+Open DevTools and type LanguageModel.availability(); into the console. This should return available.
+If necessary, wait for some time and repeat these steps.
+
+Standards process
+We're working to standardize these APIs, so that they work across all browsers. This means we have proposed the APIs to the web platforms community, and moved them to the W3C Web Incubator Community Group for further discussion.
+
+We are requesting feedback from the W3C, Mozilla, and WebKit for each API.
+
+Engage and share feedback
+If you try built-in AI and have feedback, we'd love to hear it.
+
+Discover all of the built-in AI APIs.
+Join the Early Preview Program for an early look at new APIs and access to our mailing list.
+If you have feedback on Chrome's implementation, file a Chromium bug.
+Learn about web standards.
+Was this helpful?
+
+Except as otherwise noted, the content of this page is licensed under the Creative Commons Attribution 4.0 License, and code samples are licensed under the Apache 2.0 License. For details, see the Google Developers Site Policies. Java is a registered trademark of Oracle and/or its affiliates.
+
+Last updated 2024-05-20 UTC.
+
+Home
+Docs
+AI on Chrome
+Built-in
+Was this helpful?
+
+Built-in AI APIs
+
+bookmark_border
+
+Alexandra Klepper
+Alexandra Klepper
+
+Published: August 27, 2024, Last updated: September 12, 2025
+
+Before you use these APIs, review the usage requirements.
+
+Important: Gemini Nano is a generative AI model. Before you build with APIs that use Gemini Nano, you should review the People + AI Guidebook for best practices, methods, and examples for designing with AI.
+API status
+There are several built-in AI APIs available at different stages of development. Some APIs are in Chrome Stable, others are available to all developers in origin trials, and some are only available to Early Preview Program (EPP) participants.
+
+Join the EPP to get first access to the latest experimental APIs. This step is not required to join origin trials, use stable APIs, or access websites or extensions using built-in AI.
+
+API	Explainer	Web	Extensions	Chrome Status	Intent
+Translator API	MDN	 Chrome 138	 Chrome 138	View	Intent to Ship
+Language Detector API	MDN	 Chrome 138	 Chrome 138	View	Intent to Ship
+Summarizer API	MDN	 Chrome 138	 Chrome 138	View	Intent to Ship
+Writer API	GitHub	Origin trial Origin trial	Origin trial Origin trial	View	Intent to Experiment
+Rewriter API	GitHub	Origin trial Origin trial	Origin trial Origin trial	View	Intent to Experiment
+Prompt API	GitHub	Origin trial Origin trial	 Chrome 138	View	Intent to Experiment
+Proofreader API	GitHub	Origin trial Origin trial	Origin trial Origin trial	View	Intent to Prototype
+Key Term: An explainer is a document that describes a proposed web platform feature or collection of features. As work progresses, explainers facilitate discussion and, hopefully, consensus around the approach and feature design. Explainers are updated as design progresses.
+Translator API
+The Translator API is available from Chrome 138 stable. Translate user-generated and dynamic content on request.
+
+Use cases
+Users can enter a request in their first language, which you can identify with the Language Detector API. Then, use the Translator API to convert the request to your business operating language and send it to a support agent.
+In a social network application, users can request a translation on-demand when a post appears on their timeline in a language they don't speak.
+Language Detector API
+The Language Detector API is available from Chrome 138 stable. You can use this API to detect the language of input text. This is a key part of the translation process, as you may not always know the input language for translation.
+
+Use cases
+Language detection has several use cases:
+
+Determining the unknown source language for a following translation to a known target language, so the user doesn't have to specify both.
+Labeling texts, for example, to improve screen reader pronunciation in online social networking sites.
+Summarizer API
+The Summarizer API is available from Chrome 138 stable. With this API, you can condense long-form content. Shorter content can be more accessible and useful to users.
+
+Use cases
+There are a number of use cases for summarization:
+
+Overview of a meeting transcript for those joining the meeting late or those who missed the meeting entirely.
+Key points from support conversations for customer relationship management.
+Sentence or paragraph-sized summaries of multiple product reviews.
+Key points from long articles, to help readers determine if the article is relevant.
+Generating draft titles for an article.
+Summarizing questions in a forum to help experts find those which are most relevant to their field of expertise.
+Writer and Rewriter APIs
+The Writer API helps you create new content that conforms to a specified writing task, while the Rewriter API helps revise and restructure text. Both APIs are part of the Writing Assistance APIs explainer.
+
+Help this proposal move to the next stage by indicating your support with a thumbs-up reaction or by commenting with details about your use cases and context.
+
+Use cases
+There are a number of use cases for writing and rewriting:
+
+Write based on an initial idea and optional context. For example, a formal email to a bank asking to increase the credit limit based on the context that you're a long-term customer.
+Refine existing text by making it longer or shorter, or changing the tone. For example, you could rewrite a short email so that it sounds more polite and formal.
+Do you have additional ideas for these APIs? Share them with us on GitHub.
+
+Prompt API
+With the Prompt API, origin trial participants can send natural language requests to Gemini Nano in Chrome.
+
+In Chrome Extensions
+With the Prompt API in Chrome Extensions, you can experiment in a real environment. Based on your findings, we can refine the API to better address real-world use cases.
+
+The Prompt API is available from Chrome 138 stable, only for Chrome Extensions.
+
+Proofreader API
+The Proofreader API is available in an origin trial. With this API, you can provide interactive proofreading for your users in your web application or Chrome Extension.
+
+Use cases
+You could use the Proofreader API for any of the following use cases:
+
+Correct a document the user is editing in their browser.
+Help your customers send grammatically correct chat messages.
+Edit comments on a blog post or forum.
+Provide corrections in note taking applications.
+Participate in early testing
+We use your feedback to shape the future of these APIs, to confirm that they meet the needs of developers and users.
+
+Join our Early Preview Program to experiment with early-stage built-in AI APIs.
+
+Was this helpful?
+
+Except as otherwise noted, the content of this page is licensed under the Creative Commons Attribution 4.0 License, and code samples are licensed under the Apache 2.0 License. For details, see the Google Developers Site Policies. Java is a registered trademark of Oracle and/or its affiliates.
+
+Last updated 2024-09-12 UTC.
+

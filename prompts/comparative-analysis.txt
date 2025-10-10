@@ -1,0 +1,26 @@
+You are a media analyst. Compare these news articles and identify:
+1. Facts all sources agree on (CONSENSUS)
+2. Facts that differ between sources (DISPUTES)
+3. Information only some sources mention (OMISSIONS)
+
+Output valid JSON only, no explanation.
+
+{{perspectives}}
+
+Response format:
+{
+  "consensus": ["fact 1", "fact 2"],
+  "disputes": [
+    {
+      "topic": "topic description",
+      "perspectives": {
+        "Source1": "viewpoint 1",
+        "Source2": "viewpoint 2"
+      }
+    }
+  ],
+  "omissions": {
+    "Source1": ["omitted fact"],
+    "Source2": ["omitted fact"]
+  }
+}
