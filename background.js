@@ -5,7 +5,9 @@
 
 import { logger } from './utils/logger.js';
 import { extractKeywords, checkAvailability, createSession } from './api/languageModel.js';
+import { generateKeyPoints, generateTLDR } from './api/summarizer.js';
 import { handleError } from './utils/errors.js';
+import { normalizeLanguageCode } from './utils/languages.js';
 
 logger.info('Background service worker started');
 
@@ -93,7 +95,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 /**
  * Process new article detection from content script
- * Implements F-002: Keyword Extraction from PRD
+ * Implements F-002: Keyword Extraction + F-005: Summarization
  */
 async function handleNewArticle(articleData) {
   logger.group('🔍 Processing new article');
@@ -105,38 +107,69 @@ async function handleNewArticle(articleData) {
 
   try {
     // Step 1: Extract keywords (F-002)
-    logger.info('📝 Starting keyword extraction...');
+    logger.info('📝 Step 1: Extracting keywords...');
     const keywords = await extractKeywords(
       articleData.title,
       articleData.language || null // Let it auto-detect
     );
-
     logger.info('✅ Keywords extracted:', keywords);
 
-    // Step 2: Check cache (F-007 - to be implemented)
+    // Step 2: Summarize article content (F-005)
+    let summary = null;
+    let tldr = null;
+
+    if (articleData.content && articleData.content.length > 200) {
+      logger.info('📄 Step 2: Generating summary...');
+
+      try {
+        // Generate key points summary (keep in English)
+        summary = await generateKeyPoints(articleData.content, {
+          length: 'medium',
+          language: articleData.language,
+          translateBack: false // Keep in English for internal processing
+        });
+        logger.info('✅ Summary generated (EN):', summary.substring(0, 100) + '...');
+
+        // Generate TL;DR (keep in English)
+        tldr = await generateTLDR(articleData.content, {
+          length: 'short',
+          language: articleData.language,
+          translateBack: false // Keep in English for internal processing
+        });
+        logger.info('✅ TL;DR generated (EN):', tldr);
+
+      } catch (error) {
+        logger.error('Failed to generate summary:', error);
+        // Continue without summary
+      }
+    } else {
+      logger.warn('Content too short for summarization (< 200 chars)');
+    }
+
+    // Step 3: Check cache (F-007 - to be implemented)
     // const cachedAnalysis = await checkCache(articleData.url);
     // if (cachedAnalysis) return cachedAnalysis;
 
-    // Step 3: Fetch perspectives (F-003 - to be implemented)
+    // Step 4: Fetch perspectives (F-003 - to be implemented)
     // const perspectives = await fetchPerspectives(keywords, articleData);
 
-    // Step 4: Process perspectives (F-004, F-005, F-006 - to be implemented)
-    // - Translate (F-004)
-    // - Summarize (F-005)
-    // - Compare (F-006)
+    // Step 5: Compare perspectives (F-006 - to be implemented)
+    // const analysis = await compareArticles(perspectives);
 
-    // Step 5: Cache results (F-007 - to be implemented)
-    // await cacheAnalysis(articleData.url, analysis);
+    // Step 6: Cache results (F-007 - to be implemented)
+    // await cacheAnalysis(articleData.url, result);
 
-    // For now, return keywords
     const result = {
       articleData,
-      keywords,
-      status: 'keywords_extracted',
+      keywords, // Already in English
+      summary,  // Now in English (not translated back)
+      tldr,     // Now in English (not translated back)
+      sourceLanguage: normalizeLanguageCode(articleData.language || 'en'), // Store for later translation
+      status: summary ? 'summarized' : 'keywords_extracted',
       timestamp: new Date().toISOString()
     };
 
-    logger.info('Article processed successfully');
+    logger.info('✅ Article processed successfully');
     logger.groupEnd();
 
     return result;

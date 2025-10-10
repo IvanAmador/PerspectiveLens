@@ -189,8 +189,17 @@ function detectNewsArticle() {
 
             if (response && response.success) {
                 console.log("PerspectiveLens: Article processed successfully!");
-                console.log("PerspectiveLens: Keywords extracted:", response.data.keywords);
                 console.log("PerspectiveLens: Status:", response.data.status);
+                console.log("PerspectiveLens: Keywords:", response.data.keywords);
+
+                if (response.data.tldr) {
+                    console.log("PerspectiveLens: TL;DR:", response.data.tldr);
+                }
+
+                if (response.data.summary) {
+                    console.log("PerspectiveLens: Summary:");
+                    console.log(response.data.summary);
+                }
             } else {
                 console.error("PerspectiveLens: Processing failed:", response?.error);
             }
