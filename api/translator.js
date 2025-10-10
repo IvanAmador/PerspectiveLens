@@ -1,34 +1,38 @@
 /**
  * Translator API wrapper for PerspectiveLens
  * Handles translation using Chrome's built-in Translator API
+ * Automatically normalizes language codes to ISO 639-1 standard
  *
- * Supported language pairs (Chrome 138+):
- * - en, es, fr, de, ar, zh, ja, pt → pt
+ * Supported languages (Chrome 138+):
+ * - en, es, fr, de, ar, zh, ja, pt
  *
  * Reference: https://developer.chrome.com/docs/ai/translator-api
  */
 
 import { logger } from '../utils/logger.js';
 import { AIModelError, ERROR_MESSAGES } from '../utils/errors.js';
-
-// Supported source languages for translation to Portuguese
-const SUPPORTED_SOURCE_LANGUAGES = ['en', 'es', 'fr', 'de', 'ar', 'zh', 'ja'];
-const TARGET_LANGUAGE = 'pt';
+import {
+  normalizeLanguageCode,
+  isTranslatorSupported,
+  needsTranslation as shouldTranslate,
+  getSupportedLanguages,
+  getLanguageName
+} from '../utils/languages.js';
 
 /**
  * Check if Translator API is available
+ * @returns {Promise<boolean>}
  */
 export async function checkTranslatorAvailability() {
-  if (typeof ai === 'undefined' || typeof ai.translator === 'undefined') {
+  if (typeof self.Translator === 'undefined') {
     logger.error('Translator API not available');
     throw new AIModelError(ERROR_MESSAGES.AI_UNAVAILABLE, {
-      reason: 'Translator API not available in this Chrome version'
+      reason: 'Translator API not available (requires Chrome 138+)'
     });
   }
 
   try {
-    // Check if API exists
-    const available = typeof ai.translator.create === 'function';
+    const available = typeof self.Translator.create === 'function';
     logger.info('Translator API available:', available);
     return available;
   } catch (error) {
@@ -39,27 +43,45 @@ export async function checkTranslatorAvailability() {
 
 /**
  * Check if a language pair is available for translation
- * @param {string} sourceLanguage - Source language code (ISO 639-1)
- * @param {string} targetLanguage - Target language code (ISO 639-1)
+ * Automatically normalizes language codes
+ *
+ * @param {string} sourceLanguage - Source language code (any format)
+ * @param {string} targetLanguage - Target language code (any format)
+ * @returns {Promise<boolean>}
  */
-export async function canTranslate(sourceLanguage, targetLanguage = TARGET_LANGUAGE) {
+export async function canTranslate(sourceLanguage, targetLanguage) {
   if (!sourceLanguage || !targetLanguage) {
     throw new AIModelError('Source and target languages required');
   }
 
+  // Normalize language codes
+  const normalizedSource = normalizeLanguageCode(sourceLanguage);
+  const normalizedTarget = normalizeLanguageCode(targetLanguage);
+
   // Skip if same language
-  if (sourceLanguage === targetLanguage) {
-    logger.debug(`Skip translation: same language (${sourceLanguage})`);
+  if (normalizedSource === normalizedTarget) {
+    logger.debug(`Skip translation: same language (${normalizedSource})`);
+    return false;
+  }
+
+  // Check if both languages are supported
+  if (!isTranslatorSupported(normalizedSource)) {
+    logger.warn(`Source language not supported: ${sourceLanguage} (${normalizedSource})`);
+    return false;
+  }
+
+  if (!isTranslatorSupported(normalizedTarget)) {
+    logger.warn(`Target language not supported: ${targetLanguage} (${normalizedTarget})`);
     return false;
   }
 
   try {
-    const availability = await ai.translator.availability({
-      sourceLanguage,
-      targetLanguage
+    const availability = await self.Translator.availability({
+      sourceLanguage: normalizedSource,
+      targetLanguage: normalizedTarget
     });
 
-    logger.debug(`Translation ${sourceLanguage}→${targetLanguage}: ${availability}`);
+    logger.debug(`Translation ${normalizedSource}→${normalizedTarget}: ${availability}`);
     return availability === 'available' || availability === 'downloadable';
   } catch (error) {
     logger.error('Failed to check translation availability:', error);
@@ -69,35 +91,51 @@ export async function canTranslate(sourceLanguage, targetLanguage = TARGET_LANGU
 
 /**
  * Create a translator instance for a language pair
- * @param {string} sourceLanguage - Source language code
- * @param {string} targetLanguage - Target language code (default: 'pt')
+ * Automatically normalizes language codes
+ *
+ * @param {string} sourceLanguage - Source language code (any format)
+ * @param {string} targetLanguage - Target language code (any format)
  * @param {Function} onProgress - Progress callback for model download
+ * @returns {Promise<Object>} Translator instance
  */
 export async function createTranslator(
   sourceLanguage,
-  targetLanguage = TARGET_LANGUAGE,
+  targetLanguage,
   onProgress = null
 ) {
-  if (!SUPPORTED_SOURCE_LANGUAGES.includes(sourceLanguage)) {
+  // Normalize language codes
+  const normalizedSource = normalizeLanguageCode(sourceLanguage);
+  const normalizedTarget = normalizeLanguageCode(targetLanguage);
+
+  logger.info(`Creating translator: ${getLanguageName(normalizedSource)} → ${getLanguageName(normalizedTarget)}`);
+
+  // Validate languages are supported
+  if (!isTranslatorSupported(normalizedSource)) {
     throw new AIModelError(`Unsupported source language: ${sourceLanguage}`, {
-      supported: SUPPORTED_SOURCE_LANGUAGES
+      normalized: normalizedSource,
+      supported: getSupportedLanguages('translator')
+    });
+  }
+
+  if (!isTranslatorSupported(normalizedTarget)) {
+    throw new AIModelError(`Unsupported target language: ${targetLanguage}`, {
+      normalized: normalizedTarget,
+      supported: getSupportedLanguages('translator')
     });
   }
 
   // Check availability
-  const available = await canTranslate(sourceLanguage, targetLanguage);
+  const available = await canTranslate(normalizedSource, normalizedTarget);
   if (!available) {
     throw new AIModelError(
-      `Translation not available for ${sourceLanguage}→${targetLanguage}`
+      `Translation not available for ${normalizedSource}→${normalizedTarget}`
     );
   }
 
   try {
-    logger.info(`Creating translator: ${sourceLanguage}→${targetLanguage}`);
-
     const translatorConfig = {
-      sourceLanguage,
-      targetLanguage
+      sourceLanguage: normalizedSource,
+      targetLanguage: normalizedTarget
     };
 
     // Add download monitor if callback provided
@@ -111,31 +149,34 @@ export async function createTranslator(
       };
     }
 
-    const translator = await ai.translator.create(translatorConfig);
-    logger.info('Translator created successfully');
+    const translator = await self.Translator.create(translatorConfig);
+    logger.info(`Translator created: ${normalizedSource}→${normalizedTarget}`);
     return translator;
 
   } catch (error) {
     logger.error('Failed to create translator:', error);
     throw new AIModelError('Failed to create translator', {
       originalError: error,
-      sourceLanguage,
-      targetLanguage
+      sourceLanguage: normalizedSource,
+      targetLanguage: normalizedTarget
     });
   }
 }
 
 /**
  * Translate text from source language to target language
+ * Automatically normalizes language codes and validates support
+ *
  * @param {string} text - Text to translate
- * @param {string} sourceLanguage - Source language code
- * @param {string} targetLanguage - Target language code (default: 'pt')
+ * @param {string} sourceLanguage - Source language code (any format)
+ * @param {string} targetLanguage - Target language code (any format)
  * @param {Object} options - Translation options
+ * @returns {Promise<string>} Translated text
  */
 export async function translate(
   text,
   sourceLanguage,
-  targetLanguage = TARGET_LANGUAGE,
+  targetLanguage,
   options = {}
 ) {
   if (!text || text.trim().length === 0) {
@@ -143,40 +184,42 @@ export async function translate(
     return text;
   }
 
+  // Normalize language codes
+  const normalizedSource = normalizeLanguageCode(sourceLanguage);
+  const normalizedTarget = normalizeLanguageCode(targetLanguage);
+
   // Skip if same language
-  if (sourceLanguage === targetLanguage) {
-    logger.debug('Same language, skipping translation');
+  if (normalizedSource === normalizedTarget) {
+    logger.debug(`Same language (${normalizedSource}), skipping translation`);
     return text;
   }
 
-  // Skip if source is already Portuguese
-  if (sourceLanguage === 'pt') {
-    logger.debug('Already in Portuguese, skipping translation');
+  // Check if translation is needed and supported
+  if (!shouldTranslate(normalizedSource, normalizedTarget)) {
+    logger.debug(`Translation not needed: ${normalizedSource}→${normalizedTarget}`);
     return text;
   }
 
   try {
     // Create translator
     const translator = await createTranslator(
-      sourceLanguage,
-      targetLanguage,
+      normalizedSource,
+      normalizedTarget,
       options.onProgress
     );
 
     // Translate text
-    logger.debug(`Translating ${text.length} chars: ${sourceLanguage}→${targetLanguage}`);
+    logger.debug(`Translating ${text.length} chars: ${normalizedSource}→${normalizedTarget}`);
     const translated = await translator.translate(text);
 
     // Clean up
     translator.destroy();
 
-    logger.info('Translation completed successfully');
+    logger.info(`Translation completed: ${getLanguageName(normalizedSource)} → ${getLanguageName(normalizedTarget)}`);
     return translated;
 
   } catch (error) {
     logger.error('Translation failed:', error);
-
-    // Return original text on failure
     logger.warn('Returning original text due to translation error');
     return text;
   }
@@ -184,31 +227,44 @@ export async function translate(
 
 /**
  * Translate multiple texts in batch (reuses translator instance)
+ * Automatically normalizes language codes
+ *
  * @param {Array<string>} texts - Array of texts to translate
- * @param {string} sourceLanguage - Source language code
- * @param {string} targetLanguage - Target language code (default: 'pt')
+ * @param {string} sourceLanguage - Source language code (any format)
+ * @param {string} targetLanguage - Target language code (any format)
+ * @returns {Promise<Array<string>>} Array of translated texts
  */
 export async function translateBatch(
   texts,
   sourceLanguage,
-  targetLanguage = TARGET_LANGUAGE
+  targetLanguage
 ) {
   if (!texts || texts.length === 0) {
     return [];
   }
 
+  // Normalize language codes
+  const normalizedSource = normalizeLanguageCode(sourceLanguage);
+  const normalizedTarget = normalizeLanguageCode(targetLanguage);
+
   // Skip if same language
-  if (sourceLanguage === targetLanguage || sourceLanguage === 'pt') {
+  if (normalizedSource === normalizedTarget) {
     logger.debug('Same language, returning original texts');
+    return texts;
+  }
+
+  // Check if translation is supported
+  if (!shouldTranslate(normalizedSource, normalizedTarget)) {
+    logger.debug('Translation not supported, returning original texts');
     return texts;
   }
 
   try {
     // Create translator once
-    const translator = await createTranslator(sourceLanguage, targetLanguage);
+    const translator = await createTranslator(normalizedSource, normalizedTarget);
 
     // Translate all texts
-    logger.info(`Translating ${texts.length} texts in batch`);
+    logger.info(`Translating ${texts.length} texts in batch: ${normalizedSource}→${normalizedTarget}`);
     const translations = await Promise.all(
       texts.map(async (text) => {
         try {
@@ -233,16 +289,23 @@ export async function translateBatch(
 }
 
 /**
- * Get list of supported source languages
+ * Get list of supported languages for translation
+ * @returns {Array<string>} Array of ISO 639-1 codes
  */
-export function getSupportedLanguages() {
-  return [...SUPPORTED_SOURCE_LANGUAGES];
+export function getSupportedTranslationLanguages() {
+  return getSupportedLanguages('translator');
 }
 
 /**
- * Detect if translation is needed
- * @param {string} language - Language code
+ * Check if translation is needed between two languages
+ * Wrapper around utility function with normalization
+ *
+ * @param {string} sourceLanguage - Source language code (any format)
+ * @param {string} targetLanguage - Target language code (any format)
+ * @returns {boolean}
  */
-export function needsTranslation(language) {
-  return language !== TARGET_LANGUAGE && language !== 'pt';
+export function needsTranslation(sourceLanguage, targetLanguage) {
+  const normalizedSource = normalizeLanguageCode(sourceLanguage);
+  const normalizedTarget = normalizeLanguageCode(targetLanguage);
+  return shouldTranslate(normalizedSource, normalizedTarget);
 }

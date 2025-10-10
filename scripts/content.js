@@ -1,22 +1,104 @@
+/**
+ * Extract title with intelligent fallback strategy
+ * Priority: meta og:title > meta twitter:title > h1 > first heading > document.title > URL
+ */
+function extractTitle() {
+    const candidates = [];
+
+    // 1. OpenGraph title (most reliable for social sharing)
+    const ogTitle = document.querySelector("meta[property='og:title']");
+    if (ogTitle && ogTitle.content) {
+        candidates.push({ source: 'og:title', text: ogTitle.content.trim() });
+    }
+
+    // 2. Twitter card title
+    const twitterTitle = document.querySelector("meta[name='twitter:title']");
+    if (twitterTitle && twitterTitle.content) {
+        candidates.push({ source: 'twitter:title', text: twitterTitle.content.trim() });
+    }
+
+    // 3. Article-specific title meta
+    const articleTitle = document.querySelector("meta[property='article:title']");
+    if (articleTitle && articleTitle.content) {
+        candidates.push({ source: 'article:title', text: articleTitle.content.trim() });
+    }
+
+    // 4. H1 inside article tag (most common for news sites)
+    const articleH1 = document.querySelector('article h1');
+    if (articleH1) {
+        candidates.push({ source: 'article>h1', text: articleH1.textContent.trim() });
+    }
+
+    // 5. First H1 on page
+    const h1 = document.querySelector('h1');
+    if (h1) {
+        candidates.push({ source: 'h1', text: h1.textContent.trim() });
+    }
+
+    // 6. First H2 (fallback for some sites)
+    const h2 = document.querySelector('article h2, main h2, h2');
+    if (h2) {
+        candidates.push({ source: 'h2', text: h2.textContent.trim() });
+    }
+
+    // 7. Document title (clean up common patterns)
+    if (document.title) {
+        const cleanedTitle = document.title
+            .split(/[|\-–—]/)[0] // Remove site name after separator
+            .trim();
+        candidates.push({ source: 'document.title', text: cleanedTitle });
+    }
+
+    // 8. URL slug (last resort)
+    const urlPath = window.location.pathname;
+    const urlSlug = urlPath
+        .split('/')
+        .filter(part => part.length > 0)
+        .pop()
+        .replace(/\.html?$/, '')
+        .replace(/[-_]/g, ' ')
+        .replace(/\d{4,}/g, '') // Remove dates
+        .trim();
+    if (urlSlug && urlSlug.length > 10) {
+        candidates.push({ source: 'url-slug', text: urlSlug });
+    }
+
+    // Validate and score candidates
+    const validCandidates = candidates.filter(c => {
+        const text = c.text;
+        // Must have at least 10 chars and max 200 chars
+        if (!text || text.length < 10 || text.length > 200) return false;
+        // Must have at least 2 words
+        if (text.split(/\s+/).length < 2) return false;
+        // Should not be just numbers or single word navigation
+        if (/^(home|mundo|news|article|política|economia|sports)$/i.test(text)) return false;
+        return true;
+    });
+
+    // Return best candidate
+    if (validCandidates.length > 0) {
+        const best = validCandidates[0];
+        console.log(`PerspectiveLens: Title extracted from ${best.source}: "${best.text}"`);
+        return best.text;
+    }
+
+    // Ultimate fallback
+    console.warn("PerspectiveLens: No valid title found, using document.title");
+    return document.title || 'Untitled Article';
+}
+
 function extractArticleData() {
     const data = {
         url: window.location.href,
         source: window.location.hostname,
         language: document.documentElement.lang,
-        title: document.title,
+        title: extractTitle(), // Use intelligent extraction
         publishedDate: null,
         author: null,
         content: ''
     };
 
     console.log("PerspectiveLens: Starting data extraction...");
-
-    // Title from h1
-    const h1 = document.querySelector('h1');
-    if (h1) {
-        data.title = h1.textContent.trim();
-        console.log("PerspectiveLens: Extracted Title -", data.title);
-    }
 
     // Published Date from meta or time tag
     const publishedTimeMeta = document.querySelector("meta[property='article:published_time']");

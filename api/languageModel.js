@@ -1,19 +1,29 @@
 /**
  * Language Model API wrapper for PerspectiveLens
  * Handles interaction with Chrome's built-in Prompt API (Gemini Nano)
+ *
+ * IMPORTANT: This module provides bidirectional translation
+ * - Input: Automatically translates to English before processing
+ * - Output: Can translate back to user's language if needed
  */
 
 import { logger } from '../utils/logger.js';
 import { AIModelError, ERROR_MESSAGES } from '../utils/errors.js';
 import { getPrompt } from '../utils/prompts.js';
 import { detectLanguageSimple } from './languageDetector.js';
-import { translate, needsTranslation } from './translator.js';
+import { translate } from './translator.js';
+import {
+  normalizeLanguageCode,
+  getPromptAPIPreferredLanguage,
+  getSupportedLanguages,
+  needsTranslation
+} from '../utils/languages.js';
 
 // Supported languages for Prompt API output: en, es, ja (Chrome 140+)
-const SUPPORTED_LANGUAGES = ['en', 'es', 'ja'];
+const PROMPT_OUTPUT_LANGUAGES = getSupportedLanguages('prompt');
 
-// Preferred language for Prompt API input (to maximize compatibility)
-const PREFERRED_INPUT_LANGUAGE = 'en';
+// Preferred language for Prompt API processing (best results)
+const PROMPT_PREFERRED_LANGUAGE = getPromptAPIPreferredLanguage();
 
 /**
  * Check if Language Model API is available
@@ -51,7 +61,7 @@ export async function createSession(options = {}, onProgress = null) {
   const sessionConfig = {
     // Support all available languages for input and output
     expectedOutputs: [
-      { type: 'text', languages: SUPPORTED_LANGUAGES }
+      { type: 'text', languages: PROMPT_OUTPUT_LANGUAGES }
     ],
     ...options
   };
@@ -80,11 +90,14 @@ export async function createSession(options = {}, onProgress = null) {
 
 /**
  * Extract keywords from article title using Prompt API
- * Automatically detects language and translates to English if needed
- * Keywords are returned in English (for NewsAPI search compatibility)
+ * Professional implementation with automatic language handling:
+ * 1. Auto-detects language if not provided
+ * 2. Normalizes language code (e.g., 'pt-br' → 'pt')
+ * 3. Translates to English for Prompt API processing
+ * 4. Returns keywords in English for NewsAPI compatibility
  *
- * @param {string} title - Article title (any language)
- * @param {string} language - Language code (optional, will auto-detect if not provided)
+ * @param {string} title - Article title (any language, any format)
+ * @param {string} language - Language code (optional, auto-detects if null)
  * @returns {Promise<Array<string>>} Array of keywords in English
  */
 export async function extractKeywords(title, language = null) {
@@ -93,19 +106,25 @@ export async function extractKeywords(title, language = null) {
   }
 
   try {
-    // Step 1: Detect language if not provided
+    // Step 1: Detect and normalize language
+    let detectedLanguage;
     if (!language) {
       logger.debug('Auto-detecting language for title:', title);
-      language = await detectLanguageSimple(title);
-      logger.info('Detected language:', language);
+      detectedLanguage = await detectLanguageSimple(title);
+      logger.info(`Detected language: ${detectedLanguage}`);
+    } else {
+      detectedLanguage = normalizeLanguageCode(language);
+      logger.info(`Using provided language: ${language} → ${detectedLanguage}`);
     }
 
     // Step 2: Translate to English if needed (Prompt API works best with English)
     let titleForPrompt = title;
-    if (language !== PREFERRED_INPUT_LANGUAGE && needsTranslation(language)) {
-      logger.debug('Translating title to English for Prompt API...');
-      titleForPrompt = await translate(title, language, PREFERRED_INPUT_LANGUAGE);
-      logger.info('Translated title:', titleForPrompt);
+    if (needsTranslation(detectedLanguage, PROMPT_PREFERRED_LANGUAGE)) {
+      logger.info(`Translating title: ${detectedLanguage} → ${PROMPT_PREFERRED_LANGUAGE}`);
+      titleForPrompt = await translate(title, detectedLanguage, PROMPT_PREFERRED_LANGUAGE);
+      logger.debug(`Translated: "${title}" → "${titleForPrompt}"`);
+    } else {
+      logger.debug(`No translation needed (already in ${detectedLanguage})`);
     }
 
     // Step 3: Create session and extract keywords
@@ -115,10 +134,10 @@ export async function extractKeywords(title, language = null) {
       // Load prompt template from file
       const prompt = await getPrompt('keyword-extraction', {
         title: titleForPrompt,
-        language: PREFERRED_INPUT_LANGUAGE
+        language: PROMPT_PREFERRED_LANGUAGE
       });
 
-      logger.debug('Extracting keywords from:', titleForPrompt);
+      logger.debug(`Extracting keywords from: "${titleForPrompt}"`);
       const result = await session.prompt(prompt);
 
       // Parse comma-separated keywords
@@ -129,9 +148,9 @@ export async function extractKeywords(title, language = null) {
         .filter(k => k.length > 0)
         .slice(0, 5); // Max 5 keywords
 
-      logger.info('Extracted keywords (EN):', keywords);
+      logger.info(`✅ Extracted ${keywords.length} keywords:`, keywords);
 
-      // Note: Keywords are kept in English for NewsAPI search compatibility
+      // Keywords are kept in English for NewsAPI search compatibility
       return keywords;
 
     } finally {
@@ -140,6 +159,7 @@ export async function extractKeywords(title, language = null) {
 
   } catch (error) {
     logger.error('Keyword extraction failed:', error);
+    logger.warn('Using fallback keyword extraction');
     // Fallback: simple word extraction
     return fallbackKeywordExtraction(title);
   }

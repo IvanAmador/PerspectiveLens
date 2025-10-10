@@ -8,6 +8,7 @@
 
 import { logger } from '../utils/logger.js';
 import { AIModelError, ERROR_MESSAGES } from '../utils/errors.js';
+import { normalizeLanguageCode, validateLanguageCode } from '../utils/languages.js';
 
 // Minimum confidence threshold for language detection (0.0 - 1.0)
 const MIN_CONFIDENCE = 0.7;
@@ -192,8 +193,9 @@ function fallbackLanguageDetection(text) {
 
 /**
  * Detect language with automatic fallback to English
+ * Returns normalized ISO 639-1 code (e.g., 'pt-br' → 'pt')
  * @param {string} text - Text to analyze
- * @returns {string} Language code (ISO 639-1)
+ * @returns {Promise<string>} Normalized ISO 639-1 language code
  */
 export async function detectLanguageSimple(text) {
   if (!text || text.trim().length === 0) {
@@ -203,14 +205,19 @@ export async function detectLanguageSimple(text) {
   try {
     const result = await detectLanguage(text);
 
+    // Normalize the detected language code
+    const normalizedLang = normalizeLanguageCode(result.language);
+
     // Return language if confidence is high enough
     if (result.confidence >= MIN_CONFIDENCE) {
-      return result.language;
+      logger.info(`Detected language: ${result.language} → ${normalizedLang} (confidence: ${(result.confidence * 100).toFixed(1)}%)`);
+      return normalizedLang;
     }
 
     // Low confidence - use fallback
     logger.debug(`Low confidence (${result.confidence}), using fallback`);
-    return fallbackLanguageDetection(text);
+    const fallbackLang = fallbackLanguageDetection(text);
+    return normalizeLanguageCode(fallbackLang);
 
   } catch (error) {
     logger.error('Language detection failed, defaulting to English:', error);
