@@ -61,7 +61,7 @@ export async function checkSummarizerAvailability() {
  * Create a summarizer instance with specified configuration
  *
  * @param {Object} options - Summarizer configuration
- * @param {string} options.type - Summary type: 'key-points', 'tldr', 'teaser', 'headline'
+ * @param {string} options.type - Summary type: 'key-points', 'teaser', 'headline'
  * @param {string} options.length - Summary length: 'short', 'medium', 'long'
  * @param {string} options.format - Output format: 'markdown', 'plain-text'
  * @param {string} options.sharedContext - Additional context to help summarizer
@@ -304,4 +304,111 @@ export function getSupportedLengths() {
  */
 export function getSupportedFormats() {
   return [...SUMMARIZER_FORMATS];
+}
+
+/**
+ * Compress article content for comparative analysis
+ * Optimized for fitting multiple articles in context window
+ * Uses 'teaser' format for concise summaries
+ *
+ * @param {string} text - Full article text
+ * @param {Object} options - Compression options
+ * @param {string} options.source - Source name for logging
+ * @param {string} options.length - Summary length (default: 'medium')
+ * @returns {Promise<string>} Compressed article summary
+ */
+export async function compressForAnalysis(text, options = {}) {
+  const { source = 'Unknown', length = 'medium' } = options;
+
+  if (!text || text.trim().length === 0) {
+    logger.warn(`Empty content for ${source}, skipping compression`);
+    return '';
+  }
+
+  // If text is already short, no need to compress
+  if (text.length < 500) {
+    logger.debug(`Text for ${source} is already short (${text.length} chars), skipping compression`);
+    return text;
+  }
+
+  try {
+    logger.debug(`Compressing content for ${source}: ${text.length} chars → teaser summary`);
+
+    const summary = await summarize(text, {
+      type: 'teaser',          // Concise overview (closest to TL;DR)
+      length: length,          // Configurable
+      format: 'plain-text',    // No markdown needed for analysis
+      translateBack: false,    // Keep in English for Prompt API
+      sharedContext: 'News article for comparative analysis'
+    });
+
+    const compressionRatio = ((1 - summary.length / text.length) * 100).toFixed(1);
+    logger.info(`✅ Compressed ${source}: ${text.length} → ${summary.length} chars (${compressionRatio}% reduction)`);
+
+    return summary;
+
+  } catch (error) {
+    logger.error(`Failed to compress ${source}:`, error);
+    // Fallback: return truncated original text
+    const fallback = text.substring(0, 1500) + '...';
+    logger.warn(`Using fallback truncation for ${source}: ${fallback.length} chars`);
+    return fallback;
+  }
+}
+
+/**
+ * Batch compress multiple articles for comparative analysis
+ * Efficiently processes array of articles with validation
+ *
+ * @param {Array} articles - Array of article objects with extractedContent
+ * @param {Object} options - Compression options
+ * @param {string} options.length - Summary length for all articles
+ * @returns {Promise<Array>} Articles with compressed content
+ */
+export async function batchCompressForAnalysis(articles, options = {}) {
+  if (!Array.isArray(articles) || articles.length === 0) {
+    return [];
+  }
+
+  logger.group(`🗜️ Batch compressing ${articles.length} articles for analysis`);
+
+  const results = await Promise.allSettled(
+    articles.map(async (article, index) => {
+      const content = article.extractedContent?.textContent || article.content || '';
+      const source = article.source || `Article ${index + 1}`;
+
+      if (!content) {
+        logger.warn(`No content for ${source}, skipping`);
+        return { ...article, compressed: '', compressionFailed: true };
+      }
+
+      const compressed = await compressForAnalysis(content, {
+        source,
+        length: options.length || 'medium'
+      });
+
+      return {
+        ...article,
+        compressed,
+        originalLength: content.length,
+        compressedLength: compressed.length,
+        compressionRatio: ((1 - compressed.length / content.length) * 100).toFixed(1)
+      };
+    })
+  );
+
+  const successful = results
+    .filter(r => r.status === 'fulfilled')
+    .map(r => r.value);
+
+  const failed = results.filter(r => r.status === 'rejected');
+
+  logger.info(`✅ Compression complete: ${successful.length} succeeded, ${failed.length} failed`);
+  logger.groupEnd();
+
+  if (failed.length > 0) {
+    logger.warn('Failed compressions:', failed.map(f => f.reason));
+  }
+
+  return successful;
 }

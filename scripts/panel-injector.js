@@ -385,18 +385,28 @@ function attachEventListeners() {
 
 // Listen for messages from background
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('[PerspectiveLens] Message received:', message.type);
+  console.log('[PerspectiveLens] Panel-injector received message:', message.type);
 
-  if (message.type === 'SHOW_ANALYSIS') {
-    PanelController.showAnalysis(message.data);
-    sendResponse({ success: true });
-  } else if (message.type === 'ANALYSIS_STARTED') {
-    PanelController.showLoading();
-    sendResponse({ success: true });
-  } else if (message.type === 'ANALYSIS_FAILED') {
-    PanelController.showError(message.error);
-    sendResponse({ success: true });
+  try {
+    if (message.type === 'SHOW_ANALYSIS') {
+      console.log('[PerspectiveLens] Showing analysis with data:', message.data);
+      PanelController.showAnalysis(message.data);
+      sendResponse({ success: true });
+    } else if (message.type === 'ANALYSIS_STARTED') {
+      console.log('[PerspectiveLens] Showing loading state');
+      PanelController.showLoading();
+      sendResponse({ success: true });
+    } else if (message.type === 'ANALYSIS_FAILED') {
+      console.log('[PerspectiveLens] Showing error:', message.error);
+      PanelController.showError(message.error);
+      sendResponse({ success: true });
+    }
+  } catch (error) {
+    console.error('[PerspectiveLens] Error handling message:', error);
+    sendResponse({ success: false, error: error.message });
   }
+
+  return true; // Keep the message channel open for async response
 });
 
 // Inject panel when page loads

@@ -167,34 +167,46 @@ async function handleNewArticle(articleData) {
       perspectivesWithContent = perspectives;
     }
 
-    // Step 6: Compare perspectives (F-006) - IMPLEMENTED!
-    logger.info('🔍 Step 5: Performing comparative analysis with Gemini Nano...');
+    // Step 6: Compare perspectives (F-006) - OPTIMIZED VERSION!
+    logger.info('🔍 Step 5: Performing OPTIMIZED comparative analysis...');
     let comparativeAnalysis = null;
     try {
       // Only run analysis if we have content from at least 2 articles
       const articlesWithContent = perspectivesWithContent.filter(p => p.contentExtracted);
 
       if (articlesWithContent.length >= 2) {
-        logger.info(`Running comparative analysis on ${articlesWithContent.length} articles`);
+        logger.info(`Running analysis on ${articlesWithContent.length} articles with optimizations enabled`);
 
         comparativeAnalysis = await compareArticles(articlesWithContent, {
-          maxContentLength: 3000, // Limit per article to fit in context window
-          useV2Prompt: true // Use enhanced prompt with few-shot examples
+          // OPTIMIZATION FLAGS
+          useCompression: true,           // Use Summarizer API to compress long articles (70-80% reduction)
+          validateContent: true,           // Filter out JavaScript/invalid content
+          maxArticles: 8,                  // Limit to top 8 articles by quality
+          compressionLevel: 'medium',      // Balance between detail and token usage
+          useV2Prompt: true                // Enhanced prompt with few-shot examples
         });
 
-        logger.info('✅ Comparative analysis completed successfully');
-        logger.group('📊 Analysis Summary');
-        logger.info(`Consensus: ${comparativeAnalysis.consensus?.length || 0} points`);
-        logger.info(`Disputes: ${comparativeAnalysis.disputes?.length || 0} topics`);
-        logger.info(`Omissions tracked: ${Object.keys(comparativeAnalysis.omissions || {}).length} sources`);
-        logger.info(`Bias indicators: ${comparativeAnalysis.bias_indicators?.length || 0}`);
-        logger.info(`Main story: ${comparativeAnalysis.summary?.main_story || 'N/A'}`);
-        logger.groupEnd();
+        // Check if analysis succeeded or returned fallback
+        if (comparativeAnalysis.error) {
+          logger.warn('⚠️ Analysis returned with errors:', comparativeAnalysis.metadata);
+        } else {
+          logger.info('✅ Comparative analysis completed successfully');
+          logger.group('📊 Analysis Summary');
+          logger.info(`Consensus: ${comparativeAnalysis.consensus?.length || 0} points`);
+          logger.info(`Disputes: ${comparativeAnalysis.disputes?.length || 0} topics`);
+          logger.info(`Omissions: ${Object.keys(comparativeAnalysis.omissions || {}).length} sources`);
+          logger.info(`Bias indicators: ${comparativeAnalysis.bias_indicators?.length || 0}`);
+          logger.info(`Articles analyzed: ${comparativeAnalysis.metadata?.articlesAnalyzed || 0}/${articlesWithContent.length}`);
+          logger.info(`Compression used: ${comparativeAnalysis.metadata?.compressionUsed ? 'Yes' : 'No'}`);
+          logger.info(`Input length: ${comparativeAnalysis.metadata?.totalInputLength || 0} chars`);
+          logger.info(`Main story: ${comparativeAnalysis.summary?.main_story?.substring(0, 80) || 'N/A'}...`);
+          logger.groupEnd();
+        }
       } else {
         logger.warn(`Skipping analysis: Only ${articlesWithContent.length} article(s) with content (need 2+)`);
       }
     } catch (error) {
-      logger.error('Comparative analysis failed:', error);
+      logger.error('Comparative analysis failed catastrophically:', error);
       // Continue without analysis rather than failing completely
       comparativeAnalysis = null;
     }
@@ -238,8 +250,12 @@ async function handleNewArticle(articleData) {
       try {
         // Find the tab that triggered the analysis
         const tabs = await chrome.tabs.query({ url: articleData.url });
+        logger.debug(`Found ${tabs.length} tabs matching URL:`, articleData.url);
+
         if (tabs.length > 0) {
-          await chrome.tabs.sendMessage(tabs[0].id, {
+          logger.debug(`Sending SHOW_ANALYSIS message to tab ${tabs[0].id}`);
+
+          const response = await chrome.tabs.sendMessage(tabs[0].id, {
             type: 'SHOW_ANALYSIS',
             data: {
               analysis: comparativeAnalysis,
@@ -247,10 +263,14 @@ async function handleNewArticle(articleData) {
               articleData
             }
           });
-          logger.info('✅ Analysis sent to UI');
+
+          logger.info('✅ Analysis sent to UI, response:', response);
+        } else {
+          logger.warn('⚠️ No tabs found matching the article URL');
         }
       } catch (error) {
-        logger.warn('Failed to send analysis to content script:', error);
+        logger.error('❌ Failed to send analysis to content script:', error);
+        logger.error('Error details:', error.message, error.stack);
         // Non-critical, continue
       }
     }

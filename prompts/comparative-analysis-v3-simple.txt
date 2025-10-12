@@ -1,0 +1,18 @@
+Analyze these news articles and identify differences. Output ONLY valid JSON.
+
+{{perspectives}}
+
+Required JSON format:
+{
+  "consensus": [{"fact": "string", "sources": ["string"], "confidence": "high|medium|low"}],
+  "disputes": [{"topic": "string", "perspectives": {"SourceName": {"viewpoint": "string"}}, "significance": "major|minor"}],
+  "omissions": {"SourceName": [{"fact": "string", "mentioned_by": ["string"], "relevance": "high|medium|low"}]},
+  "bias_indicators": [{"source": "string", "type": "framing|selection|omission|tone|language", "description": "string"}],
+  "summary": {"main_story": "string", "key_differences": "string"}
+}
+
+Guidelines:
+- Consensus: Facts 70%+ sources agree on
+- Disputes: Conflicting information only
+- Omissions: Important info missing from some sources
+- Keep descriptions concise (1-2 sentences)
