@@ -188,44 +188,144 @@ function fallbackKeywordExtraction(title) {
 }
 
 /**
- * Perform comparative analysis of multiple article summaries
- * @param {Array} perspectives - Array of {source, summary} objects
+ * Perform comparative analysis of multiple articles with structured JSON output
+ * Uses Chrome 137+ JSON Schema constraint for guaranteed structured responses
+ *
+ * @param {Array} perspectives - Array of article objects with extracted content
+ * @param {Object} options - Analysis options
+ * @param {number} options.maxContentLength - Max chars per article (default: 3000)
+ * @param {boolean} options.useV2Prompt - Use enhanced prompt with few-shot examples (default: true)
+ * @returns {Promise<Object>} Structured analysis with consensus, disputes, omissions, bias indicators
  */
-export async function compareArticles(perspectives) {
+export async function compareArticles(perspectives, options = {}) {
+  const {
+    maxContentLength = 3000,
+    useV2Prompt = true
+  } = options;
+
   if (!perspectives || perspectives.length < 2) {
     throw new AIModelError('At least 2 perspectives required for comparison');
   }
 
+  logger.group('🔍 Starting comparative analysis');
+  logger.info(`Analyzing ${perspectives.length} articles`);
+  logger.info(`Max content per article: ${maxContentLength} chars`);
+  logger.info(`Using enhanced prompt: ${useV2Prompt}`);
+
   const session = await createSession();
 
   try {
-    // Build input from all perspectives
+    // Step 1: Prepare article content (truncate if needed to fit context window)
     const perspectivesText = perspectives
-      .map((p, idx) => `Article ${idx + 1} (${p.source}):\n${p.summary}`)
-      .join('\n\n');
+      .filter(p => p.extractedContent || p.summary) // Only include articles with content
+      .map((article, idx) => {
+        const source = article.source || article.title?.substring(0, 50) || `Source ${idx + 1}`;
 
-    // Load prompt template from file
-    const prompt = await getPrompt('comparative-analysis', {
+        // Prefer extracted content over summary
+        let content = article.extractedContent?.textContent || article.summary || '';
+
+        // Truncate long content (Gemini Nano has limited context)
+        if (content.length > maxContentLength) {
+          content = content.substring(0, maxContentLength) + '...[truncated]';
+          logger.debug(`Truncated ${source} from ${article.extractedContent?.textContent?.length || 0} to ${maxContentLength} chars`);
+        }
+
+        return `Article ${idx + 1} (${source}):\n${content}`;
+      })
+      .join('\n\n---\n\n');
+
+    if (perspectivesText.length === 0) {
+      throw new AIModelError('No articles with valid content for comparison');
+    }
+
+    logger.debug(`Total input length: ${perspectivesText.length} chars`);
+
+    // Step 2: Load JSON Schema for structured output
+    const schemaUrl = chrome.runtime.getURL('prompts/comparative-analysis-schema.json');
+    const schemaResponse = await fetch(schemaUrl);
+    const jsonSchema = await schemaResponse.json();
+    logger.debug('Loaded JSON Schema for structured output');
+
+    // Step 3: Load prompt template (v2 with few-shot examples or legacy)
+    const promptName = useV2Prompt ? 'comparative-analysis-v2' : 'comparative-analysis';
+    const prompt = await getPrompt(promptName, {
       perspectives: perspectivesText
     });
 
-    logger.debug('Comparing', perspectives.length, 'perspectives');
-    const result = await session.prompt(prompt);
+    logger.info('🤖 Sending to Gemini Nano for analysis...');
+    logger.debug(`Prompt length: ${prompt.length} chars`);
 
+    // Step 4: Run analysis with JSON Schema constraint
+    // This guarantees valid JSON output (Chrome 137+)
+    const result = await session.prompt(prompt, {
+      responseConstraint: jsonSchema,
+      // Don't include schema in prompt to save tokens
+      omitResponseConstraintInput: true
+    });
+
+    logger.debug('Raw result length:', result.length);
+
+    // Step 5: Parse structured JSON response
     try {
       const analysis = JSON.parse(result);
-      logger.info('Comparison completed successfully');
+
+      // Validate response structure
+      if (!analysis.consensus || !analysis.disputes || !analysis.omissions || !analysis.summary) {
+        logger.warn('Response missing required fields, using defaults');
+        return {
+          consensus: analysis.consensus || [],
+          disputes: analysis.disputes || [],
+          omissions: analysis.omissions || {},
+          bias_indicators: analysis.bias_indicators || [],
+          summary: analysis.summary || {
+            main_story: 'Analysis completed',
+            key_differences: 'Unable to determine key differences'
+          }
+        };
+      }
+
+      // Log analysis summary
+      logger.group('✅ Analysis completed');
+      logger.info(`Consensus points: ${analysis.consensus.length}`);
+      logger.info(`Disputes found: ${analysis.disputes.length}`);
+      logger.info(`Sources with omissions: ${Object.keys(analysis.omissions).length}`);
+      logger.info(`Bias indicators: ${analysis.bias_indicators?.length || 0}`);
+      logger.info(`Main story: ${analysis.summary.main_story}`);
+      logger.groupEnd();
+
+      logger.groupEnd(); // Close main group
       return analysis;
+
     } catch (parseError) {
-      logger.warn('Failed to parse JSON, returning raw text');
-      return { raw: result, consensus: [], disputes: [], omissions: {} };
+      logger.error('Failed to parse JSON response:', parseError);
+      logger.debug('Raw response:', result);
+
+      // Fallback: return minimal structure
+      logger.warn('Returning fallback structure due to parse error');
+      logger.groupEnd();
+
+      return {
+        consensus: [],
+        disputes: [],
+        omissions: {},
+        bias_indicators: [],
+        summary: {
+          main_story: 'Analysis completed but response parsing failed',
+          key_differences: 'Unable to parse structured analysis',
+          recommendation: 'Please try again or check article content quality'
+        },
+        raw: result,
+        error: 'JSON parsing failed'
+      };
     }
 
   } catch (error) {
+    logger.groupEnd();
     logger.error('Comparison failed:', error);
     throw new AIModelError('Failed to compare articles', { originalError: error });
   } finally {
     session.destroy();
+    logger.debug('Session destroyed');
   }
 }
 

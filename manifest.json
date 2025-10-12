@@ -23,7 +23,14 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["prompts/*.txt", "offscreen/offscreen.html"],
+      "resources": [
+        "prompts/*.txt",
+        "prompts/*.json",
+        "offscreen/offscreen.html",
+        "ui/analysis-panel.css",
+        "ui/analysis-panel.js",
+        "images/*.png"
+      ],
       "matches": ["<all_urls>"]
     }
   ],
@@ -35,7 +42,7 @@
   },
   "content_scripts": [
     {
-      "js": ["scripts/content.js"],
+      "js": ["scripts/content.js", "scripts/panel-injector.js"],
       "matches": [
         "https://*.g1.globo.com/*",
         "https://*.folha.uol.com.br/*",
@@ -61,7 +68,8 @@
         "https://*.japantimes.co.jp/*",
         "https://*.clarin.com/*",
         "https://*.lanacion.com.ar/*"
-      ]
+      ],
+      "run_at": "document_end"
     }
   ]
 }

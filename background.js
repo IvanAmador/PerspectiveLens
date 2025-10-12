@@ -4,7 +4,7 @@
  */
 
 import { logger } from './utils/logger.js';
-import { extractKeywords, checkAvailability, createSession } from './api/languageModel.js';
+import { extractKeywords, checkAvailability, createSession, compareArticles } from './api/languageModel.js';
 import { handleError } from './utils/errors.js';
 import { normalizeLanguageCode } from './utils/languages.js';
 import { fetchPerspectives } from './api/newsFetcher.js';
@@ -167,18 +167,49 @@ async function handleNewArticle(articleData) {
       perspectivesWithContent = perspectives;
     }
 
-    // Step 6: Compare perspectives (F-006 - to be implemented)
-    // const analysis = await compareArticles(perspectivesWithContent);
+    // Step 6: Compare perspectives (F-006) - IMPLEMENTED!
+    logger.info('🔍 Step 5: Performing comparative analysis with Gemini Nano...');
+    let comparativeAnalysis = null;
+    try {
+      // Only run analysis if we have content from at least 2 articles
+      const articlesWithContent = perspectivesWithContent.filter(p => p.contentExtracted);
 
-    // Step 6: Cache results (F-007 - to be implemented)
+      if (articlesWithContent.length >= 2) {
+        logger.info(`Running comparative analysis on ${articlesWithContent.length} articles`);
+
+        comparativeAnalysis = await compareArticles(articlesWithContent, {
+          maxContentLength: 3000, // Limit per article to fit in context window
+          useV2Prompt: true // Use enhanced prompt with few-shot examples
+        });
+
+        logger.info('✅ Comparative analysis completed successfully');
+        logger.group('📊 Analysis Summary');
+        logger.info(`Consensus: ${comparativeAnalysis.consensus?.length || 0} points`);
+        logger.info(`Disputes: ${comparativeAnalysis.disputes?.length || 0} topics`);
+        logger.info(`Omissions tracked: ${Object.keys(comparativeAnalysis.omissions || {}).length} sources`);
+        logger.info(`Bias indicators: ${comparativeAnalysis.bias_indicators?.length || 0}`);
+        logger.info(`Main story: ${comparativeAnalysis.summary?.main_story || 'N/A'}`);
+        logger.groupEnd();
+      } else {
+        logger.warn(`Skipping analysis: Only ${articlesWithContent.length} article(s) with content (need 2+)`);
+      }
+    } catch (error) {
+      logger.error('Comparative analysis failed:', error);
+      // Continue without analysis rather than failing completely
+      comparativeAnalysis = null;
+    }
+
+    // Step 7: Cache results (F-007 - to be implemented)
     // await cacheAnalysis(articleData.url, result);
 
     const result = {
       articleData,
       keywords, // Already in English
       perspectives: perspectivesWithContent, // Array of related articles with extracted content
+      analysis: comparativeAnalysis, // Structured comparative analysis (or null if skipped)
       sourceLanguage: normalizeLanguageCode(articleData.language || 'en'), // Store for later translation
-      status: perspectivesWithContent.length > 0 ? 'content_extracted' : 'keywords_extracted',
+      status: comparativeAnalysis ? 'analysis_complete' :
+              perspectivesWithContent.length > 0 ? 'content_extracted' : 'keywords_extracted',
       timestamp: new Date().toISOString()
     };
 
@@ -200,6 +231,28 @@ async function handleNewArticle(articleData) {
     } catch (error) {
       logger.warn('Failed to update stats:', error);
       // Non-critical, continue
+    }
+
+    // Step 8: Send analysis to content script for UI display
+    if (comparativeAnalysis) {
+      try {
+        // Find the tab that triggered the analysis
+        const tabs = await chrome.tabs.query({ url: articleData.url });
+        if (tabs.length > 0) {
+          await chrome.tabs.sendMessage(tabs[0].id, {
+            type: 'SHOW_ANALYSIS',
+            data: {
+              analysis: comparativeAnalysis,
+              perspectives: perspectivesWithContent,
+              articleData
+            }
+          });
+          logger.info('✅ Analysis sent to UI');
+        }
+      } catch (error) {
+        logger.warn('Failed to send analysis to content script:', error);
+        // Non-critical, continue
+      }
     }
 
     logger.info('✅ Article processed successfully');
