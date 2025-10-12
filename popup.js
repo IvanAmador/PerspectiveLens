@@ -23,9 +23,7 @@ const elements = {
   downloadBtn: null,
   refreshBtn: null,
 
-  // NewsAPI
-  apiKeyStatus: null,
-  setupApiKeyLink: null,
+
 
   // Statistics
   articlesAnalyzed: null,
@@ -80,9 +78,7 @@ function initializeElements() {
   elements.downloadBtn = document.getElementById('download-model');
   elements.refreshBtn = document.getElementById('refresh-status');
 
-  // NewsAPI section
-  elements.apiKeyStatus = document.getElementById('api-key-status');
-  elements.setupApiKeyLink = document.getElementById('setup-api-key');
+
 
   // Statistics
   elements.articlesAnalyzed = document.getElementById('articles-analyzed');
@@ -120,12 +116,7 @@ function setupEventListeners() {
     logger.info('Settings clicked (not implemented yet)');
   });
 
-  // Setup API key link
-  elements.setupApiKeyLink?.addEventListener('click', (e) => {
-    e.preventDefault();
-    // TODO: Open API key setup
-    logger.info('API key setup clicked (not implemented yet)');
-  });
+
 
   // Help link
   elements.helpLink?.addEventListener('click', (e) => {
@@ -154,8 +145,7 @@ async function loadStatus() {
       // Update AI models status
       updateAIStatus(status.aiStatus);
 
-      // Update API key status
-      updateAPIKeyStatus(status.apiKeySet);
+
 
       // Update statistics
       updateStatistics(status.stats);
@@ -297,20 +287,7 @@ async function handleDownloadModel() {
   }
 }
 
-/**
- * Update API key status
- */
-function updateAPIKeyStatus(hasKey) {
-  if (hasKey) {
-    elements.apiKeyStatus.innerHTML = `
-      <span class="badge badge-success">Configured</span>
-    `;
-  } else {
-    elements.apiKeyStatus.innerHTML = `
-      <span class="badge badge-warning">Not configured</span>
-    `;
-  }
-}
+
 
 /**
  * Update statistics display

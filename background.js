@@ -5,7 +5,6 @@
 
 import { logger } from './utils/logger.js';
 import { extractKeywords, checkAvailability, createSession } from './api/languageModel.js';
-import { generateKeyPoints, generateTLDR } from './api/summarizer.js';
 import { handleError } from './utils/errors.js';
 import { normalizeLanguageCode } from './utils/languages.js';
 
@@ -114,37 +113,7 @@ async function handleNewArticle(articleData) {
     );
     logger.info('✅ Keywords extracted:', keywords);
 
-    // Step 2: Summarize article content (F-005)
-    let summary = null;
-    let tldr = null;
-
-    if (articleData.content && articleData.content.length > 200) {
-      logger.info('📄 Step 2: Generating summary...');
-
-      try {
-        // Generate key points summary (keep in English)
-        summary = await generateKeyPoints(articleData.content, {
-          length: 'medium',
-          language: articleData.language,
-          translateBack: false // Keep in English for internal processing
-        });
-        logger.info('✅ Summary generated (EN):', summary.substring(0, 100) + '...');
-
-        // Generate TL;DR (keep in English)
-        tldr = await generateTLDR(articleData.content, {
-          length: 'short',
-          language: articleData.language,
-          translateBack: false // Keep in English for internal processing
-        });
-        logger.info('✅ TL;DR generated (EN):', tldr);
-
-      } catch (error) {
-        logger.error('Failed to generate summary:', error);
-        // Continue without summary
-      }
-    } else {
-      logger.warn('Content too short for summarization (< 200 chars)');
-    }
+    logger.info('📄 Step 2: Skipping summarization (feature removed)');
 
     // Step 3: Check cache (F-007 - to be implemented)
     // const cachedAnalysis = await checkCache(articleData.url);
@@ -162,10 +131,8 @@ async function handleNewArticle(articleData) {
     const result = {
       articleData,
       keywords, // Already in English
-      summary,  // Now in English (not translated back)
-      tldr,     // Now in English (not translated back)
       sourceLanguage: normalizeLanguageCode(articleData.language || 'en'), // Store for later translation
-      status: summary ? 'summarized' : 'keywords_extracted',
+      status: 'keywords_extracted',
       timestamp: new Date().toISOString()
     };
 
@@ -223,7 +190,7 @@ async function getExtensionStatus() {
     }
 
     // Get cache and stats from storage
-    const storage = await chrome.storage.local.get(['cache', 'stats', 'newsApiKey']);
+    const storage = await chrome.storage.local.get(['cache', 'stats']);
 
     const cache = storage.cache || [];
     const stats = storage.stats || {
@@ -232,11 +199,8 @@ async function getExtensionStatus() {
       perspectivesFound: 0
     };
 
-    const apiKeySet = !!(storage.newsApiKey && storage.newsApiKey.length > 0);
-
     return {
       aiStatus,
-      apiKeySet,
       stats: {
         articlesAnalyzed: stats.articlesAnalyzed,
         cacheCount: cache.length,

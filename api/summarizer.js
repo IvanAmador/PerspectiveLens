@@ -5,7 +5,6 @@
  *
  * Supported types:
  * - key-points: Bullet point list (default)
- * - tldr: Short summary
  * - teaser: Engaging preview
  * - headline: Article title
  *
@@ -27,7 +26,7 @@ import {
 } from '../utils/languages.js';
 
 // Summarizer configuration constants
-const SUMMARIZER_TYPES = ['key-points', 'tldr', 'teaser', 'headline'];
+const SUMMARIZER_TYPES = ['key-points', 'teaser', 'headline'];
 const SUMMARIZER_LENGTHS = ['short', 'medium', 'long'];
 const SUMMARIZER_FORMATS = ['markdown', 'plain-text'];
 
@@ -281,22 +280,7 @@ export async function generateKeyPoints(text, options = {}) {
   });
 }
 
-/**
- * Generate a TL;DR summary
- * Convenience function for quick summaries
- *
- * @param {string} text - Article text
- * @param {Object} options - Options (length, language, translateBack)
- * @returns {Promise<string>} TL;DR summary
- */
-export async function generateTLDR(text, options = {}) {
-  logger.info('Generating TL;DR...');
-  return await summarize(text, {
-    ...options,
-    type: 'tldr',
-    format: 'plain-text'
-  });
-}
+
 
 /**
  * Get supported summarization types
