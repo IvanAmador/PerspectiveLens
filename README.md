@@ -50,25 +50,28 @@ PerspectiveLens uses a **hybrid online/offline model**:
 
 - ✅ **Automatic News Detection** - Detects news articles on 25+ major news sites
 - ✅ **AI-Powered Keyword Extraction** - Extracts 3-5 key topics using Gemini Nano
+- ✅ **Perspective Discovery** - Search Google News RSS for international coverage
+- ✅ **Content Extraction** - Extracts article content using Chrome Tabs + Readability.js
+- ✅ **Translation Pipeline** - Translate articles using Chrome Translator API
+- ✅ **Language Detection** - Automatic language detection using Chrome Language Detector API
+- ✅ **Summarization** - Condense articles using Chrome Summarizer API
+- ✅ **Comparative Analysis** - Identify consensus, disputes, and omissions with structured output
+- ✅ **Content Validation** - Filters invalid/JS content before analysis
 - ✅ **Modular Architecture** - Clean separation of concerns (utils, api, ui)
 - ✅ **External Prompt Management** - All AI prompts stored in `/prompts` folder
 - ✅ **Comprehensive Error Handling** - Custom error classes and logging
 - ✅ **Extension Status Dashboard** - Real-time AI model status, cache info
-
-### In Progress (v1.1)
-
-- 🚧 **Perspective Discovery** - Search NewsAPI for international coverage
-- 🚧 **Translation Pipeline** - Translate articles using Chrome Translator API
-- 🚧 **Summarization** - Condense articles using Chrome Summarizer API
-- 🚧 **Comparative Analysis** - Identify consensus, disputes, and omissions
-- 🚧 **Cache System** - IndexedDB for offline access to past analyses
+- ✅ **Analysis Panel UI** - Side panel showing comparative analysis results
 
 ### Planned (v2.0)
 
-- 📅 Language Detection API integration
-- 📅 Floating panel UI for perspectives
-- 📅 NewsAPI integration
+- 📅 Detection popup with user confirmation
+- 📅 Progress indicator during analysis
+- 📅 Cache system (IndexedDB) for offline access to past analyses
+- 📅 Source selection (international vs national)
+- 📅 Settings page (preferences, countries, etc)
 - 📅 Full offline mode for cached articles
+- 📅 Export analysis results (PDF/JSON)
 
 ---
 
@@ -99,8 +102,8 @@ PerspectiveLens uses a **hybrid online/offline model**:
      - `#prompt-api-for-gemini-nano` → **"Enabled (multilingual)"**
      - `#prompt-api-for-gemini-nano-multimodal-input` → **"Enabled"**
      - `#summarization-api-for-gemini-nano` → **"Enabled"**
-     - `#translation-api` → **"Enabled"** (if available)
-     - `#language-detection-api` → **"Enabled"** (if available)
+     - `#translation-api` → **"Enabled"**
+     - `#language-detection-api` → **"Enabled"**
      - `#optimization-guide-on-device-model` → **"Enabled BypassPerfRequirement"**
    - **Restart Chrome** after enabling flags
 
@@ -234,24 +237,24 @@ Extract article data → Send to Background
     ↓
 Background Service Worker
     ├─→ Extract keywords (F-002) ✅ DONE
-    ├─→ Check cache (F-007) 🚧 TODO
-    ├─→ Fetch perspectives via NewsAPI (F-003) 🚧 TODO
-    ├─→ Translate articles (F-004) 🚧 TODO
-    ├─→ Summarize articles (F-005) 🚧 TODO
-    ├─→ Compare perspectives (F-006) 🚧 TODO
-    └─→ Cache results (F-007) 🚧 TODO
+    ├─→ Fetch perspectives via Google News RSS (F-003) ✅ DONE
+    ├─→ Extract article content with Chrome Tabs (F-004) ✅ DONE
+    ├─→ Detect & translate articles (F-004) ✅ DONE
+    ├─→ Validate & compress articles (F-005) ✅ DONE
+    ├─→ Compare perspectives with AI (F-006) ✅ DONE
+    └─→ Cache results (F-007) 📅 TODO
     ↓
-Display in UI panel
+Display in UI panel ✅ DONE
 ```
 
 ### Chrome Built-in AI APIs Used
 
 | API | Status | Usage |
 |-----|--------|-------|
-| **Prompt API (Gemini Nano)** | ✅ Implemented | Keyword extraction, comparative analysis |
-| **Language Detector API** | 📅 Planned | Detect article language |
-| **Translator API** | 📅 Planned | Translate to user's language |
-| **Summarizer API** | 📅 Planned | Condense articles to key points |
+| **Prompt API (Gemini Nano)** | ✅ Implemented | Keyword extraction, comparative analysis with JSON Schema |
+| **Language Detector API** | ✅ Implemented | Automatic detection of article language |
+| **Translator API** | ✅ Implemented | Translate articles to English for analysis |
+| **Summarizer API** | ✅ Implemented | Compress articles to fit context window (70-80% reduction) |
 
 ### Hybrid Model
 
@@ -262,7 +265,7 @@ Display in UI panel
 
 ## 🗺️ Roadmap
 
-### Phase 1: Foundation ✅ (Current)
+### Phase 1: Foundation ✅ (Completed)
 - [x] Project setup and manifest
 - [x] News detection (25+ sites)
 - [x] Modular architecture
@@ -270,21 +273,31 @@ Display in UI panel
 - [x] Error handling and logging
 - [x] External prompt system
 
-### Phase 2: AI Pipeline 🚧 (In Progress)
-- [ ] NewsAPI integration
-- [ ] Translation pipeline
-- [ ] Summarization
-- [ ] Comparative analysis
-- [ ] IndexedDB cache
+### Phase 2: AI Pipeline ✅ (Completed)
+- [x] Google News RSS integration (10 countries)
+- [x] Content extraction with Chrome Tabs
+- [x] Translation pipeline (Translator API)
+- [x] Language detection (Language Detector API)
+- [x] Summarization (Summarizer API)
+- [x] Content validation and compression
+- [x] Comparative analysis with JSON Schema
+- [x] Analysis panel UI
 
-### Phase 3: UI & Polish 📅 (Next)
-- [ ] Floating perspective panel
-- [ ] Loading states and animations
+### Phase 3: UX Improvements 🚧 (In Progress)
+- [ ] Detection popup with user confirmation
+- [ ] Progress indicator during analysis
+- [ ] Source selection (international vs national)
+- [ ] Settings page
 - [ ] Error messages for users
-- [ ] Keyboard shortcuts
-- [ ] Responsive design
+- [ ] Loading states and animations
 
-### Phase 4: Launch 📅
+### Phase 4: Performance & Cache 📅 (Next)
+- [ ] IndexedDB cache system
+- [ ] Optimize article processing (stop early)
+- [ ] Parallel processing improvements
+- [ ] Full offline mode for cached articles
+
+### Phase 5: Launch 📅
 - [ ] Demo video
 - [ ] Documentation and screenshots
 - [ ] Chrome Web Store submission
