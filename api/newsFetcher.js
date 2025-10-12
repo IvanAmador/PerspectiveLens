@@ -41,8 +41,6 @@ function buildParams(country = 'US', language = 'en') {
  */
 async function fetchRSS(url) {
   try {
-    logger.debug('Fetching RSS:', url);
-
     const response = await fetch(url);
 
     if (!response.ok) {
@@ -50,9 +48,6 @@ async function fetchRSS(url) {
     }
 
     const xmlText = await response.text();
-
-    // Debug: Log first 500 chars to see XML structure
-    logger.debug('RSS XML sample:', xmlText.substring(0, 500));
 
     // Parse RSS items using regex (service worker compatible)
     const items = [];
@@ -94,18 +89,7 @@ async function fetchRSS(url) {
         fullTitle
       };
 
-      logger.debug('Parsed article:', { title, source, link: article.link.substring(0, 50) });
       items.push(article);
-    }
-
-    logger.info(`📄 Parsed ${items.length} items from RSS feed`);
-
-    // Log first 3 articles for debugging
-    if (items.length > 0) {
-      logger.debug('Sample articles:', items.slice(0, 3).map(i => ({
-        title: i.title,
-        source: i.source
-      })));
     }
 
     return items;
@@ -132,13 +116,9 @@ export async function searchNews(query, options = {}) {
     throw new Error('Query is required for news search');
   }
 
-  logger.group(`🔍 Searching Google News [${country}/${language}]`);
-  logger.info('Query:', query);
-
   try {
     // Build search URL
     const url = SEARCH_RSS + encodeURIComponent(query) + '&' + buildParams(country, language);
-    logger.debug('RSS URL:', url);
 
     // Fetch and parse RSS
     const items = await fetchRSS(url);
@@ -146,14 +126,10 @@ export async function searchNews(query, options = {}) {
     // Limit results
     const results = items.slice(0, Math.max(0, maxResults));
 
-    logger.info(`✅ Found ${results.length} articles from ${country}`);
-    logger.groupEnd();
-
     return results;
 
   } catch (error) {
     logger.error(`Search failed for ${country}:`, error);
-    logger.groupEnd();
     return []; // Return empty instead of throwing
   }
 }
@@ -237,28 +213,34 @@ export async function fetchPerspectives(keywords, articleData = {}) {
     // Search across multiple countries in parallel for diverse perspectives
     logger.info('🌍 Searching across multiple countries...');
 
-    const searchPromises = SEARCH_COUNTRIES.map(country =>
-      searchNews(query, {
+    // Fetch articles from each country in parallel, ensuring at least one from each country
+    const searchPromises = SEARCH_COUNTRIES.map(async (country) => {
+      const articles = await searchNews(query, {
         country: country.code,
         language: country.language,
-        maxResults: 5 // Get 5 from each country
-      }).then(articles => articles.map(article => ({
+        maxResults: 3 // Get at least 3 from each country to ensure good content
+      });
+      
+      // Return articles with country metadata
+      return articles.map(article => ({
         ...article,
         searchCountry: country.name,
         searchLanguage: country.language
-      })))
-    );
+      }));
+    });
 
-    const allResults = await Promise.all(searchPromises);
-    const allArticles = allResults.flat();
+    const allCountryResults = await Promise.all(searchPromises);
+    
+    // Flatten all articles from all countries
+    const allArticles = allCountryResults.flat();
 
     logger.info(`📊 Total articles found: ${allArticles.length} from ${SEARCH_COUNTRIES.length} countries`);
 
-    // Filter out duplicates and original article
+    // Filter out duplicates and original article, while ensuring content is valid
     const seenUrls = new Set();
     const seenTitles = new Set();
 
-    const uniquePerspectives = allArticles.filter(article => {
+    const validPerspectives = allArticles.filter(article => {
       // Skip if no link
       if (!article.link) return false;
 
@@ -278,73 +260,74 @@ export async function fetchPerspectives(keywords, articleData = {}) {
         return false;
       }
 
+      // Check if article has meaningful content (basic validation)
+      if (!article.title || article.title.trim().length < 5) {
+        return false;
+      }
+
       seenUrls.add(article.link);
       seenTitles.add(titleKey);
       return true;
     });
 
-    // Add metadata
-    const enrichedPerspectives = uniquePerspectives.map(article => ({
+    // Group articles by country to ensure at least one from each country
+    const articlesByCountry = new Map();
+    validPerspectives.forEach(article => {
+      if (!articlesByCountry.has(article.searchCountry)) {
+        articlesByCountry.set(article.searchCountry, []);
+      }
+      articlesByCountry.get(article.searchCountry).push(article);
+    });
+
+    // Take at least one article from each country that has articles
+    const guaranteedFromEachCountry = [];
+    const remainingArticles = [];
+
+    for (const [country, countryArticles] of articlesByCountry.entries()) {
+      // Take the first article from each country (which should be the most relevant by RSS order)
+      guaranteedFromEachCountry.push(countryArticles[0]);
+      
+      // Add the rest to remaining articles
+      if (countryArticles.length > 1) {
+        remainingArticles.push(...countryArticles.slice(1));
+      }
+    }
+
+    // Combine: guaranteed from each country + remaining articles
+    const allPrioritizedArticles = [...guaranteedFromEachCountry, ...remainingArticles];
+
+    // Add metadata to all articles
+    const enrichedPerspectives = allPrioritizedArticles.map(article => ({
       ...article,
       keywords,
-      searchedAt: new Date().toISOString(),
-      relevance: calculateRelevance(article.title, keywords)
+      searchedAt: new Date().toISOString()
     }));
 
-    // Sort by relevance and diversity
-    const sortedPerspectives = enrichedPerspectives
-      .sort((a, b) => {
-        // Prioritize relevance first
-        const relevanceDiff = b.relevance - a.relevance;
-        if (Math.abs(relevanceDiff) > 0.2) return relevanceDiff;
+    // Take top 15 perspectives, ensuring country diversity is maintained
+    const finalPerspectives = enrichedPerspectives.slice(0, 15);
 
-        // Then alphabetically by country for diversity
-        return a.searchCountry.localeCompare(b.searchCountry);
-      })
-      .slice(0, 15); // Top 15 perspectives
-
-    logger.info(`✅ Found ${sortedPerspectives.length} unique perspectives`);
+    logger.info(`✅ Found ${finalPerspectives.length} unique perspectives`);
 
     // Log sources by country for verification
     const countryStats = {};
-    sortedPerspectives.forEach(p => {
+    finalPerspectives.forEach(p => {
       countryStats[p.searchCountry] = (countryStats[p.searchCountry] || 0) + 1;
     });
     logger.info('📍 Perspectives by country:', countryStats);
 
-    logger.debug('🔍 Sample perspectives:', sortedPerspectives.slice(0, 5).map(p => ({
+    logger.debug('🔍 Sample perspectives:', finalPerspectives.slice(0, 5).map(p => ({
       title: p.title,
       source: p.source,
-      country: p.searchCountry,
-      relevance: p.relevance
+      country: p.searchCountry
     })));
 
     logger.groupEnd();
 
-    return sortedPerspectives;
+    return finalPerspectives;
 
   } catch (error) {
     logger.error('Failed to fetch perspectives:', error);
     logger.groupEnd();
     throw error;
   }
-}
-
-/**
- * Calculate relevance score based on keyword matches in title
- */
-function calculateRelevance(title, keywords) {
-  if (!title || !keywords || keywords.length === 0) return 0;
-
-  const titleLower = title.toLowerCase();
-  let score = 0;
-
-  keywords.forEach(keyword => {
-    if (titleLower.includes(keyword.toLowerCase())) {
-      score += 1;
-    }
-  });
-
-  // Normalize to 0-1 range
-  return score / keywords.length;
 }
