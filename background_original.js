@@ -7,8 +7,6 @@ import { logger } from './utils/logger.js';
 import { extractKeywords, checkAvailability, createSession } from './api/languageModel.js';
 import { handleError } from './utils/errors.js';
 import { normalizeLanguageCode } from './utils/languages.js';
-import { fetchPerspectives } from './api/newsFetcher.js';
-import { extractArticlesContentWithTabs } from './api/contentExtractorTabs.js';
 
 logger.info('Background service worker started');
 
@@ -92,6 +90,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
     return true;
   }
+  
+  if (message.type === 'FETCH_EXTERNAL_RESOURCE') {
+    fetchExternalResource(message.url)
+      .then(data => sendResponse({ success: true, data }))
+      .catch(error => {
+        const errorInfo = handleError(error, 'fetchExternalResource');
+        sendResponse({ success: false, error: errorInfo });
+      });
+
+    return true;
+  }
 });
 
 /**
@@ -121,54 +130,11 @@ async function handleNewArticle(articleData) {
     // const cachedAnalysis = await checkCache(articleData.url);
     // if (cachedAnalysis) return cachedAnalysis;
 
-    // Step 4: Fetch perspectives (F-003)
-    logger.info('📰 Step 3: Fetching perspectives from other sources...');
-    let perspectives = [];
-    try {
-      perspectives = await fetchPerspectives(keywords, articleData);
-      logger.info(`✅ Found ${perspectives.length} perspectives`);
-    } catch (error) {
-      logger.error('Failed to fetch perspectives:', error);
-      // Continue without perspectives rather than failing completely
-    }
+    // Step 4: Fetch perspectives (F-003 - to be implemented)
+    // const perspectives = await fetchPerspectives(keywords, articleData);
 
-    // Step 5: Extract content from perspectives (F-004)
-    logger.info('📄 Step 4: Extracting content from perspective articles...');
-    let perspectivesWithContent = perspectives;
-    try {
-      if (perspectives.length > 0) {
-        perspectivesWithContent = await extractArticlesContentWithTabs(perspectives, {
-          maxArticles: 10,
-          timeout: 15000,
-          parallel: true,
-          batchSize: 5 // Process 5 tabs at a time
-        });
-
-        const extractedCount = perspectivesWithContent.filter(p => p.contentExtracted).length;
-        logger.info(`✅ Extracted content from ${extractedCount}/${perspectives.length} articles`);
-
-        // Log sample of extracted content for verification
-        perspectivesWithContent
-          .filter(p => p.contentExtracted)
-          .slice(0, 3)
-          .forEach(article => {
-            logger.group(`📰 Sample: ${article.source} - ${article.title.substring(0, 60)}...`);
-            logger.info('Final URL:', article.finalUrl);
-            logger.info('Extraction Method:', article.extractionMethod);
-            logger.info('Content Length:', article.extractedContent?.textContent?.length || 0);
-            logger.info('Excerpt:', article.extractedContent?.excerpt?.substring(0, 150) || 'N/A');
-            logger.info('First 300 chars:', article.extractedContent?.textContent?.substring(0, 300) || 'N/A');
-            logger.groupEnd();
-          });
-      }
-    } catch (error) {
-      logger.error('Failed to extract article contents:', error);
-      // Continue with perspectives without content
-      perspectivesWithContent = perspectives;
-    }
-
-    // Step 6: Compare perspectives (F-006 - to be implemented)
-    // const analysis = await compareArticles(perspectivesWithContent);
+    // Step 5: Compare perspectives (F-006 - to be implemented)
+    // const analysis = await compareArticles(perspectives);
 
     // Step 6: Cache results (F-007 - to be implemented)
     // await cacheAnalysis(articleData.url, result);
@@ -176,31 +142,10 @@ async function handleNewArticle(articleData) {
     const result = {
       articleData,
       keywords, // Already in English
-      perspectives: perspectivesWithContent, // Array of related articles with extracted content
       sourceLanguage: normalizeLanguageCode(articleData.language || 'en'), // Store for later translation
-      status: perspectivesWithContent.length > 0 ? 'content_extracted' : 'keywords_extracted',
+      status: 'keywords_extracted',
       timestamp: new Date().toISOString()
     };
-
-    // Update statistics
-    try {
-      const storage = await chrome.storage.local.get(['stats']);
-      const stats = storage.stats || {
-        articlesAnalyzed: 0,
-        keywordsExtracted: 0,
-        perspectivesFound: 0
-      };
-
-      stats.articlesAnalyzed += 1;
-      stats.keywordsExtracted += keywords.length;
-      stats.perspectivesFound += perspectives.length;
-
-      await chrome.storage.local.set({ stats });
-      logger.debug('Stats updated:', stats);
-    } catch (error) {
-      logger.warn('Failed to update stats:', error);
-      // Non-critical, continue
-    }
 
     logger.info('✅ Article processed successfully');
     logger.groupEnd();

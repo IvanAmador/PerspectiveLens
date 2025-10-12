@@ -4,7 +4,15 @@
   "version": "1.0",
   "description": "Reveals how the same news is reported globally, using AI for translation, summarization, and comparative analysis.",
   "permissions": [
-    "storage"
+    "storage",
+    "offscreen",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://news.google.com/*",
+    "http://*/*",
+    "https://*/*"
   ],
   "action": {
     "default_popup": "popup.html"
@@ -15,7 +23,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["prompts/*.txt"],
+      "resources": ["prompts/*.txt", "offscreen/offscreen.html"],
       "matches": ["<all_urls>"]
     }
   ],
