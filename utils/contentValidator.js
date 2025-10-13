@@ -183,12 +183,48 @@ export function filterValidArticles(articles) {
   const validArticles = results.filter(a => a.isValid);
   const invalidArticles = results.filter(a => !a.isValid);
 
+  // Group valid articles by country to ensure diversity
+  const validArticlesByCountry = new Map();
+  validArticles.forEach(article => {
+    const country = article.searchCountry || 'Unknown';
+    if (!validArticlesByCountry.has(country)) {
+      validArticlesByCountry.set(country, []);
+    }
+    validArticlesByCountry.get(country).push(article);
+  });
+
+  // Build result starting with one article from each country (highest scoring)
+  const finalValidArticles = [];
+  const remainingValidArticles = [];
+
+  for (const [country, countryArticles] of validArticlesByCountry.entries()) {
+    // Sort articles from each country by validation score (highest first)
+    const sortedCountryArticles = countryArticles.sort((a, b) => b.validation.score - a.validation.score);
+    
+    // Add the best article from each country to guarantee diversity
+    finalValidArticles.push(sortedCountryArticles[0]);
+    
+    // Add remaining articles from this country to the remaining pool
+    if (sortedCountryArticles.length > 1) {
+      remainingValidArticles.push(...sortedCountryArticles.slice(1));
+    }
+  }
+
+  // Add remaining valid articles to fill out the list
+  finalValidArticles.push(...remainingValidArticles);
+
   // Log summary
   logger.group('Content Validation Summary');
   logger.info(`Total articles: ${articles.length}`);
-  logger.info(`Valid: ${validArticles.length}`);
+  logger.info(`Valid: ${finalValidArticles.length}`);
   logger.info(`Invalid: ${invalidArticles.length}`);
 
+  // Log country distribution
+  const originalCountries = [...new Set(articles.map(a => a.searchCountry || 'Unknown'))];
+  const finalCountries = [...new Set(finalValidArticles.map(a => a.searchCountry || 'Unknown'))];
+  logger.info(`Original countries represented: ${originalCountries.length}`);
+  logger.info(`Final countries represented: ${finalCountries.length}`);
+  
   if (invalidArticles.length > 0) {
     logger.group('Invalid articles:');
     invalidArticles.forEach(article => {
@@ -199,7 +235,7 @@ export function filterValidArticles(articles) {
 
   logger.groupEnd();
 
-  return validArticles;
+  return finalValidArticles;
 }
 
 /**
