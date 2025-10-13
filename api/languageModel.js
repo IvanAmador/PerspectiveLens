@@ -209,7 +209,7 @@ function fallbackKeywordExtraction(title) {
  * @param {boolean} options.useCompression - Use Summarizer API to compress long articles (default: true)
  * @param {boolean} options.validateContent - Validate content quality before analysis (default: true)
  * @param {number} options.maxArticles - Maximum articles to analyze (default: 10)
- * @param {string} options.compressionLevel - Summarization length: 'short', 'medium', 'long' (default: 'medium')
+ * @param {string} options.compressionLevel - Summarization length: 'short', 'medium', 'long' (default: 'long')
  * @param {boolean} options.useV2Prompt - Use enhanced prompt with few-shot examples (default: true)
  * @returns {Promise<Object>} Structured analysis with consensus, disputes, omissions, bias indicators
  */

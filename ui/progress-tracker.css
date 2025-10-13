@@ -1,35 +1,38 @@
 /**
  * PerspectiveLens Progress Tracker Styles
- * Modern progress tracker with logs display
+ * Modern progress tracker using unified design system
  */
+
+/* Import design system */
+@import url('./design-system.css');
 
 /* Main container */
 .pl-progress-container {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  bottom: var(--pl-space-5);
+  right: var(--pl-space-5);
   width: 420px;
   max-height: 600px;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 0 4px 16px rgba(0, 0, 0, 0.1);
-  z-index: 999997;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
+  background: var(--pl-white);
+  border-radius: var(--pl-radius-2xl);
+  box-shadow: var(--pl-shadow-xl);
+  z-index: var(--pl-z-progress);
+  font-family: var(--pl-font-sans);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: pl-progress-slide-up 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: pl-slide-in-up var(--pl-transition-slower);
 }
 
 .pl-progress-container.pl-progress-hiding {
-  animation: pl-progress-slide-down 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: pl-slide-out-down var(--pl-transition-slow) forwards;
 }
 
 /* Header */
 .pl-progress-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 16px 20px;
+  background: var(--pl-primary);
+  color: var(--pl-white);
+  padding: var(--pl-space-4) var(--pl-space-5);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -38,42 +41,50 @@
 .pl-progress-header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--pl-space-3);
 }
 
 .pl-progress-icon {
-  font-size: 24px;
+  font-size: var(--pl-text-2xl);
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pl-progress-icon svg {
+  animation: pl-spin 2s linear infinite;
 }
 
 .pl-progress-title {
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1.4;
+  font-size: var(--pl-text-lg);
+  font-weight: var(--pl-weight-semibold);
+  line-height: var(--pl-leading-normal);
 }
 
 .pl-progress-subtitle {
-  font-size: 13px;
-  opacity: 0.9;
+  font-size: var(--pl-text-base);
+  opacity: var(--pl-opacity-90);
   margin-top: 2px;
 }
 
 .pl-progress-minimize {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, var(--pl-opacity-20));
   border: none;
-  border-radius: 8px;
+  border-radius: var(--pl-radius-md);
   width: 32px;
   height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s;
-  color: white;
+  transition: all var(--pl-transition-base);
+  color: var(--pl-white);
 }
 
 .pl-progress-minimize:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, var(--pl-opacity-30));
+  transform: scale(1.05);
 }
 
 .pl-progress-minimize svg {
@@ -83,84 +94,83 @@
 
 /* Content area */
 .pl-progress-content {
-  padding: 20px;
+  padding: var(--pl-space-5);
   flex: 1;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--pl-space-5);
 }
 
 /* Steps section */
 .pl-progress-steps {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--pl-space-3);
 }
 
 .pl-progress-step {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: #f9fafb;
-  border-radius: 10px;
-  transition: all 0.3s;
-  border-left: 3px solid #e5e7eb;
+  gap: var(--pl-space-3);
+  padding: var(--pl-space-3);
+  background: var(--pl-gray-50);
+  border-radius: var(--pl-radius-lg);
+  transition: all var(--pl-transition-base);
+  border-left: 3px solid var(--pl-gray-200);
 }
 
 .pl-progress-step.pl-step-pending {
-  opacity: 0.5;
+  opacity: var(--pl-opacity-50);
 }
 
 .pl-progress-step.pl-step-active {
-  background: #eff6ff;
-  border-left-color: #667eea;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+  background: var(--pl-info-bg);
+  border-left-color: var(--pl-primary);
+  box-shadow: var(--pl-shadow-sm);
 }
 
 .pl-progress-step.pl-step-completed {
-  border-left-color: #10b981;
+  border-left-color: var(--pl-success);
 }
 
 .pl-progress-step.pl-step-error {
-  background: #fef2f2;
-  border-left-color: #ef4444;
+  background: var(--pl-error-bg);
+  border-left-color: var(--pl-error);
 }
 
 /* Step icon */
 .pl-progress-step-icon {
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  border-radius: var(--pl-radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: var(--pl-text-lg);
   flex-shrink: 0;
-  background: white;
-  transition: all 0.3s;
+  background: var(--pl-white);
+  transition: all var(--pl-transition-base);
 }
 
 .pl-step-pending .pl-progress-step-icon {
-  background: #f3f4f6;
-  color: #9ca3af;
+  background: var(--pl-gray-100);
+  color: var(--pl-gray-400);
 }
 
 .pl-step-active .pl-progress-step-icon {
-  background: #667eea;
-  color: white;
-  animation: pl-pulse 2s ease-in-out infinite;
+  background: var(--pl-primary);
+  color: var(--pl-white);
 }
 
 .pl-step-completed .pl-progress-step-icon {
-  background: #10b981;
-  color: white;
+  background: var(--pl-success);
+  color: var(--pl-white);
 }
 
 .pl-step-error .pl-progress-step-icon {
-  background: #ef4444;
-  color: white;
+  background: var(--pl-error);
+  color: var(--pl-white);
 }
 
 /* Step content */
@@ -168,49 +178,49 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--pl-space-1);
 }
 
 .pl-progress-step-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2937;
+  font-size: var(--pl-text-md);
+  font-weight: var(--pl-weight-semibold);
+  color: var(--pl-gray-800);
 }
 
 .pl-step-pending .pl-progress-step-label {
-  color: #9ca3af;
+  color: var(--pl-gray-400);
 }
 
 .pl-progress-step-status {
-  font-size: 12px;
-  color: #6b7280;
+  font-size: var(--pl-text-sm);
+  color: var(--pl-gray-500);
 }
 
 .pl-step-active .pl-progress-step-status {
-  color: #667eea;
+  color: var(--pl-primary);
 }
 
 /* Progress bar */
 .pl-progress-bar-container {
-  margin-top: 8px;
+  margin-top: var(--pl-space-2);
   height: 4px;
-  background: #e5e7eb;
-  border-radius: 2px;
+  background: var(--pl-gray-200);
+  border-radius: var(--pl-radius-sm);
   overflow: hidden;
 }
 
 .pl-progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-  border-radius: 2px;
-  transition: width 0.3s ease;
+  background: var(--pl-primary);
+  border-radius: var(--pl-radius-sm);
+  transition: width var(--pl-transition-base);
 }
 
 /* Logs section */
 .pl-progress-logs-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--pl-space-2);
 }
 
 .pl-progress-logs-header {
@@ -220,9 +230,9 @@
 }
 
 .pl-progress-logs-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #4b5563;
+  font-size: var(--pl-text-base);
+  font-weight: var(--pl-weight-semibold);
+  color: var(--pl-gray-600);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -230,70 +240,71 @@
 .pl-progress-logs-clear {
   background: transparent;
   border: none;
-  color: #6b7280;
-  font-size: 12px;
+  color: var(--pl-gray-500);
+  font-size: var(--pl-text-sm);
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: all 0.2s;
+  padding: var(--pl-space-1) var(--pl-space-2);
+  border-radius: var(--pl-radius-sm);
+  transition: all var(--pl-transition-base);
+  font-family: var(--pl-font-sans);
 }
 
 .pl-progress-logs-clear:hover {
-  background: #f3f4f6;
-  color: #1f2937;
+  background: var(--pl-gray-100);
+  color: var(--pl-gray-800);
 }
 
 .pl-progress-logs {
-  background: #1f2937;
-  border-radius: 10px;
-  padding: 12px;
+  background: var(--pl-gray-800);
+  border-radius: var(--pl-radius-lg);
+  padding: var(--pl-space-3);
   max-height: 200px;
   overflow-y: auto;
-  font-family: 'SF Mono', 'Monaco', 'Consolas', 'Courier New', monospace;
-  font-size: 12px;
-  line-height: 1.6;
-  color: #e5e7eb;
+  font-family: var(--pl-font-mono);
+  font-size: var(--pl-text-sm);
+  line-height: var(--pl-leading-relaxed);
+  color: var(--pl-gray-200);
 }
 
 .pl-progress-log-entry {
   display: flex;
-  gap: 8px;
-  margin-bottom: 4px;
-  animation: pl-log-fade-in 0.3s ease-out;
+  gap: var(--pl-space-2);
+  margin-bottom: var(--pl-space-1);
+  animation: pl-fade-in var(--pl-transition-base);
 }
 
 .pl-progress-log-timestamp {
-  color: #9ca3af;
+  color: var(--pl-gray-400);
   flex-shrink: 0;
 }
 
 .pl-progress-log-message {
-  color: #e5e7eb;
+  color: var(--pl-gray-200);
   word-break: break-word;
 }
 
 .pl-progress-log-message.pl-log-success {
-  color: #34d399;
+  color: var(--pl-success-light);
 }
 
 .pl-progress-log-message.pl-log-error {
-  color: #f87171;
+  color: var(--pl-error-light);
 }
 
 .pl-progress-log-message.pl-log-warning {
-  color: #fbbf24;
+  color: var(--pl-warning-light);
 }
 
 .pl-progress-log-message.pl-log-info {
-  color: #60a5fa;
+  color: var(--pl-info-light);
 }
 
 /* Empty state */
 .pl-progress-logs-empty {
-  color: #6b7280;
+  color: var(--pl-gray-500);
   font-style: italic;
   text-align: center;
-  padding: 20px;
+  padding: var(--pl-space-5);
 }
 
 /* Scrollbar styling */
@@ -309,85 +320,36 @@
 }
 
 .pl-progress-content::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: var(--pl-gray-300);
   border-radius: 3px;
 }
 
 .pl-progress-logs::-webkit-scrollbar-thumb {
-  background: #4b5563;
+  background: var(--pl-gray-600);
   border-radius: 3px;
 }
 
 .pl-progress-content::-webkit-scrollbar-thumb:hover,
 .pl-progress-logs::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
-}
-
-/* Animations */
-@keyframes pl-progress-slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(100px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes pl-progress-slide-down {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(100px) scale(0.95);
-  }
-}
-
-@keyframes pl-pulse {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4);
-  }
-  50% {
-    transform: scale(1.05);
-    box-shadow: 0 0 0 8px rgba(102, 126, 234, 0);
-  }
-}
-
-@keyframes pl-log-fade-in {
-  from {
-    opacity: 0;
-    transform: translateX(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  background: var(--pl-gray-400);
 }
 
 /* Spinner for loading */
 .pl-progress-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid #e5e7eb;
-  border-top-color: #667eea;
-  border-radius: 50%;
+  border: 2px solid var(--pl-gray-200);
+  border-top-color: currentColor;
+  border-radius: var(--pl-radius-full);
   animation: pl-spin 0.8s linear infinite;
-}
-
-@keyframes pl-spin {
-  to { transform: rotate(360deg); }
 }
 
 /* Responsive */
 @media (max-width: 768px) {
   .pl-progress-container {
-    bottom: 10px;
-    right: 10px;
-    left: 10px;
+    bottom: var(--pl-space-3);
+    right: var(--pl-space-3);
+    left: var(--pl-space-3);
     width: auto;
   }
 
@@ -403,32 +365,32 @@
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
   .pl-progress-container {
-    background: #1f2937;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.3);
+    background: var(--pl-gray-800);
+    box-shadow: var(--pl-shadow-2xl);
   }
 
   .pl-progress-step {
-    background: #111827;
+    background: var(--pl-gray-900);
   }
 
   .pl-progress-step.pl-step-active {
-    background: #1e293b;
+    background: rgba(59, 130, 246, var(--pl-opacity-20));
   }
 
   .pl-progress-step-label {
-    color: #e5e7eb;
+    color: var(--pl-gray-200);
   }
 
   .pl-progress-step-status {
-    color: #9ca3af;
+    color: var(--pl-gray-400);
   }
 
   .pl-progress-logs-title {
-    color: #d1d5db;
+    color: var(--pl-gray-300);
   }
 
   .pl-progress-logs {
-    background: #111827;
+    background: var(--pl-gray-900);
   }
 }
 

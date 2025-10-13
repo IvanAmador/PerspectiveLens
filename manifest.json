@@ -33,6 +33,7 @@
         "ui/toast-notification.js",
         "ui/progress-tracker.css",
         "ui/progress-tracker.js",
+        "ui/design-system.css",
         "images/*.png"
       ],
       "matches": ["<all_urls>"]
@@ -55,7 +56,8 @@
       "css": [
         "ui/toast-notification.css",
         "ui/progress-tracker.css",
-        "ui/analysis-panel.css"
+        "ui/analysis-panel.css",
+        "ui/design-system.css"
       ],
       "matches": [
         "https://*.g1.globo.com/*",

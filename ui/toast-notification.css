@@ -1,45 +1,51 @@
 /**
  * PerspectiveLens Toast Notification Styles
- * Modern, elegant toast notification system
+ * Modern, elegant toast notification system using design system
  */
+
+/* Import design system */
+@import url('./design-system.css');
 
 /* Toast container */
 .pl-toast-container {
   position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 2147483647; /* Maximum z-index to always be on top */
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
+  top: var(--pl-space-5);
+  right: var(--pl-space-5);
+  z-index: var(--pl-z-toast); /* Maximum z-index to always be on top */
+  font-family: var(--pl-font-sans);
   pointer-events: none;
 }
 
 /* Toast notification */
 .pl-toast {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 16px 20px;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: var(--pl-primary);
+  color: var(--pl-white);
+  padding: var(--pl-space-4) var(--pl-space-5);
+  border-radius: var(--pl-radius-xl);
+  box-shadow: var(--pl-shadow-xl), var(--pl-shadow-md);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--pl-space-3);
   min-width: 320px;
   max-width: 420px;
   pointer-events: auto;
-  animation: pl-toast-slide-in 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-bottom: 12px;
-  backdrop-filter: blur(10px);
+  animation: pl-toast-slide-in var(--pl-transition-slower) var(--pl-ease-in-out);
+  margin-bottom: var(--pl-space-3);
+  backdrop-filter: var(--pl-blur-sm);
 }
 
 .pl-toast.pl-toast-hiding {
-  animation: pl-toast-slide-out 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: pl-toast-slide-out var(--pl-transition-slow) var(--pl-ease-in-out) forwards;
 }
 
 /* Toast icon */
 .pl-toast-icon {
-  font-size: 24px;
+  font-size: var(--pl-text-xl);
   flex-shrink: 0;
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Toast content */
@@ -47,45 +53,46 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--pl-space-1);
 }
 
 .pl-toast-title {
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
+  font-size: var(--pl-text-base);
+  font-weight: var(--pl-weight-semibold);
+  line-height: var(--pl-leading-normal);
 }
 
 .pl-toast-message {
-  font-size: 13px;
-  opacity: 0.9;
-  line-height: 1.4;
+  font-size: var(--pl-text-sm);
+  opacity: var(--pl-opacity-90);
+  line-height: var(--pl-leading-normal);
 }
 
 /* Toast actions */
 .pl-toast-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 8px;
+  gap: var(--pl-space-2);
+  margin-top: var(--pl-space-2);
 }
 
 .pl-toast-btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
-  padding: 6px 14px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
+  background: rgba(255, 255, 255, var(--pl-opacity-20));
+  border: 1px solid rgba(255, 255, 255, var(--pl-opacity-30));
+  color: var(--pl-white);
+  padding: var(--pl-space-1) var(--pl-space-4);
+  border-radius: var(--pl-radius-md);
+  font-size: var(--pl-text-sm);
+  font-weight: var(--pl-weight-semibold);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--pl-transition-base);
   white-space: nowrap;
+  font-family: var(--pl-font-sans);
 }
 
 .pl-toast-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, var(--pl-opacity-30));
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--pl-shadow-md);
 }
 
 .pl-toast-btn:active {
@@ -93,41 +100,41 @@
 }
 
 .pl-toast-btn-primary {
-  background: white;
-  color: #667eea;
-  border-color: white;
+  background: var(--pl-white);
+  color: var(--pl-primary);
+  border-color: var(--pl-white);
 }
 
 .pl-toast-btn-primary:hover {
-  background: #f9fafb;
-  color: #5568d3;
+  background: var(--pl-gray-50);
+  color: var(--pl-primary-dark);
 }
 
 .pl-toast-btn-secondary {
   background: transparent;
-  border-color: rgba(255, 255, 255, 0.4);
+  border-color: rgba(255, 255, 255, var(--pl-opacity-40));
 }
 
 /* Close button */
 .pl-toast-close {
   background: transparent;
   border: none;
-  color: white;
+  color: var(--pl-white);
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius: var(--pl-radius-sm);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all var(--pl-transition-base);
   flex-shrink: 0;
-  opacity: 0.7;
+  opacity: var(--pl-opacity-70);
 }
 
 .pl-toast-close:hover {
-  background: rgba(255, 255, 255, 0.2);
-  opacity: 1;
+  background: rgba(255, 255, 255, var(--pl-opacity-20));
+  opacity: var(--pl-opacity-100);
 }
 
 .pl-toast-close svg {
@@ -138,22 +145,22 @@
 /* Animations */
 @keyframes pl-toast-slide-in {
   from {
-    opacity: 0;
+    opacity: var(--pl-opacity-0);
     transform: translateX(100%) scale(0.95);
   }
   to {
-    opacity: 1;
+    opacity: var(--pl-opacity-100);
     transform: translateX(0) scale(1);
   }
 }
 
 @keyframes pl-toast-slide-out {
   from {
-    opacity: 1;
+    opacity: var(--pl-opacity-100);
     transform: translateX(0) scale(1);
   }
   to {
-    opacity: 0;
+    opacity: var(--pl-opacity-0);
     transform: translateX(100%) scale(0.95);
   }
 }
@@ -165,14 +172,14 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 0 0 12px 12px;
+  background: rgba(255, 255, 255, var(--pl-opacity-30));
+  border-radius: 0 0 var(--pl-radius-xl) var(--pl-radius-xl);
   overflow: hidden;
 }
 
 .pl-toast-progress-bar {
   height: 100%;
-  background: white;
+  background: var(--pl-white);
   width: 100%;
   transform-origin: left;
   animation: pl-toast-progress-shrink linear;
@@ -190,9 +197,9 @@
 /* Responsive */
 @media (max-width: 768px) {
   .pl-toast-container {
-    top: 10px;
-    right: 10px;
-    left: 10px;
+    top: var(--pl-space-2);
+    right: var(--pl-space-2);
+    left: var(--pl-space-2);
   }
 
   .pl-toast {
@@ -204,6 +211,6 @@
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
   .pl-toast {
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--pl-shadow-2xl), var(--pl-shadow-lg);
   }
 }

@@ -1,0 +1,259 @@
+/**
+ * PerspectiveLens Design System
+ * Unified design tokens for consistent UI/UX across all components
+ */
+
+:root {
+  /* Cores principais - minimalista e coerente */
+  --pl-primary: #667eea;
+  --pl-primary-dark: #5568d3;
+  --pl-primary-light: #7c8ab6;
+  --pl-success: #10b981;
+  --pl-warning: #f59e0b;
+  --pl-error: #ef4444;
+  
+  /* Escala de cinza */
+  --pl-gray-50: #f9fafb;
+  --pl-gray-100: #f3f4f6;
+  --pl-gray-200: #e5e7eb;
+  --pl-gray-300: #d1d5db;
+  --pl-gray-600: #4b5563;
+  --pl-gray-700: #374151;
+  --pl-gray-800: #1f2937;
+  --pl-gray-900: #111827;
+
+  /* Base colors */
+  --pl-white: #ffffff;
+  --pl-black: #000000;
+  
+  /* Tipografia */
+  --pl-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --pl-font-mono: 'SF Mono', Monaco, Consolas, monospace;
+  
+  /* Espaçamentos (escala 4px) */
+  --pl-space-1: 4px;
+  --pl-space-2: 8px;
+  --pl-space-3: 12px;
+  --pl-space-4: 16px;
+  --pl-space-5: 20px;
+  --pl-space-6: 24px;
+  
+  /* Bordas */
+  --pl-radius-sm: 8px;
+  --pl-radius-md: 12px;
+  --pl-radius-lg: 16px;
+  
+  /* Sombras */
+  --pl-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --pl-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --pl-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.15);
+  
+  /* Z-index layers */
+  --pl-z-base: 999990;
+  --pl-z-panel: 999995;
+  --pl-z-progress: 999997;
+  --pl-z-toast: 999999;
+
+  /* Font sizes */
+  --pl-text-xs: 11px;
+  --pl-text-sm: 12px;
+  --pl-text-base: 13px;
+  --pl-text-md: 14px;
+  --pl-text-lg: 16px;
+  --pl-text-xl: 18px;
+  --pl-text-2xl: 24px;
+
+  /* Font weights */
+  --pl-weight-normal: 400;
+  --pl-weight-medium: 500;
+  --pl-weight-semibold: 600;
+  --pl-weight-bold: 700;
+
+  /* Line heights */
+  --pl-leading-tight: 1.2;
+  --pl-leading-normal: 1.4;
+  --pl-leading-relaxed: 1.6;
+
+  /* Extended spacing */
+  --pl-space-0: 0;
+  --pl-space-8: 32px;
+  --pl-space-10: 40px;
+  --pl-space-12: 48px;
+  --pl-space-16: 64px;
+
+  /* Extended border radius */
+  --pl-radius-xl: 20px;
+  --pl-radius-2xl: 24px;
+  --pl-radius-full: 9999px;
+
+  /* Extended shadows */
+  --pl-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --pl-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  /* Additional semantic colors */
+  --pl-success-light: #34d399;
+  --pl-success-bg: #d1fae5;
+  --pl-warning-light: #fbbf24;
+  --pl-warning-bg: #fef3c7;
+  --pl-error-light: #f87171;
+  --pl-error-bg: #fee2e2;
+  --pl-info: #3b82f6;
+  --pl-info-light: #60a5fa;
+  --pl-info-bg: #dbeafe;
+  --pl-primary-light: #7c8ab6;
+
+  /* Transitions */
+  --pl-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --pl-transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --pl-transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --pl-transition-slower: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Easing functions */
+  --pl-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --pl-ease-out: cubic-bezier(0.0, 0, 0.2, 1);
+  --pl-ease-in: cubic-bezier(0.4, 0, 1, 1);
+
+  /* Backdrop Blur */
+  --pl-blur-sm: blur(4px);
+  --pl-blur-md: blur(8px);
+  --pl-blur-lg: blur(16px);
+
+  /* Opacity */
+  --pl-opacity-0: 0;
+  --pl-opacity-10: 0.1;
+  --pl-opacity-20: 0.2;
+  --pl-opacity-30: 0.3;
+  --pl-opacity-40: 0.4;
+  --pl-opacity-50: 0.5;
+  --pl-opacity-60: 0.6;
+  --pl-opacity-70: 0.7;
+  --pl-opacity-80: 0.8;
+  --pl-opacity-90: 0.9;
+  --pl-opacity-100: 1;
+}
+
+/* ===== Dark Mode Support ===== */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --pl-gray-50: #111827;
+    --pl-gray-100: #1f2937;
+    --pl-gray-200: #374151;
+    --pl-gray-300: #4b5563;
+    --pl-gray-600: #d1d5db;
+    --pl-gray-700: #e5e7eb;
+    --pl-gray-800: #f3f4f6;
+    --pl-gray-900: #f9fafb;
+
+    --pl-white: #111827;
+    --pl-black: #ffffff;
+  }
+}
+
+/* ===== Utility Classes ===== */
+
+/* Typography */
+.pl-text-xs { font-size: var(--pl-text-xs); }
+.pl-text-sm { font-size: var(--pl-text-sm); }
+.pl-text-base { font-size: var(--pl-text-base); }
+.pl-text-md { font-size: var(--pl-text-md); }
+.pl-text-lg { font-size: var(--pl-text-lg); }
+.pl-text-xl { font-size: var(--pl-text-xl); }
+
+.pl-font-normal { font-weight: var(--pl-weight-normal); }
+.pl-font-medium { font-weight: var(--pl-weight-medium); }
+.pl-font-semibold { font-weight: var(--pl-weight-semibold); }
+.pl-font-bold { font-weight: var(--pl-weight-bold); }
+
+/* Colors */
+.pl-text-primary { color: var(--pl-primary); }
+.pl-text-success { color: var(--pl-success); }
+.pl-text-warning { color: var(--pl-warning); }
+.pl-text-error { color: var(--pl-error); }
+.pl-text-gray { color: var(--pl-gray-600); }
+
+.pl-bg-primary { background-color: var(--pl-primary); }
+.pl-bg-success { background-color: var(--pl-success); }
+.pl-bg-warning { background-color: var(--pl-warning); }
+.pl-bg-error { background-color: var(--pl-error); }
+
+/* Transitions */
+.pl-transition { transition: all var(--pl-transition-base); }
+.pl-transition-fast { transition: all var(--pl-transition-fast); }
+.pl-transition-slow { transition: all var(--pl-transition-slow); }
+
+/* Animations */
+@keyframes pl-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pl-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes pl-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pl-slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(100%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes pl-slide-out-right {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%) scale(0.95);
+  }
+}
+
+@keyframes pl-slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(100px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pl-slide-out-down {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(100px) scale(0.95);
+  }
+}
+
+/* Animation classes */
+.pl-animate-spin { animation: pl-spin 1s linear infinite; }
+.pl-animate-pulse { animation: pl-pulse 2s ease-in-out infinite; }
+.pl-animate-fade-in { animation: pl-fade-in var(--pl-transition-slow) ease-out; }

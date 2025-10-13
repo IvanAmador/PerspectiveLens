@@ -1,7 +1,16 @@
 /**
  * PerspectiveLens Progress Tracker
- * Elegant progress tracking with real-time logs
+ * Elegant progress tracking with real-time logs integrated with logger.js
  */
+
+// Icon library (inline to avoid module import issues in content scripts)
+const ICONS = {
+  refresh: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 2V8M21 8H15M21 8L18 5.5C16.5 4 14.5 3 12 3C7 3 3 7 3 12C3 17 7 21 12 21C15.5 21 18.5 19 20 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  minimize: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 15L12 9L6 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  pending: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" opacity="0.3"/></svg>`,
+  check: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  error: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+};
 
 class ProgressTracker {
   constructor() {
@@ -16,6 +25,30 @@ class ProgressTracker {
     ];
     this.isMinimized = false;
     this.isVisible = false;
+
+    // Set up logger integration
+    this.setupLoggerIntegration();
+  }
+
+  /**
+   * Set up integration with logger.js to capture real-time logs
+   */
+  setupLoggerIntegration() {
+    // Listen for logger events from background script
+    if (typeof chrome !== 'undefined' && chrome.runtime) {
+      chrome.runtime.onMessage.addListener((message) => {
+        if (message.type === 'LOGGER_EVENT') {
+          this.addLog(message.message, message.level);
+        }
+      });
+    }
+
+    // Listen for custom events dispatched by logger
+    if (typeof window !== 'undefined') {
+      window.addEventListener('perspectivelens:log', (event) => {
+        this.addLog(event.detail.message, event.detail.level);
+      });
+    }
   }
 
   /**
@@ -96,6 +129,11 @@ class ProgressTracker {
    * @param {string} type - 'info' | 'success' | 'warning' | 'error'
    */
   addLog(message, type = 'info') {
+    // Filter out module load messages
+    if (message.includes('module loaded') || message.includes('initialized')) {
+      return;
+    }
+
     const timestamp = new Date().toLocaleTimeString('en-US', {
       hour12: false,
       hour: '2-digit',
@@ -150,13 +188,11 @@ class ProgressTracker {
    * Get step icon based on status
    */
   getStepIcon(status) {
-    const icons = {
-      pending: '○',
-      active: '<div class="pl-progress-spinner"></div>',
-      completed: '✓',
-      error: '✕'
-    };
-    return icons[status] || icons.pending;
+    if (status === 'pending') return ICONS.pending;
+    if (status === 'active') return '<div class="pl-progress-spinner"></div>';
+    if (status === 'completed') return ICONS.check;
+    if (status === 'error') return ICONS.error;
+    return ICONS.pending;
   }
 
   /**
@@ -170,16 +206,14 @@ class ProgressTracker {
     this.container.innerHTML = `
       <div class="pl-progress-header">
         <div class="pl-progress-header-left">
-          <div class="pl-progress-icon">🔄</div>
+          <div class="pl-progress-icon">${ICONS.refresh}</div>
           <div>
             <div class="pl-progress-title">Analyzing Perspectives</div>
             <div class="pl-progress-subtitle">${Math.round(overallProgress)}% complete</div>
           </div>
         </div>
         <button class="pl-progress-minimize" aria-label="Minimize">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="18 15 12 9 6 15"></polyline>
-          </svg>
+          ${ICONS.minimize}
         </button>
       </div>
 
