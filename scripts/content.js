@@ -133,6 +133,15 @@ function extractArticleData() {
 }
 
 
+/**
+ * State management for article detection
+ */
+let detectedArticleData = null;
+let analysisInProgress = false;
+
+/**
+ * Passive detection - only detects and shows toast, doesn't start analysis
+ */
 function detectNewsArticle() {
     let score = 0;
     const domain = window.location.hostname;
@@ -169,46 +178,209 @@ function detectNewsArticle() {
         score += 1;
     }
 
-    console.log(`PerspectiveLens: Detection score is ${score}`);
+    console.log(`[PerspectiveLens] Detection score: ${score}/6`);
 
     if (score >= 3) {
-        console.log("PerspectiveLens: News article detected!");
-        const articleData = extractArticleData();
-        console.log("PerspectiveLens: Final Extracted data object:", articleData);
+        console.log("[PerspectiveLens] News article detected!");
 
-        // Send data to the background script
-        console.log("PerspectiveLens: Sending article data to background worker...");
-        chrome.runtime.sendMessage({
-            type: 'NEW_ARTICLE_DETECTED',
-            data: articleData
-        }, (response) => {
-            if (chrome.runtime.lastError) {
-                console.error("PerspectiveLens: Error sending message:", chrome.runtime.lastError);
-                return;
-            }
-
-            if (response && response.success) {
-                console.log("PerspectiveLens: Article processed successfully!");
-                console.log("PerspectiveLens: Status:", response.data.status);
-                console.log("PerspectiveLens: Keywords:", response.data.keywords);
-
-                if (response.data.tldr) {
-                    console.log("PerspectiveLens: TL;DR:", response.data.tldr);
-                }
-
-                if (response.data.summary) {
-                    console.log("PerspectiveLens: Summary:");
-                    console.log(response.data.summary);
-                }
-            } else {
-                console.error("PerspectiveLens: Processing failed:", response?.error);
-            }
+        // Extract article data but don't send it yet
+        detectedArticleData = extractArticleData();
+        console.log("[PerspectiveLens] Article data extracted:", {
+            title: detectedArticleData.title,
+            source: detectedArticleData.source,
+            contentLength: detectedArticleData.content?.length || 0
         });
+
+        // Show toast notification to user
+        showDetectionToast();
     } else {
-        console.log("PerspectiveLens: Not a news article.");
-        // Next steps: show manual "Analyze as News" button
+        console.log("[PerspectiveLens] Not a news article (score too low)");
     }
 }
 
-// Run detection after the page is fully loaded
+/**
+ * Show toast notification when article is detected
+ */
+function showDetectionToast() {
+    // Wait for toast system to be loaded
+    if (!window.PerspectiveLensToast) {
+        console.warn("[PerspectiveLens] Toast system not loaded yet, retrying...");
+        setTimeout(showDetectionToast, 500);
+        return;
+    }
+
+    window.PerspectiveLensToast.showArticleDetected(
+        // On Analyze button click
+        () => {
+            console.log("[PerspectiveLens] User clicked 'Analyze Now'");
+            startAnalysis();
+        },
+        // On Dismiss button click
+        () => {
+            console.log("[PerspectiveLens] User dismissed detection toast");
+        }
+    );
+}
+
+/**
+ * Start the analysis pipeline (triggered by user action)
+ */
+function startAnalysis() {
+    if (analysisInProgress) {
+        console.warn("[PerspectiveLens] Analysis already in progress");
+        return;
+    }
+
+    if (!detectedArticleData) {
+        console.error("[PerspectiveLens] No article data to analyze");
+        window.PerspectiveLensToast?.showError(
+            'Error',
+            'No article data available. Please refresh the page.'
+        );
+        return;
+    }
+
+    analysisInProgress = true;
+
+    // Show progress tracker
+    if (window.PerspectiveLensProgress) {
+        window.PerspectiveLensProgress.show();
+        window.PerspectiveLensProgress.reset();
+        window.PerspectiveLensProgress.addLog('Analysis started by user', 'info');
+        window.PerspectiveLensProgress.updateStep('extract', 'active', 'Extracting article content...', 0);
+    }
+
+    // Send data to background script to start pipeline
+    console.log("[PerspectiveLens] Sending article data to background worker...");
+    chrome.runtime.sendMessage({
+        type: 'START_ANALYSIS',
+        data: detectedArticleData
+    }, (response) => {
+        if (chrome.runtime.lastError) {
+            console.error("[PerspectiveLens] Error sending message:", chrome.runtime.lastError);
+            analysisInProgress = false;
+
+            if (window.PerspectiveLensProgress) {
+                window.PerspectiveLensProgress.addLog('Failed to start analysis', 'error');
+                window.PerspectiveLensProgress.updateStep('extract', 'error', 'Communication error');
+            }
+
+            window.PerspectiveLensToast?.showError(
+                'Analysis Failed',
+                'Could not communicate with background service',
+                () => startAnalysis()
+            );
+            return;
+        }
+
+        if (response?.success) {
+            console.log("[PerspectiveLens] Analysis started successfully");
+
+            if (window.PerspectiveLensProgress) {
+                window.PerspectiveLensProgress.addLog('Background worker received request', 'success');
+            }
+        } else {
+            console.error("[PerspectiveLens] Failed to start analysis:", response?.error);
+            analysisInProgress = false;
+
+            if (window.PerspectiveLensProgress) {
+                window.PerspectiveLensProgress.addLog(`Error: ${response?.error || 'Unknown error'}`, 'error');
+                window.PerspectiveLensProgress.updateStep('extract', 'error', 'Failed to start');
+            }
+
+            window.PerspectiveLensToast?.showError(
+                'Analysis Failed',
+                response?.error || 'Unknown error occurred',
+                () => startAnalysis()
+            );
+        }
+    });
+}
+
+/**
+ * Listen for progress updates from background
+ */
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    console.log("[PerspectiveLens] Content script received message:", message.type);
+
+    try {
+        switch (message.type) {
+            case 'PROGRESS_UPDATE':
+                handleProgressUpdate(message.data);
+                break;
+
+            case 'ANALYSIS_COMPLETE':
+                handleAnalysisComplete(message.data);
+                break;
+
+            case 'ANALYSIS_FAILED':
+                handleAnalysisError(message.error);
+                break;
+        }
+
+        sendResponse({ success: true });
+    } catch (error) {
+        console.error("[PerspectiveLens] Error handling message:", error);
+        sendResponse({ success: false, error: error.message });
+    }
+
+    return true;
+});
+
+/**
+ * Handle progress updates from background
+ */
+function handleProgressUpdate(data) {
+    if (!window.PerspectiveLensProgress) return;
+
+    const { step, status, message, progress } = data;
+
+    if (message) {
+        window.PerspectiveLensProgress.addLog(message, status === 'error' ? 'error' : 'info');
+    }
+
+    if (step) {
+        window.PerspectiveLensProgress.updateStep(step, status, message, progress || 0);
+    }
+}
+
+/**
+ * Handle analysis completion
+ */
+function handleAnalysisComplete(data) {
+    console.log("[PerspectiveLens] Analysis completed!", data);
+
+    analysisInProgress = false;
+
+    if (window.PerspectiveLensProgress) {
+        window.PerspectiveLensProgress.addLog('Analysis completed successfully!', 'success');
+        window.PerspectiveLensProgress.updateStep('analyze', 'completed', 'Analysis complete!', 100);
+
+        // Hide progress tracker after a delay
+        setTimeout(() => {
+            window.PerspectiveLensProgress.hide();
+        }, 2000);
+    }
+}
+
+/**
+ * Handle analysis error
+ */
+function handleAnalysisError(error) {
+    console.error("[PerspectiveLens] Analysis failed:", error);
+
+    analysisInProgress = false;
+
+    if (window.PerspectiveLensProgress) {
+        window.PerspectiveLensProgress.addLog(`Analysis failed: ${error.message || error}`, 'error');
+    }
+
+    window.PerspectiveLensToast?.showError(
+        'Analysis Failed',
+        error.message || 'An error occurred during analysis',
+        () => startAnalysis()
+    );
+}
+
+// Run passive detection after page loads
 window.addEventListener('load', detectNewsArticle);

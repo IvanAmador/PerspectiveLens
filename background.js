@@ -31,21 +31,69 @@ let aiAvailabilityCache = {
 };
 
 /**
+ * Active tab tracker for progress updates
+ */
+let activeAnalysisTab = null;
+
+/**
+ * Send progress update to content script
+ */
+async function broadcastProgress(step, status, message, progress = 0) {
+  if (!activeAnalysisTab) {
+    logger.warn('No active analysis tab to send progress to');
+    return;
+  }
+
+  try {
+    await chrome.tabs.sendMessage(activeAnalysisTab, {
+      type: 'PROGRESS_UPDATE',
+      data: { step, status, message, progress }
+    });
+    logger.debug(`Progress broadcast: [${step}] ${message}`);
+  } catch (error) {
+    logger.warn('Failed to broadcast progress:', error.message);
+  }
+}
+
+/**
  * Handle messages from content scripts and popup
  */
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   logger.debug('Message received:', message.type);
 
   // Handle async responses
-  if (message.type === 'NEW_ARTICLE_DETECTED') {
+  if (message.type === 'START_ANALYSIS') {
+    // Store tab ID for progress updates
+    activeAnalysisTab = sender.tab?.id || null;
+
     handleNewArticle(message.data)
       .then(response => sendResponse({ success: true, data: response }))
       .catch(error => {
         const errorInfo = handleError(error, 'handleNewArticle');
         sendResponse({ success: false, error: errorInfo });
+      })
+      .finally(() => {
+        activeAnalysisTab = null;
       });
 
     // Return true to indicate async response
+    return true;
+  }
+
+  // Legacy support for old message type
+  if (message.type === 'NEW_ARTICLE_DETECTED') {
+    activeAnalysisTab = sender.tab?.id || null;
+
+    handleNewArticle(message.data)
+      .then(response => sendResponse({ success: true, data: response }))
+      .catch(error => {
+        const errorInfo = handleError(error, 'handleNewArticle');
+        sendResponse({ success: false, error: errorInfo });
+      })
+      .finally(() => {
+        activeAnalysisTab = null;
+      });
+
     return true;
   }
 
@@ -108,12 +156,17 @@ async function handleNewArticle(articleData) {
 
   try {
     // Step 1: Extract keywords (F-002)
+    await broadcastProgress('extract', 'completed', 'Content extracted successfully', 100);
+    await broadcastProgress('keywords', 'active', 'Generating search keywords...', 0);
+
     logger.info('📝 Step 1: Extracting keywords...');
     const keywords = await extractKeywords(
       articleData.title,
       articleData.language || null // Let it auto-detect
     );
     logger.info('✅ Keywords extracted:', keywords);
+
+    await broadcastProgress('keywords', 'completed', `Generated ${keywords.length} keywords: ${keywords.slice(0, 3).join(', ')}...`, 100);
 
     logger.info('📄 Step 2: Skipping summarization (feature removed)');
 
@@ -122,21 +175,30 @@ async function handleNewArticle(articleData) {
     // if (cachedAnalysis) return cachedAnalysis;
 
     // Step 4: Fetch perspectives (F-003)
+    await broadcastProgress('search', 'active', 'Searching for related articles globally...', 0);
+
     logger.info('📰 Step 3: Fetching perspectives from other sources...');
     let perspectives = [];
     try {
       perspectives = await fetchPerspectives(keywords, articleData);
       logger.info(`✅ Found ${perspectives.length} perspectives`);
+
+      await broadcastProgress('search', 'completed', `Found ${perspectives.length} articles from multiple countries`, 100);
     } catch (error) {
       logger.error('Failed to fetch perspectives:', error);
+      await broadcastProgress('search', 'error', `Search failed: ${error.message}`);
       // Continue without perspectives rather than failing completely
     }
 
     // Step 5: Extract content from perspectives (F-004)
+    await broadcastProgress('fetch', 'active', 'Fetching article content...', 0);
+
     logger.info('📄 Step 4: Extracting content from perspective articles...');
     let perspectivesWithContent = perspectives;
     try {
       if (perspectives.length > 0) {
+        await broadcastProgress('fetch', 'active', `Processing ${perspectives.length} articles...`, 20);
+
         perspectivesWithContent = await extractArticlesContentWithTabs(perspectives, {
           maxArticles: 10,
           timeout: 15000,
@@ -146,6 +208,8 @@ async function handleNewArticle(articleData) {
 
         const extractedCount = perspectivesWithContent.filter(p => p.contentExtracted).length;
         logger.info(`✅ Extracted content from ${extractedCount}/${perspectives.length} articles`);
+
+        await broadcastProgress('fetch', 'completed', `Extracted content from ${extractedCount} articles`, 100);
 
         // Log sample of extracted content for verification
         perspectivesWithContent
@@ -160,14 +224,19 @@ async function handleNewArticle(articleData) {
             logger.info('First 300 chars:', article.extractedContent?.textContent?.substring(0, 300) || 'N/A');
             logger.groupEnd();
           });
+      } else {
+        await broadcastProgress('fetch', 'completed', 'No articles to fetch', 100);
       }
     } catch (error) {
       logger.error('Failed to extract article contents:', error);
+      await broadcastProgress('fetch', 'error', `Content extraction failed: ${error.message}`);
       // Continue with perspectives without content
       perspectivesWithContent = perspectives;
     }
 
     // Step 6: Compare perspectives (F-006) - OPTIMIZED VERSION!
+    await broadcastProgress('analyze', 'active', 'Performing comparative analysis with AI...', 0);
+
     logger.info('🔍 Step 5: Performing OPTIMIZED comparative analysis...');
     let comparativeAnalysis = null;
     try {
@@ -176,6 +245,8 @@ async function handleNewArticle(articleData) {
 
       if (articlesWithContent.length >= 2) {
         logger.info(`Running analysis on ${articlesWithContent.length} articles with optimizations enabled`);
+
+        await broadcastProgress('analyze', 'active', `Analyzing ${articlesWithContent.length} articles...`, 30);
 
         comparativeAnalysis = await compareArticles(articlesWithContent, {
           // OPTIMIZATION FLAGS
@@ -189,6 +260,7 @@ async function handleNewArticle(articleData) {
         // Check if analysis succeeded or returned fallback
         if (comparativeAnalysis.error) {
           logger.warn('⚠️ Analysis returned with errors:', comparativeAnalysis.metadata);
+          await broadcastProgress('analyze', 'completed', 'Analysis completed with warnings', 100);
         } else {
           logger.info('✅ Comparative analysis completed successfully');
           logger.group('📊 Analysis Summary');
@@ -201,12 +273,17 @@ async function handleNewArticle(articleData) {
           logger.info(`Input length: ${comparativeAnalysis.metadata?.totalInputLength || 0} chars`);
           logger.info(`Main story: ${comparativeAnalysis.summary?.main_story?.substring(0, 80) || 'N/A'}...`);
           logger.groupEnd();
+
+          const stats = `${comparativeAnalysis.consensus?.length || 0} consensus, ${comparativeAnalysis.disputes?.length || 0} disputes`;
+          await broadcastProgress('analyze', 'completed', `Analysis complete: ${stats}`, 100);
         }
       } else {
         logger.warn(`Skipping analysis: Only ${articlesWithContent.length} article(s) with content (need 2+)`);
+        await broadcastProgress('analyze', 'error', `Need at least 2 articles for analysis (found ${articlesWithContent.length})`);
       }
     } catch (error) {
       logger.error('Comparative analysis failed catastrophically:', error);
+      await broadcastProgress('analyze', 'error', `Analysis failed: ${error.message}`);
       // Continue without analysis rather than failing completely
       comparativeAnalysis = null;
     }

@@ -218,7 +218,7 @@ export async function compareArticles(perspectives, options = {}) {
     useCompression = true,
     validateContent = true,
     maxArticles = 10,
-    compressionLevel = 'medium',
+    compressionLevel = 'long',
     useV2Prompt = true
   } = options;
 

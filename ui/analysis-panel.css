@@ -24,9 +24,14 @@
   font-size: 14px;
   line-height: 1.5;
   color: #333;
-  display: flex;
+  display: none; /* Hidden by default until data arrives */
   flex-direction: column;
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Show panel when it has data */
+.pl-panel.pl-panel-visible {
+  display: flex;
 }
 
 /* Collapsed state */

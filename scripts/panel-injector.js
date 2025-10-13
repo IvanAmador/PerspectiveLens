@@ -5,11 +5,7 @@
 
 console.log('[PerspectiveLens] Panel injector loaded');
 
-// Inject CSS
-const linkElement = document.createElement('link');
-linkElement.rel = 'stylesheet';
-linkElement.href = chrome.runtime.getURL('ui/analysis-panel.css');
-document.head.appendChild(linkElement);
+// CSS and JS are now injected via manifest.json content_scripts
 
 // Inject panel HTML structure
 function injectPanel() {
@@ -97,6 +93,13 @@ const PanelController = {
 
   showAnalysis(data) {
     this.currentAnalysis = data;
+
+    // Make panel visible
+    const panel = document.getElementById('perspectivelens-panel');
+    if (panel) {
+      panel.classList.add('pl-panel-visible');
+    }
+
     document.getElementById('pl-loading').style.display = 'none';
     document.getElementById('pl-error').style.display = 'none';
     document.getElementById('pl-analysis').style.display = 'block';

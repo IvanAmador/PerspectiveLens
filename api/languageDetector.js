@@ -11,7 +11,7 @@ import { AIModelError, ERROR_MESSAGES } from '../utils/errors.js';
 import { normalizeLanguageCode, validateLanguageCode } from '../utils/languages.js';
 
 // Minimum confidence threshold for language detection (0.0 - 1.0)
-const MIN_CONFIDENCE = 0.7;
+const MIN_CONFIDENCE = 0.6;
 
 // Minimum text length for accurate detection
 const MIN_TEXT_LENGTH = 10;

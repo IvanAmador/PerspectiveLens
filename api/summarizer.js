@@ -9,7 +9,7 @@
  * - headline: Article title
  *
  * Supported lengths: short, medium (default), long
- * Supported formats: markdown (default), plain-text
+ * Supported formats: markdown, plain-text (default)
  *
  * Reference: https://developer.chrome.com/docs/ai/summarizer-api
  * Available: Chrome 138+
@@ -78,8 +78,8 @@ export async function createSummarizer(options = {}, onProgress = null) {
   // Validate and set defaults
   const config = {
     type: options.type || 'key-points',
-    length: options.length || 'medium',
-    format: options.format || 'markdown',
+    length: options.length || 'long',
+    format: options.format || 'plain-text',
     sharedContext: options.sharedContext || ''
   };
 
@@ -171,12 +171,12 @@ export async function summarize(text, options = {}) {
     // Step 3: Create summarizer and generate summary
     const summarizer = await createSummarizer({
       type: options.type || 'key-points',
-      length: options.length || 'medium',
-      format: options.format || 'markdown',
+      length: options.length || 'long',
+      format: options.format || 'plain-text',
       sharedContext: options.sharedContext || ''
     }, options.onProgress);
 
-    logger.debug(`Summarizing ${textForSummarizer.length} chars (${options.type || 'key-points'}, ${options.length || 'medium'})`);
+    logger.debug(`Summarizing ${textForSummarizer.length} chars (${options.type || 'key-points'}, ${options.length || 'long'})`);
     const summaryInEnglish = await summarizer.summarize(textForSummarizer);
 
     // Clean up
@@ -269,14 +269,14 @@ export async function generateHeadline(text, options = {}) {
  *
  * @param {string} text - Article text
  * @param {Object} options - Options (length, language, translateBack)
- * @returns {Promise<string>} Key points in markdown format
+ * @returns {Promise<string>} Key points in plain-text format
  */
 export async function generateKeyPoints(text, options = {}) {
   logger.info('Generating key points...');
   return await summarize(text, {
     ...options,
     type: 'key-points',
-    format: 'markdown'
+    format: 'plain-text'
   });
 }
 
@@ -309,16 +309,16 @@ export function getSupportedFormats() {
 /**
  * Compress article content for comparative analysis
  * Optimized for fitting multiple articles in context window
- * Uses 'teaser' format for concise summaries
+ * Uses 'key-points' format for concise summaries
  *
  * @param {string} text - Full article text
  * @param {Object} options - Compression options
  * @param {string} options.source - Source name for logging
- * @param {string} options.length - Summary length (default: 'medium')
+ * @param {string} options.length - Summary length (default: 'long')
  * @returns {Promise<string>} Compressed article summary
  */
 export async function compressForAnalysis(text, options = {}) {
-  const { source = 'Unknown', length = 'medium' } = options;
+  const { source = 'Unknown', length = 'long' } = options;
 
   if (!text || text.trim().length === 0) {
     logger.warn(`Empty content for ${source}, skipping compression`);
@@ -332,10 +332,10 @@ export async function compressForAnalysis(text, options = {}) {
   }
 
   try {
-    logger.debug(`Compressing content for ${source}: ${text.length} chars → teaser summary`);
+    logger.debug(`Compressing content for ${source}: ${text.length} chars → key-points summary`);
 
     const summary = await summarize(text, {
-      type: 'teaser',          // Concise overview (closest to TL;DR)
+      type: 'key-points',          // Concise overview (closest to TL;DR)
       length: length,          // Configurable
       format: 'plain-text',    // No markdown needed for analysis
       translateBack: false,    // Keep in English for Prompt API
@@ -384,7 +384,7 @@ export async function batchCompressForAnalysis(articles, options = {}) {
 
       const compressed = await compressForAnalysis(content, {
         source,
-        length: options.length || 'medium'
+        length: options.length || 'long'
       });
 
       return {
