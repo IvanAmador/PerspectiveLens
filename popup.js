@@ -1,389 +1,197 @@
 /**
- * PerspectiveLens Popup UI Controller
- * Manages extension popup interface - displays status from background worker
- *
- * IMPORTANT: The popup does NOT control downloads!
- * Downloads happen in background.js service worker, popup only shows status.
+ * PerspectiveLens Popup Script
+ * Handles UI interactions and AI model status
  */
 
-import { logger } from './utils/logger.js';
-import { handleError } from './utils/errors.js';
+// ===== DOM Elements =====
+const modelsStatus = document.getElementById('models-status');
+const aiStatusCard = document.getElementById('ai-status-card');
+const downloadProgress = document.getElementById('download-progress');
+const progressFill = document.getElementById('progress-fill');
+const progressPercent = document.getElementById('progress-percent');
+const progressSize = document.getElementById('progress-size');
+const downloadModelBtn = document.getElementById('download-model');
+const refreshStatusBtn = document.getElementById('refresh-status');
+const settingsBtn = document.getElementById('settings-btn');
 
-/**
- * UI Elements
- */
-const elements = {
-  // AI Models
-  aiStatusCard: null,
-  modelsStatus: null,
-  downloadProgress: null,
-  progressFill: null,
-  progressPercent: null,
-  progressSize: null,
-  downloadBtn: null,
-  refreshBtn: null,
-
-
-
-  // Statistics
-  articlesAnalyzed: null,
-  cacheCount: null,
-  perspectivesFound: null,
-
-  // Actions
-  clearCacheBtn: null,
-  openSettingsBtn: null,
-
-  // Footer
-  helpLink: null,
-  aboutLink: null
-};
-
-/**
- * Status polling interval
- */
-let statusInterval = null;
-const POLL_INTERVAL = 2000; // Check every 2 seconds
-
-/**
- * Initialize popup when DOM is ready
- */
-document.addEventListener('DOMContentLoaded', async () => {
-  logger.info('Popup opened');
-
-  // Get all DOM elements
-  initializeElements();
-
-  // Setup event listeners
-  setupEventListeners();
-
-  // Load initial status
-  await loadStatus();
-
-  // Start status polling (for background downloads)
-  startStatusPolling();
-});
-
-/**
- * Initialize DOM element references
- */
-function initializeElements() {
-  // AI Models section
-  elements.aiStatusCard = document.getElementById('ai-status-card');
-  elements.modelsStatus = document.getElementById('models-status');
-  elements.downloadProgress = document.getElementById('download-progress');
-  elements.progressFill = document.getElementById('progress-fill');
-  elements.progressPercent = document.getElementById('progress-percent');
-  elements.progressSize = document.getElementById('progress-size');
-  elements.downloadBtn = document.getElementById('download-model');
-  elements.refreshBtn = document.getElementById('refresh-status');
-
-
-
-  // Statistics
-  elements.articlesAnalyzed = document.getElementById('articles-analyzed');
-  elements.cacheCount = document.getElementById('cache-count');
-  elements.perspectivesFound = document.getElementById('perspectives-found');
-
-  // Actions
-  elements.clearCacheBtn = document.getElementById('clear-cache');
-  elements.openSettingsBtn = document.getElementById('open-settings');
-
-  // Footer
-  elements.helpLink = document.getElementById('help-link');
-  elements.aboutLink = document.getElementById('about-link');
-}
-
-/**
- * Setup UI event listeners
- */
-function setupEventListeners() {
-  // Refresh status button
-  elements.refreshBtn?.addEventListener('click', () => {
-    logger.debug('Manual refresh requested');
-    loadStatus();
-  });
-
-  // Download model button
-  elements.downloadBtn?.addEventListener('click', handleDownloadModel);
-
-  // Clear cache button
-  elements.clearCacheBtn?.addEventListener('click', handleClearCache);
-
-  // Settings button
-  elements.openSettingsBtn?.addEventListener('click', () => {
-    // TODO: Open settings page
-    logger.info('Settings clicked (not implemented yet)');
-  });
-
-
-
-  // Help link
-  elements.helpLink?.addEventListener('click', (e) => {
-    e.preventDefault();
-    chrome.tabs.create({ url: 'https://github.com/yourusername/PerspectiveLens/blob/main/README.md' });
-  });
-
-  // About link
-  elements.aboutLink?.addEventListener('click', (e) => {
-    e.preventDefault();
-    chrome.tabs.create({ url: 'https://github.com/yourusername/PerspectiveLens' });
-  });
-}
-
-/**
- * Load and display extension status from background worker
- */
-async function loadStatus() {
+// ===== AI Model Status Check =====
+async function checkAIStatus() {
   try {
-    // Request status from background worker
+    // Show loading state
+    modelsStatus.innerHTML = `
+      <span class="spinner"></span>
+      <span>Checking...</span>
+    `;
+    aiStatusCard.className = 'status-card';
+
+    // Request status from background script
     const response = await chrome.runtime.sendMessage({ type: 'GET_STATUS' });
-
-    if (response && response.success) {
-      const status = response.status;
-
-      // Update AI models status
-      updateAIStatus(status.aiStatus);
-
-
-
-      // Update statistics
-      updateStatistics(status.stats);
-    } else {
-      logger.error('Failed to get status:', response?.error);
-      showError('Failed to load status');
+    
+    if (!response.success) {
+      console.error('[PerspectiveLens] Failed to get status:', response.error);
+      updateStatus('error', 'Error checking status');
+      return;
     }
 
+    const { aiStatus } = response.status;
+    console.log('[PerspectiveLens] AI Status:', aiStatus);
+    
+    // Update UI based on availability
+    if (aiStatus.availability === 'available') {
+      updateStatus('ready', 'Ready');
+    } else if (aiStatus.availability === 'downloadable') {
+      updateStatus('download', 'Download Required');
+      showDownloadButton();
+    } else if (aiStatus.availability === 'downloading') {
+      updateStatus('downloading', 'Downloading...');
+      if (aiStatus.downloadProgress > 0) {
+        showDownloadProgress(aiStatus.downloadProgress);
+      }
+    } else {
+      updateStatus('unavailable', 'Not Available');
+    }
   } catch (error) {
-    logger.error('Status load error:', error);
-    handleError(error, 'loadStatus');
-    showError('Error loading status');
+    console.error('[PerspectiveLens] Error checking AI status:', error);
+    updateStatus('error', 'Error checking status');
   }
 }
 
-/**
- * Update AI models status display
- */
-function updateAIStatus(aiStatus) {
-  if (!aiStatus) {
-    showAIError('Status unavailable');
-    return;
-  }
+// ===== Update Status Display =====
+function updateStatus(state, message) {
+  const icons = {
+    ready: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    error: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M12 8V12M12 16H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+    download: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15M7 10L12 15M12 15L17 10M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    downloading: '<span class="spinner"></span>',
+    unavailable: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M15 9L9 15M9 9L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+  };
 
-  const { availability, downloadProgress } = aiStatus;
+  modelsStatus.innerHTML = `
+    ${icons[state] || ''}
+    <span>${message}</span>
+  `;
 
-  // Clear previous state
-  elements.aiStatusCard?.classList.remove('success', 'error', 'downloading');
-  elements.downloadProgress.style.display = 'none';
-  elements.downloadBtn.style.display = 'none';
-
-  switch (availability) {
-    case 'available':
-      showAISuccess('Downloaded');
-      elements.aiStatusCard?.classList.add('success');
-      break;
-
-    case 'unavailable':
-      showAIError('Unavailable');
-      elements.aiStatusCard?.classList.add('error');
-      elements.modelsStatus.innerHTML = `
-        <span class="badge badge-error">Unavailable</span>
-      `;
-      break;
-
-    case 'downloadable':
-      showAIDownloadable();
-      break;
-
-    case 'downloading':
-      showAIDownloading(downloadProgress || 0);
-      elements.aiStatusCard?.classList.add('downloading');
-      break;
-
-    default:
-      showAIError('Unknown status');
+  // Update card state
+  aiStatusCard.className = 'status-card';
+  if (state === 'ready') {
+    aiStatusCard.classList.add('success');
+  } else if (state === 'error' || state === 'unavailable') {
+    aiStatusCard.classList.add('error');
+  } else if (state === 'downloading' || state === 'download') {
+    aiStatusCard.classList.add('downloading');
   }
 }
 
-/**
- * Show AI model is ready
- */
-function showAISuccess(message) {
-  elements.modelsStatus.innerHTML = `
-    <span class="badge badge-success">${message}</span>
-  `;
+// ===== Show Download Button =====
+function showDownloadButton() {
+  downloadModelBtn.style.display = 'inline-flex';
+  downloadProgress.style.display = 'none';
 }
 
-/**
- * Show AI model error
- */
-function showAIError(message) {
-  elements.modelsStatus.innerHTML = `
-    <span class="badge badge-error">${message}</span>
-  `;
+// ===== Show Download Progress =====
+function showDownloadProgress(percent) {
+  downloadModelBtn.style.display = 'none';
+  downloadProgress.style.display = 'flex';
+  
+  progressFill.style.width = `${percent}%`;
+  progressPercent.textContent = `${percent}%`;
+  
+  // Estimate size (Gemini Nano is ~1.7GB)
+  const totalMB = 1700;
+  const loadedMB = Math.round((percent / 100) * totalMB);
+  progressSize.textContent = `${loadedMB} MB / ${(totalMB / 1024).toFixed(1)} GB`;
 }
 
-/**
- * Show AI model is downloadable
- */
-function showAIDownloadable() {
-  elements.modelsStatus.innerHTML = `
-    <span class="badge badge-warning">Not downloaded</span>
-  `;
-  elements.downloadBtn.style.display = 'block';
-}
-
-/**
- * Show AI model is downloading with progress
- */
-function showAIDownloading(progress) {
-  elements.modelsStatus.innerHTML = `
-    <span class="badge badge-info">Downloading...</span>
-  `;
-
-  // Show progress bar
-  elements.downloadProgress.style.display = 'flex';
-  elements.progressFill.style.width = `${progress}%`;
-  elements.progressPercent.textContent = `${progress}%`;
-
-  // Calculate downloaded size (22 GB total)
-  const downloadedGB = (22 * progress / 100).toFixed(1);
-  elements.progressSize.textContent = `${downloadedGB} GB / 22 GB`;
-}
-
-/**
- * Handle download model button click
- * Triggers download in BACKGROUND worker
- */
-async function handleDownloadModel() {
+// ===== Handle Model Download =====
+async function downloadModel() {
   try {
-    logger.info('Requesting model download from background...');
+    console.log('[PerspectiveLens] Starting model download via background...');
+    
+    downloadModelBtn.style.display = 'none';
+    downloadProgress.style.display = 'flex';
+    aiStatusCard.classList.add('downloading');
+    updateStatus('downloading', 'Starting download...');
 
-    elements.downloadBtn.disabled = true;
-    elements.downloadBtn.textContent = 'Starting download...';
-
-    // Request background worker to start download
-    const response = await chrome.runtime.sendMessage({
-      type: 'START_MODEL_DOWNLOAD'
-    });
-
-    if (response && response.success) {
-      logger.info('Model download started in background');
-      elements.downloadBtn.style.display = 'none';
-
-      // Status polling will update the UI automatically
-      loadStatus();
-    } else {
-      throw new Error(response?.error || 'Download failed to start');
+    // Request download from background script
+    const response = await chrome.runtime.sendMessage({ type: 'START_MODEL_DOWNLOAD' });
+    
+    if (!response.success) {
+      console.error('[PerspectiveLens] Download failed:', response.error);
+      updateStatus('error', 'Download failed');
+      downloadProgress.style.display = 'none';
+      downloadModelBtn.style.display = 'inline-flex';
+      aiStatusCard.classList.remove('downloading');
+      return;
     }
 
+    // Start polling for progress
+    const progressInterval = setInterval(async () => {
+      try {
+        const statusResponse = await chrome.runtime.sendMessage({ type: 'GET_STATUS' });
+        
+        if (statusResponse.success) {
+          const { aiStatus } = statusResponse.status;
+          
+          if (aiStatus.availability === 'downloading' && aiStatus.downloadProgress > 0) {
+            showDownloadProgress(aiStatus.downloadProgress);
+          } else if (aiStatus.availability === 'available') {
+            // Download complete
+            clearInterval(progressInterval);
+            downloadProgress.style.display = 'none';
+            updateStatus('ready', 'Ready');
+            console.log('[PerspectiveLens] Model downloaded successfully');
+          }
+        }
+      } catch (error) {
+        console.error('[PerspectiveLens] Error polling status:', error);
+      }
+    }, 1000); // Poll every second
+
+    // Timeout after 30 minutes
+    setTimeout(() => {
+      clearInterval(progressInterval);
+    }, 30 * 60 * 1000);
+    
   } catch (error) {
-    logger.error('Failed to start download:', error);
-    handleError(error, 'handleDownloadModel');
-
-    elements.downloadBtn.disabled = false;
-    elements.downloadBtn.textContent = 'Download AI Model';
-    showError('Failed to start download');
+    console.error('[PerspectiveLens] Error downloading model:', error);
+    downloadProgress.style.display = 'none';
+    downloadModelBtn.style.display = 'inline-flex';
+    updateStatus('error', 'Download failed');
+    aiStatusCard.classList.remove('downloading');
   }
 }
 
-
-
-/**
- * Update statistics display
- */
-function updateStatistics(stats) {
-  if (!stats) return;
-
-  elements.articlesAnalyzed.textContent = stats.articlesAnalyzed || 0;
-  elements.cacheCount.textContent = stats.cacheCount || 0;
-  elements.perspectivesFound.textContent = stats.perspectivesFound || 0;
-}
-
-/**
- * Handle clear cache button
- */
-async function handleClearCache() {
-  try {
-    const confirmed = confirm('Clear all cached analyses? This cannot be undone.');
-    if (!confirmed) return;
-
-    logger.info('Clearing cache...');
-
-    const response = await chrome.runtime.sendMessage({
-      type: 'CLEAR_CACHE'
-    });
-
-    if (response && response.success) {
-      logger.info('Cache cleared successfully');
-
-      // Update display
-      elements.cacheCount.textContent = '0';
-
-      // Show success feedback
-      const originalText = elements.clearCacheBtn.innerHTML;
-      elements.clearCacheBtn.innerHTML = '✓ Cleared';
-      setTimeout(() => {
-        elements.clearCacheBtn.innerHTML = originalText;
-      }, 2000);
-    } else {
-      throw new Error(response?.error || 'Clear cache failed');
-    }
-
-  } catch (error) {
-    logger.error('Failed to clear cache:', error);
-    handleError(error, 'handleClearCache');
-    showError('Failed to clear cache');
+// ===== Open Settings =====
+function openSettings() {
+  // Open settings page or options page
+  if (chrome.runtime.openOptionsPage) {
+    chrome.runtime.openOptionsPage();
+  } else {
+    chrome.tabs.create({ url: 'chrome://extensions/?id=' + chrome.runtime.id });
   }
 }
 
-/**
- * Start polling for status updates
- * This allows popup to show progress even if closed and reopened
- */
-function startStatusPolling() {
-  // Clear any existing interval
-  if (statusInterval) {
-    clearInterval(statusInterval);
-  }
-
-  // Poll every 2 seconds
-  statusInterval = setInterval(async () => {
-    await loadStatus();
-  }, POLL_INTERVAL);
-
-  logger.debug('Status polling started');
-}
-
-/**
- * Stop status polling when popup closes
- */
-window.addEventListener('unload', () => {
-  if (statusInterval) {
-    clearInterval(statusInterval);
-    logger.debug('Status polling stopped');
-  }
+// ===== Event Listeners =====
+refreshStatusBtn?.addEventListener('click', () => {
+  console.log('[PerspectiveLens] Refresh status clicked');
+  checkAIStatus();
 });
 
-/**
- * Show error message (simple alert for now)
- */
-function showError(message) {
-  // TODO: Replace with nicer UI notification
-  alert(message);
-}
-
-/**
- * Handle popup errors
- */
-window.addEventListener('error', (event) => {
-  logger.error('Unhandled error in popup:', event.error);
-  handleError(event.error, 'Popup');
+downloadModelBtn?.addEventListener('click', () => {
+  console.log('[PerspectiveLens] Download model clicked');
+  downloadModel();
 });
 
-window.addEventListener('unhandledrejection', (event) => {
-  logger.error('Unhandled promise rejection in popup:', event.reason);
-  handleError(event.reason, 'Popup:Promise');
+settingsBtn?.addEventListener('click', () => {
+  console.log('[PerspectiveLens] Settings clicked');
+  openSettings();
 });
 
-logger.info('Popup initialized');
+// ===== Initialize =====
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('[PerspectiveLens] Popup loaded, checking AI status...');
+  checkAIStatus();
+  
+  // Refresh status every 30 seconds while popup is open
+  setInterval(checkAIStatus, 30000);
+});

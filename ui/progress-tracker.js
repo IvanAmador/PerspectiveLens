@@ -1,21 +1,24 @@
 /**
  * PerspectiveLens Progress Tracker
- * Elegant progress tracking with real-time logs integrated with logger.js
+ * Hybrid approach: Toast notifications + detailed tracker on demand
  */
 
-// Icon library (inline to avoid module import issues in content scripts)
-const ICONS = {
-  refresh: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 2V8M21 8H15M21 8L18 5.5C16.5 4 14.5 3 12 3C7 3 3 7 3 12C3 17 7 21 12 21C15.5 21 18.5 19 20 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+// Icon library - usando nome único para evitar conflito
+const PROGRESS_ICONS = {
+  loading: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" opacity="0.3"/><path d="M12 2C6.47715 2 2 6.47715 2 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
   minimize: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 15L12 9L6 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-  pending: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" opacity="0.3"/></svg>`,
-  check: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-  error: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  expand: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  close: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  pending: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" opacity="0.3"/></svg>`,
+  check: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  error: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`
 };
 
 class ProgressTracker {
   constructor() {
     this.container = null;
     this.logs = [];
+    this.currentToastId = null;
     this.steps = [
       { id: 'extract', label: 'Extracting content', status: 'pending', progress: 0 },
       { id: 'keywords', label: 'Generating keywords', status: 'pending', progress: 0 },
@@ -23,41 +26,142 @@ class ProgressTracker {
       { id: 'fetch', label: 'Fetching articles', status: 'pending', progress: 0 },
       { id: 'analyze', label: 'Analyzing perspectives', status: 'pending', progress: 0 }
     ];
-    this.isMinimized = false;
+    this.isMinimized = true; // Start minimized
     this.isVisible = false;
-
-    // Set up logger integration
-    this.setupLoggerIntegration();
+    this.totalSteps = this.steps.length;
+    this.completedSteps = 0;
   }
 
   /**
-   * Set up integration with logger.js to capture real-time logs
+   * Start progress tracking with initial toast
    */
-  setupLoggerIntegration() {
-    // Listen for logger events from background script
-    if (typeof chrome !== 'undefined' && chrome.runtime) {
-      chrome.runtime.onMessage.addListener((message) => {
-        if (message.type === 'LOGGER_EVENT') {
-          this.addLog(message.message, message.level);
-        }
+  start() {
+    // Reset state
+    this.steps.forEach(step => {
+      step.status = 'pending';
+      step.progress = 0;
+    });
+    this.completedSteps = 0;
+    this.logs = [];
+
+    // Show initial toast with option to view details
+    if (window.PerspectiveLensToast) {
+      this.currentToastId = window.PerspectiveLensToast.show({
+        title: 'Analysis started',
+        message: 'Extracting content...',
+        type: 'analyze',
+        duration: 0,
+        closeable: false,
+        actions: [{
+          label: 'View Details',
+          primary: false,
+          onClick: () => this.show(),
+          dismissOnClick: false
+        }]
       });
     }
 
-    // Listen for custom events dispatched by logger
-    if (typeof window !== 'undefined') {
-      window.addEventListener('perspectivelens:log', (event) => {
-        this.addLog(event.detail.message, event.detail.level);
-      });
-    }
+    console.log('[PerspectiveLens] Progress tracking started');
   }
 
   /**
-   * Show the progress tracker
+   * Update step progress
+   * @param {string} stepId - Step identifier
+   * @param {string} status - 'pending', 'active', 'complete', 'error'
+   * @param {number} progress - Progress percentage (0-100)
+   * @param {string} message - Optional message
+   */
+  updateStep(stepId, status, progress = 0, message = '') {
+    const step = this.steps.find(s => s.id === stepId);
+    if (!step) return;
+
+    const wasComplete = step.status === 'complete';
+    step.status = status;
+    step.progress = progress;
+
+    // Update completed count
+    if (status === 'complete' && !wasComplete) {
+      this.completedSteps++;
+    }
+
+    // Update toast message for current step
+    if (status === 'active' && this.currentToastId && window.PerspectiveLensToast) {
+      window.PerspectiveLensToast.hide(this.currentToastId);
+      this.currentToastId = window.PerspectiveLensToast.show({
+        title: 'Analysis in progress',
+        message: message || step.label,
+        type: 'analyze',
+        duration: 0,
+        closeable: false,
+        actions: [{
+          label: 'View Details',
+          primary: false,
+          onClick: () => this.show(),
+          dismissOnClick: false
+        }]
+      });
+    }
+
+    // Update tracker if visible
+    if (this.isVisible) {
+      this.render();
+    }
+
+    // Add log
+    if (message) {
+      this.addLog(message, status === 'error' ? 'error' : 'info');
+    }
+
+    console.log(`[PerspectiveLens] Step ${stepId}: ${status} (${progress}%)`);
+  }
+
+  /**
+   * Complete the progress tracking
+   * @param {boolean} success - Whether completed successfully
+   * @param {string} message - Completion message
+   */
+  complete(success = true, message = '') {
+    // Hide current toast
+    if (this.currentToastId && window.PerspectiveLensToast) {
+      window.PerspectiveLensToast.hide(this.currentToastId);
+      this.currentToastId = null;
+    }
+
+    // Show completion toast
+    if (window.PerspectiveLensToast) {
+      if (success) {
+        window.PerspectiveLensToast.showSuccess(
+          'Analysis complete',
+          message || 'All perspectives have been analyzed'
+        );
+      } else {
+        window.PerspectiveLensToast.showError(
+          'Analysis failed',
+          message || 'An error occurred during analysis'
+        );
+      }
+    }
+
+    // Hide tracker after delay
+    setTimeout(() => {
+      this.hide();
+    }, success ? 2000 : 5000);
+
+    console.log(`[PerspectiveLens] Progress tracking completed: ${success ? 'success' : 'failure'}`);
+  }
+
+  /**
+   * Show the detailed progress tracker
    */
   show() {
-    if (this.isVisible) return;
+    if (this.isVisible) {
+      // If already visible but minimized, expand it
+      if (this.isMinimized) {
+        this.toggleMinimize();
+      }
+      return;
+    }
 
-    // Create container if it doesn't exist
     if (!this.container) {
       this.createContainer();
     }
@@ -82,7 +186,7 @@ class ProgressTracker {
         this.container.remove();
       }
       this.isVisible = false;
-    }, 300);
+    }, 200);
 
     console.log('[PerspectiveLens] Progress tracker hidden');
   }
@@ -94,6 +198,9 @@ class ProgressTracker {
     const container = document.createElement('div');
     container.id = 'pl-progress-tracker';
     container.className = 'pl-progress-container';
+    if (this.isMinimized) {
+      container.classList.add('pl-progress-minimized');
+    }
     this.container = container;
   }
 
@@ -102,259 +209,156 @@ class ProgressTracker {
    */
   toggleMinimize() {
     this.isMinimized = !this.isMinimized;
-    this.container.classList.toggle('pl-progress-minimized', this.isMinimized);
-  }
-
-  /**
-   * Update step status
-   * @param {string} stepId - Step identifier
-   * @param {string} status - 'pending' | 'active' | 'completed' | 'error'
-   * @param {string} statusText - Status message
-   * @param {number} progress - Progress percentage (0-100)
-   */
-  updateStep(stepId, status, statusText = '', progress = 0) {
-    const step = this.steps.find(s => s.id === stepId);
-    if (!step) return;
-
-    step.status = status;
-    step.statusText = statusText;
-    step.progress = progress;
-
-    this.render();
+    if (this.container) {
+      this.container.classList.toggle('pl-progress-minimized', this.isMinimized);
+    }
   }
 
   /**
    * Add a log entry
-   * @param {string} message - Log message
-   * @param {string} type - 'info' | 'success' | 'warning' | 'error'
    */
-  addLog(message, type = 'info') {
-    // Filter out module load messages
-    if (message.includes('module loaded') || message.includes('initialized')) {
-      return;
-    }
-
-    const timestamp = new Date().toLocaleTimeString('en-US', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
-
-    this.logs.push({
-      timestamp,
-      message,
-      type
-    });
+  addLog(message, level = 'info') {
+    const timestamp = new Date().toLocaleTimeString();
+    this.logs.push({ message, level, timestamp });
 
     // Keep only last 50 logs
     if (this.logs.length > 50) {
-      this.logs = this.logs.slice(-50);
+      this.logs.shift();
     }
 
-    this.renderLogs();
-
-    // Auto-scroll to bottom
-    const logsContainer = this.container?.querySelector('.pl-progress-logs');
-    if (logsContainer) {
-      setTimeout(() => {
-        logsContainer.scrollTop = logsContainer.scrollHeight;
-      }, 50);
-    }
-  }
-
-  /**
-   * Clear all logs
-   */
-  clearLogs() {
-    this.logs = [];
-    this.renderLogs();
-  }
-
-  /**
-   * Reset tracker to initial state
-   */
-  reset() {
-    this.steps.forEach(step => {
-      step.status = 'pending';
-      step.statusText = '';
-      step.progress = 0;
-    });
-    this.logs = [];
-    this.render();
-  }
-
-  /**
-   * Get step icon based on status
-   */
-  getStepIcon(status) {
-    if (status === 'pending') return ICONS.pending;
-    if (status === 'active') return '<div class="pl-progress-spinner"></div>';
-    if (status === 'completed') return ICONS.check;
-    if (status === 'error') return ICONS.error;
-    return ICONS.pending;
-  }
-
-  /**
-   * Render the complete UI
-   */
-  render() {
-    if (!this.container) return;
-
-    const overallProgress = this.calculateOverallProgress();
-
-    this.container.innerHTML = `
-      <div class="pl-progress-header">
-        <div class="pl-progress-header-left">
-          <div class="pl-progress-icon">${ICONS.refresh}</div>
-          <div>
-            <div class="pl-progress-title">Analyzing Perspectives</div>
-            <div class="pl-progress-subtitle">${Math.round(overallProgress)}% complete</div>
-          </div>
-        </div>
-        <button class="pl-progress-minimize" aria-label="Minimize">
-          ${ICONS.minimize}
-        </button>
-      </div>
-
-      <div class="pl-progress-content">
-        <!-- Steps -->
-        <div class="pl-progress-steps">
-          ${this.steps.map(step => this.renderStep(step)).join('')}
-        </div>
-
-        <!-- Overall Progress Bar -->
-        <div class="pl-progress-bar-container">
-          <div class="pl-progress-bar" style="width: ${overallProgress}%"></div>
-        </div>
-
-        <!-- Logs -->
-        <div class="pl-progress-logs-section">
-          <div class="pl-progress-logs-header">
-            <div class="pl-progress-logs-title">Activity Log</div>
-            <button class="pl-progress-logs-clear" id="pl-clear-logs">Clear</button>
-          </div>
-          <div class="pl-progress-logs" id="pl-progress-logs">
-            ${this.renderLogsContent()}
-          </div>
-        </div>
-      </div>
-    `;
-
-    // Attach event listeners
-    this.attachEventListeners();
-  }
-
-  /**
-   * Render a single step
-   */
-  renderStep(step) {
-    const icon = this.getStepIcon(step.status);
-
-    return `
-      <div class="pl-progress-step pl-step-${step.status}">
-        <div class="pl-progress-step-icon">${icon}</div>
-        <div class="pl-progress-step-content">
-          <div class="pl-progress-step-label">${this.escapeHtml(step.label)}</div>
-          ${step.statusText ? `
-            <div class="pl-progress-step-status">${this.escapeHtml(step.statusText)}</div>
-          ` : ''}
-        </div>
-      </div>
-    `;
-  }
-
-  /**
-   * Render logs content
-   */
-  renderLogsContent() {
-    if (this.logs.length === 0) {
-      return '<div class="pl-progress-logs-empty">No activity yet...</div>';
-    }
-
-    return this.logs.map(log => `
-      <div class="pl-progress-log-entry">
-        <span class="pl-progress-log-timestamp">${log.timestamp}</span>
-        <span class="pl-progress-log-message pl-log-${log.type}">${this.escapeHtml(log.message)}</span>
-      </div>
-    `).join('');
-  }
-
-  /**
-   * Render only logs section (for updates)
-   */
-  renderLogs() {
-    const logsContainer = this.container?.querySelector('#pl-progress-logs');
-    if (logsContainer) {
-      logsContainer.innerHTML = this.renderLogsContent();
+    // Update logs section if visible
+    if (this.isVisible && !this.isMinimized) {
+      this.renderLogs();
     }
   }
 
   /**
    * Calculate overall progress
    */
-  calculateOverallProgress() {
-    const completed = this.steps.filter(s => s.status === 'completed').length;
-    const active = this.steps.find(s => s.status === 'active');
-    const activeProgress = active ? active.progress / 100 : 0;
-
-    return ((completed + activeProgress) / this.steps.length) * 100;
+  getOverallProgress() {
+    return Math.round((this.completedSteps / this.totalSteps) * 100);
   }
 
   /**
-   * Attach event listeners
+   * Render the progress tracker
    */
-  attachEventListeners() {
-    const minimizeBtn = this.container.querySelector('.pl-progress-minimize');
-    if (minimizeBtn) {
-      minimizeBtn.addEventListener('click', () => this.toggleMinimize());
+  render() {
+    if (!this.container) return;
+
+    const overallProgress = this.getOverallProgress();
+    const currentStep = this.steps.find(s => s.status === 'active');
+    const currentStepLabel = currentStep ? currentStep.label : 'Processing...';
+
+    this.container.innerHTML = `
+      <div class="pl-progress-header">
+        <div class="pl-progress-header-left">
+          <div>
+            <div class="pl-progress-title">Analysis Progress</div>
+            <div class="pl-progress-subtitle">${currentStepLabel}</div>
+          </div>
+        </div>
+        <div class="pl-progress-header-actions">
+          <button class="pl-progress-btn" id="pl-toggle-minimize" title="${this.isMinimized ? 'Expand' : 'Minimize'}">
+            ${this.isMinimized ? PROGRESS_ICONS.expand : PROGRESS_ICONS.minimize}
+          </button>
+          <button class="pl-progress-btn" id="pl-close-progress" title="Close">
+            ${PROGRESS_ICONS.close}
+          </button>
+        </div>
+      </div>
+
+      <div class="pl-progress-overall">
+        <div class="pl-progress-bar-container">
+          <div class="pl-progress-bar-fill" style="width: ${overallProgress}%"></div>
+        </div>
+        <div class="pl-progress-bar-text">
+          <span>${overallProgress}% Complete</span>
+          <span>${this.completedSteps} / ${this.totalSteps} steps</span>
+        </div>
+      </div>
+
+      <div class="pl-progress-body">
+        ${this.steps.map(step => `
+          <div class="pl-progress-step pl-step-${step.status}">
+            <div class="pl-progress-step-icon">
+              ${step.status === 'pending' ? PROGRESS_ICONS.pending : 
+                step.status === 'active' ? PROGRESS_ICONS.loading :
+                step.status === 'complete' ? PROGRESS_ICONS.check :
+                PROGRESS_ICONS.error}
+            </div>
+            <div class="pl-progress-step-content">
+              <div class="pl-progress-step-label">${step.label}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="pl-progress-logs">
+        <div class="pl-progress-logs-header">Activity Log</div>
+        <div id="pl-logs-content"></div>
+      </div>
+    `;
+
+    // Attach event listeners
+    const toggleBtn = this.container.querySelector('#pl-toggle-minimize');
+    const closeBtn = this.container.querySelector('#pl-close-progress');
+
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => this.toggleMinimize());
     }
 
-    const clearBtn = this.container.querySelector('#pl-clear-logs');
-    if (clearBtn) {
-      clearBtn.addEventListener('click', () => this.clearLogs());
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => this.hide());
     }
 
-    // Click to expand when minimized
-    if (this.isMinimized) {
-      this.container.addEventListener('click', (e) => {
-        if (e.target === this.container) {
-          this.toggleMinimize();
-        }
-      });
-    }
+    // Render logs
+    this.renderLogs();
   }
 
   /**
-   * Escape HTML to prevent XSS
+   * Render logs section
+   */
+  renderLogs() {
+    const logsContent = this.container?.querySelector('#pl-logs-content');
+    if (!logsContent) return;
+
+    logsContent.innerHTML = this.logs.slice(-20).reverse().map(log => `
+      <div class="pl-progress-log pl-log-${log.level}">
+        [${log.timestamp}] ${this.escapeHtml(log.message)}
+      </div>
+    `).join('');
+  }
+
+  /**
+   * Escape HTML
    */
   escapeHtml(text) {
     const div = document.createElement('div');
-    div.textContent = text || '';
+    div.textContent = text;
     return div.innerHTML;
   }
 }
 
-// Global instance
-let progressTracker = null;
+// Initialize and export
+let progressTrackerInstance = null;
 
 function getProgressTracker() {
-  if (!progressTracker) {
-    progressTracker = new ProgressTracker();
+  if (!progressTrackerInstance) {
+    progressTrackerInstance = new ProgressTracker();
   }
-  return progressTracker;
+  return progressTrackerInstance;
 }
 
 // Export for use in other scripts
 if (typeof window !== 'undefined') {
   window.PerspectiveLensProgress = {
     getInstance: getProgressTracker,
+    start: () => getProgressTracker().start(),
+    updateStep: (...args) => getProgressTracker().updateStep(...args),
+    complete: (...args) => getProgressTracker().complete(...args),
     show: () => getProgressTracker().show(),
     hide: () => getProgressTracker().hide(),
-    updateStep: (...args) => getProgressTracker().updateStep(...args),
-    addLog: (...args) => getProgressTracker().addLog(...args),
-    clearLogs: () => getProgressTracker().clearLogs(),
-    reset: () => getProgressTracker().reset()
+    addLog: (...args) => getProgressTracker().addLog(...args)
   };
 }
 

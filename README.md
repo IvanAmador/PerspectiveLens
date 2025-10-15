@@ -4,8 +4,11 @@
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Extension-blue)](https://chrome.google.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-1.0-green)](https://github.com/yourusername/PerspectiveLens)
 
-> **Hackathon Project:** Chrome Built-in AI Challenge 2025 - Best Hybrid AI Application Category
+> **Hackathon Project:** Chrome Built-in AI Challenge 2025 - Best Hybrid AI Application Category  
+> **Status:** ✅ Feature Complete - Production Ready  
+> **Chrome Version:** 138+ (Dev/Canary) with AI flags enabled
 
 ---
 
@@ -62,6 +65,11 @@ PerspectiveLens uses a **hybrid online/offline model**:
 - ✅ **Comprehensive Error Handling** - Custom error classes and logging
 - ✅ **Extension Status Dashboard** - Real-time AI model status, cache info
 - ✅ **Analysis Panel UI** - Side panel showing comparative analysis results
+- ✅ **Design System** - Unified CSS variables and components for consistent styling
+- ✅ **Toast Notifications** - Non-intrusive status updates and user feedback
+- ✅ **Progress Tracking** - Real-time progress indicators during analysis
+- ✅ **SVG Icon Library** - Consistent icons across the extension interface
+- ✅ **Responsive UI** - Adapts to different screen sizes and devices
 
 ### Planned (v2.0)
 
@@ -148,18 +156,41 @@ PerspectiveLens uses a **hybrid online/offline model**:
 ```
 PerspectiveLens/
 ├── api/                      # AI API wrappers
-│   └── languageModel.js      # Prompt API (Gemini Nano)
+│   ├── languageModel.js      # Prompt API (Gemini Nano)
+│   ├── newsFetcher.js        # Google News RSS integration
+│   ├── contentExtractor.js   # Content extraction utilities
+│   ├── contentExtractorTabs.js # Chrome Tabs-based extraction
+│   ├── summarizer.js         # Summarizer API wrapper
+│   ├── translator.js         # Translator API wrapper
+│   └── languageDetector.js   # Language Detection API
 ├── utils/                    # Shared utilities
 │   ├── logger.js             # Centralized logging
 │   ├── errors.js             # Custom error classes
-│   └── prompts.js            # Prompt template loader
+│   ├── prompts.js            # Prompt template loader
+│   ├── languages.js          # Language code normalization
+│   └── contentValidator.js   # Content quality validation
+├── ui/                       # User interface components
+│   ├── analysis-panel.js     # Side panel for analysis results
+│   ├── analysis-panel.css    # Analysis panel styles
+│   ├── design-system.css     # Unified design tokens and CSS variables
+│   ├── toast-notification.js # Toast notification system
+│   ├── toast-notification.css # Toast notification styles
+│   ├── progress-tracker.js   # Progress tracking component
+│   ├── progress-tracker.css  # Progress tracker styles
+│   └── icons.js              # SVG icon library
+├── scripts/                  # Content scripts
+│   ├── content.js            # Article detection and data extraction
+│   └── panel-injector.js     # Analysis panel injection
 ├── prompts/                  # AI prompt templates
 │   ├── keyword-extraction.txt
-│   ├── comparative-analysis.txt
+│   ├── comparative-analysis-v3-simple.txt
+│   ├── comparative-analysis-schema.json
 │   └── README.md
-├── scripts/                  # Content scripts
-│   └── content.js            # Article detection
-├── images/                   # Extension icons
+├── offscreen/                # Offscreen document utilities
+│   ├── offscreen.html
+│   ├── offscreen.js
+│   └── readability.js        # Mozilla Readability.js
+├── images/                   # Extension icons (16, 32, 48, 128px)
 ├── background.js             # Service worker (main logic)
 ├── popup.html                # Extension popup UI
 ├── popup.js                  # Popup controller
@@ -167,6 +198,7 @@ PerspectiveLens/
 ├── manifest.json             # Extension manifest
 ├── .env.example              # Environment template
 ├── GUIA-MVP.md              # Product Requirements (PT-BR)
+├── SETUP-GUIDE.md           # Installation and setup guide
 └── README.md                # This file
 ```
 
@@ -174,11 +206,16 @@ PerspectiveLens/
 
 - **ES6 Modules:** All files use `import/export` for better code organization
 - **External Prompts:** AI prompts in `/prompts` folder for easy iteration
-- **Separation of Concerns:**
-  - `api/` - Chrome AI API wrappers
-  - `utils/` - Reusable utilities
-  - `scripts/` - Content scripts
-  - Root - UI and background logic
+- **Unified Design System:** CSS variables and components for consistent UI (`ui/design-system.css`)
+- **Modular Architecture:** Clear separation of concerns:
+  - `api/` - Chrome AI API wrappers and external integrations
+  - `utils/` - Reusable utilities and helpers
+  - `ui/` - User interface components and styling
+  - `scripts/` - Content scripts for DOM interaction
+  - Root - Service worker and popup logic
+- **Component-Based UI:** Reusable components (toast notifications, progress tracker, icons)
+- **Real-time Updates:** Progress broadcasting and user feedback during analysis
+- **Privacy-First:** All AI processing happens locally on-device
 
 ---
 
@@ -283,13 +320,14 @@ Display in UI panel ✅ DONE
 - [x] Comparative analysis with JSON Schema
 - [x] Analysis panel UI
 
-### Phase 3: UX Improvements 🚧 (In Progress)
-- [ ] Detection popup with user confirmation
-- [ ] Progress indicator during analysis
+### Phase 3: UX Improvements ✅ (Completed)
+- [x] Detection popup with user confirmation
+- [x] Progress indicator during analysis (toast notifications + progress tracker)
+- [x] Real-time progress broadcasting from background to content scripts
+- [x] Loading states and animations (spinners, skeletons, transitions)
 - [ ] Source selection (international vs national)
 - [ ] Settings page
 - [ ] Error messages for users
-- [ ] Loading states and animations
 
 ### Phase 4: Performance & Cache 📅 (Next)
 - [ ] IndexedDB cache system
@@ -375,6 +413,53 @@ Display in UI panel ✅ DONE
 2. Verify prompt files exist in `/prompts` folder
 3. Reload extension completely
 
+### UI Components Not Working
+
+**Problem:** Progress indicators or toast notifications not showing
+
+**Solutions:**
+1. **Check content script loading:**
+   - Open DevTools on news site
+   - Look for "PerspectiveLens" in Console tab
+   - Verify `ui/design-system.css` and component CSS files load
+
+2. **Verify design system styles:**
+   ```javascript
+   // In content script console
+   console.log(getComputedStyle(document.documentElement).getPropertyValue('--color-primary'));
+   // Should show value from design-system.css
+   ```
+
+3. **Check component initialization:**
+   ```javascript
+   // Test toast notifications
+   if (typeof window.showToast === 'function') {
+     window.showToast('Test notification', 'info');
+   }
+   ```
+
+4. **Progress tracking issues:**
+   - Ensure `activeAnalysisTab` is set in background.js
+   - Check message passing between background and content scripts
+   - Verify progress events are being broadcast
+
+### Performance Issues
+
+**Problem:** Analysis taking too long (>2 minutes)
+
+**Solutions:**
+1. **Reduce article processing:**
+   - Current: processes up to 15 articles, analyzes only 8
+   - Optimize: process fewer articles with better filtering
+
+2. **Check network connectivity:**
+   - Google News RSS can be slow in some regions
+   - Monitor Chrome DevTools Network tab
+
+3. **Background service worker restart:**
+   - Service workers can be terminated after 30 seconds of inactivity
+   - Extension should handle restart gracefully (currently improved)
+
 ### Common Errors
 
 | Error Message | Cause | Solution |
@@ -384,6 +469,9 @@ Display in UI panel ✅ DONE
 | "Failed to create AI session" | Models not downloaded | Wait for download or check flags |
 | "Prompt loading failed" | File not accessible | Check manifest web_accessible_resources |
 | "Network error" | No internet | Check connection (for NewsAPI) |
+| "Progress broadcast failed" | Content script not loaded | Reload page after extension installation |
+| "CSS variables not found" | Design system not loading | Check ui/design-system.css in web_accessible_resources |
+| "Toast function not defined" | Component initialization failed | Verify content scripts load correctly |
 
 ---
 
