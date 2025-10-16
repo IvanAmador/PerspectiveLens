@@ -121,9 +121,8 @@ async function fetchAndParseRSS(url) {
       }
 
       const fullTitle = titleMatch ? titleMatch[1] : '';
-      
       // Extract source from title (Google News format: "Title - Source")
-      const sourceSplit = fullTitle.match(/^(.*)[\s\-]+([^\-]+)$/);
+      const sourceSplit = fullTitle.match(/^(.+?)\s+-\s+(.+)$/);
       const title = sourceSplit ? sourceSplit[1].trim() : fullTitle;
       const source = sourceSplit ? sourceSplit[2].trim() : 'Unknown';
 
@@ -205,11 +204,11 @@ async function searchNews(query, options = {}) {
 }
 
 /**
- * Build smart search query from article title
- * Extracts key entities and removes filler words
+ * Build search query from article title
+ * Simple approach: use full title for better context
  * 
  * @param {string} title - Article title
- * @returns {string} Optimized search query
+ * @returns {string} Search query (full title)
  */
 function buildSearchQuery(title) {
   logger.system.debug('Building search query from title', {
@@ -221,47 +220,18 @@ function buildSearchQuery(title) {
     throw new Error('Title is required to build search query');
   }
 
-  // Stopwords to remove
-  const stopwords = new Set([
-    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-    'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
-    'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
-    'should', 'could', 'may', 'might', 'must', 'can', 'this', 'that',
-    'these', 'those', 'what', 'which', 'who', 'when', 'where', 'why', 'how'
-  ]);
+  // Simply trim and return the full title
+  const query = title.trim();
 
-  // Filler words that don't add value
-  const fillerWords = new Set([
-    'says', 'report', 'reports', 'news', 'latest', 'breaking',
-    'update', 'updates', 'according', 'statement', 'announced',
-    'announces', 'article', 'story', 'coverage'
-  ]);
-
-  // Split title and filter
-  const words = title
-    .toLowerCase()
-    .replace(/[^\w\s\-]/g, '') // Remove punctuation except hyphens
-    .split(/\s+/)
-    .filter(word => {
-      return word.length >= 3 && 
-             !stopwords.has(word) && 
-             !fillerWords.has(word);
-    });
-
-  // Take first 5 significant words
-  const queryWords = words.slice(0, 5);
-  const query = queryWords.join(' ');
-
-  logger.system.info('Search query built successfully', {
+  logger.system.info('Search query built', {
     category: logger.CATEGORIES.SEARCH,
-    data: {
+    data: { 
       originalTitle: title,
-      extractedWords: queryWords,
-      query
+      query 
     }
   });
 
-  return query || title; // Fallback to full title
+  return query;
 }
 
 /**
