@@ -36,7 +36,9 @@
         "ui/progress-tracker.js",
         "images/*.png"
       ],
-      "matches": ["<all_urls>"]
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
   "icons": {
@@ -50,8 +52,8 @@
       "js": [
         "ui/toast-notification.js",
         "ui/progress-tracker.js",
-        "scripts/content.js",
-        "scripts/panel-injector.js"
+        "ui/analysis-panel.js",
+        "scripts/content.js"
       ],
       "css": [
         "ui/design-system.css",

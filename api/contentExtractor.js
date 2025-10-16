@@ -1,53 +1,91 @@
 /**
- * Content Extractor using Chrome Tabs
- * More reliable method - opens tabs in background to extract content
- *
- * This method:
- * - Opens real Chrome tabs (invisible to user)
- * - Handles Google News redirects automatically
- * - Injects content script to extract with Readability
- * - Processes multiple articles in parallel
+ * Professional Content Extractor for PerspectiveLens
+ * 
+ * Extraction Strategy:
+ * 1. Uses Chrome Tabs for reliable redirect handling (Google News, etc.)
+ * 2. Injects Readability.js for high-quality content extraction
+ * 3. Multiple fallback strategies for edge cases
+ * 4. Quality validation and automatic retry with alternative methods
+ * 
+ * Best Practices:
+ * - Parallel batch processing for performance
+ * - Timeout management per article
+ * - Automatic cleanup of resources
+ * - Quality scoring for extracted content
+ * 
+ * Reference: https://github.com/mozilla/readability
  */
 
 import { logger } from '../utils/logger.js';
 
 /**
+ * Content extraction quality thresholds
+ */
+const QUALITY_THRESHOLDS = {
+  MIN_CONTENT_LENGTH: 200,        // Minimum chars for valid article
+  MIN_WORD_COUNT: 50,              // Minimum words for valid article
+  MAX_HTML_RATIO: 0.4,             // Max HTML tags to text ratio
+  PREFERRED_CONTENT_LENGTH: 500    // Target length for good quality
+};
+
+/**
  * Extract content from multiple articles using Chrome tabs
- * @param {Array} articles - Array of article objects with {title, link, source}
- * @param {Object} options - Extraction options
- * @returns {Promise<Array>} Array of articles with extracted content
+ * 
+ * @param {Array<Object>} articles - Articles with {title, link, source}
+ * @param {Object} options - Extraction configuration
+ * @returns {Promise<Array<Object>>} Articles with extracted content
  */
 export async function extractArticlesContentWithTabs(articles, options = {}) {
+  const operationStart = Date.now();
+  
   const {
-    maxArticles = 10,
-    timeout = 15000, // 15s per article
+    maxArticles = 4,
+    timeout = 20000,
     parallel = true,
-    batchSize = 5 // Process 5 at a time to avoid too many tabs
+    batchSize = 10,
+    retryOnLowQuality = true,
+    qualityThreshold = 'medium' // 'low', 'medium', 'high'
   } = options;
 
   if (!articles || articles.length === 0) {
-    logger.warn('No articles to extract content from');
+    logger.system.warn('No articles provided for extraction', {
+      category: logger.CATEGORIES.FETCH
+    });
     return [];
   }
 
   const articlesToProcess = articles.slice(0, maxArticles);
-
-  logger.group(`📄 Extracting content from ${articlesToProcess.length} articles using Chrome tabs`);
-  logger.info('Parallel mode:', parallel);
-  logger.info('Batch size:', batchSize);
-  logger.info('Timeout per article:', `${timeout}ms`);
+  
+  logger.system.info('Starting batch content extraction', {
+    category: logger.CATEGORIES.FETCH,
+    data: {
+      total: articlesToProcess.length,
+      mode: parallel ? 'parallel' : 'sequential',
+      batchSize: parallel ? batchSize : 1,
+      timeout,
+      retryEnabled: retryOnLowQuality
+    }
+  });
 
   try {
-    const startTime = Date.now();
+    let results = [];
 
     if (parallel) {
-      // Process in batches to avoid opening too many tabs at once
-      const results = [];
-
+      // Parallel batch processing
       for (let i = 0; i < articlesToProcess.length; i += batchSize) {
         const batch = articlesToProcess.slice(i, i + batchSize);
-        logger.info(`Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(articlesToProcess.length / batchSize)}`);
+        const batchNumber = Math.floor(i / batchSize) + 1;
+        const totalBatches = Math.ceil(articlesToProcess.length / batchSize);
 
+        logger.system.info(`Processing batch ${batchNumber}/${totalBatches}`, {
+          category: logger.CATEGORIES.FETCH,
+          data: {
+            batchSize: batch.length,
+            articlesInBatch: batch.map(a => a.source)
+          }
+        });
+
+        const batchStart = Date.now();
         const batchResults = await Promise.allSettled(
           batch.map(article => extractSingleArticleWithTab(article, timeout))
         );
@@ -56,139 +94,275 @@ export async function extractArticlesContentWithTabs(articles, options = {}) {
           if (result.status === 'fulfilled') {
             return result.value;
           } else {
-            logger.warn(`Failed to extract: ${batch[index].title}`, result.reason);
+            logger.system.warn('Article extraction failed', {
+              category: logger.CATEGORIES.FETCH,
+              data: {
+                article: batch[index].title.substring(0, 60),
+                source: batch[index].source,
+                error: result.reason?.message
+              }
+            });
+
             return {
               ...batch[index],
               contentExtracted: false,
-              extractionError: result.reason?.message || 'Unknown error'
+              extractionError: result.reason?.message || 'Unknown error',
+              extractionMethod: 'failed'
             };
+          }
+        });
+
+        const batchDuration = Date.now() - batchStart;
+        const batchSuccess = processedBatch.filter(a => a.contentExtracted).length;
+
+        logger.system.debug('Batch completed', {
+          category: logger.CATEGORIES.FETCH,
+          data: {
+            batch: batchNumber,
+            successful: batchSuccess,
+            failed: batch.length - batchSuccess,
+            duration: batchDuration,
+            avgPerArticle: Math.round(batchDuration / batch.length)
           }
         });
 
         results.push(...processedBatch);
       }
-
-      const duration = Date.now() - startTime;
-      logger.info(`⚡ Extraction completed in ${duration}ms`);
-
-      const successCount = results.filter(a => a.contentExtracted).length;
-      logger.info(`✅ Successfully extracted ${successCount}/${articlesToProcess.length} articles`);
-      logger.groupEnd();
-
-      return results;
-
     } else {
-      // Sequential extraction
-      logger.warn('Using sequential extraction (slower)');
-      const results = [];
+      // Sequential processing (fallback)
+      logger.system.warn('Using sequential extraction (slower)', {
+        category: logger.CATEGORIES.FETCH
+      });
 
       for (const article of articlesToProcess) {
         try {
           const extracted = await extractSingleArticleWithTab(article, timeout);
           results.push(extracted);
         } catch (error) {
-          logger.error(`Failed to extract: ${article.title}`, error);
+          logger.system.error('Sequential extraction failed', {
+            category: logger.CATEGORIES.FETCH,
+            error,
+            data: { article: article.title.substring(0, 60) }
+          });
+
           results.push({
             ...article,
             contentExtracted: false,
-            extractionError: error.message
+            extractionError: error.message,
+            extractionMethod: 'failed'
           });
         }
       }
-
-      logger.groupEnd();
-      return results;
     }
 
+    // Quality analysis and retry if enabled
+    if (retryOnLowQuality) {
+      results = await retryLowQualityExtractions(results, timeout);
+    }
+
+    // Final statistics
+    const duration = Date.now() - operationStart;
+    const successful = results.filter(a => a.contentExtracted).length;
+    const failed = results.length - successful;
+    const avgQuality = calculateAverageQuality(results.filter(a => a.contentExtracted));
+
+    logger.system.info('Batch extraction completed', {
+      category: logger.CATEGORIES.FETCH,
+      data: {
+        total: results.length,
+        successful,
+        failed,
+        successRate: `${((successful / results.length) * 100).toFixed(1)}%`,
+        avgQuality: avgQuality.toFixed(2),
+        duration,
+        avgPerArticle: Math.round(duration / results.length)
+      }
+    });
+
+    return results;
   } catch (error) {
-    logger.error('Content extraction failed:', error);
-    logger.groupEnd();
+    const duration = Date.now() - operationStart;
+    
+    logger.system.error('Batch extraction failed catastrophically', {
+      category: logger.CATEGORIES.ERROR,
+      error,
+      data: { duration, articlesAttempted: articlesToProcess.length }
+    });
+    
     throw error;
   }
 }
 
 /**
- * Extract content from a single article using a Chrome tab
+ * Extract content from a single article using Chrome tab
+ * 
  * @param {Object} article - Article object with link
  * @param {number} timeout - Timeout in milliseconds
  * @returns {Promise<Object>} Article with extracted content
  */
 async function extractSingleArticleWithTab(article, timeout) {
-  logger.debug(`Extracting: ${article.title.substring(0, 50)}...`);
-
+  const extractionStart = Date.now();
   let tabId = null;
 
+  logger.system.debug('Starting single article extraction', {
+    category: logger.CATEGORIES.FETCH,
+    data: {
+      title: article.title.substring(0, 60),
+      source: article.source,
+      url: article.link.substring(0, 80)
+    }
+  });
+
   try {
-    // Create a new tab in background
+    // Step 1: Create background tab
     const tab = await chrome.tabs.create({
       url: article.link,
-      active: false // Don't switch to this tab (background)
+      active: false
+    });
+    tabId = tab.id;
+
+    logger.system.trace('Tab created', {
+      category: logger.CATEGORIES.FETCH,
+      data: { tabId, source: article.source }
     });
 
-    tabId = tab.id;
-    logger.debug(`Tab ${tabId} created for: ${article.source}`);
-
-    // Wait for tab to finish loading with timeout
-    const result = await Promise.race([
+    // Step 2: Wait for tab to load with timeout
+    await Promise.race([
       waitForTabToLoad(tabId),
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error(`Timeout after ${timeout}ms`)), timeout)
+        setTimeout(() => reject(new Error(`Tab load timeout after ${timeout}ms`)), timeout)
       )
     ]);
 
-    logger.debug(`Tab ${tabId} loaded, waiting for redirects...`);
+    logger.system.trace('Tab loaded, checking for redirects', {
+      category: logger.CATEGORIES.FETCH,
+      data: { tabId }
+    });
 
-    // Wait for redirects to complete and URL to stabilize
+    // Step 3: Wait for redirects to complete (Google News, etc.)
+    const redirectStart = Date.now();
     await waitForRedirectsToComplete(tabId, 3000);
+    const redirectDuration = Date.now() - redirectStart;
 
-    logger.debug(`Tab ${tabId} redirects complete, extracting content...`);
+    logger.system.trace('Redirects resolved', {
+      category: logger.CATEGORIES.FETCH,
+      data: { tabId, redirectDuration }
+    });
 
-    // Inject and execute content extraction script
-    const extractedContent = await extractContentFromTab(tabId);
-
-    // Get final URL from tab
+    // Step 4: Get final URL after redirects
     const finalTab = await chrome.tabs.get(tabId);
     const finalUrl = finalTab.url;
 
-    logger.debug(`Tab ${tabId} final URL: ${finalUrl.substring(0, 80)}...`);
-    logger.debug(`Tab ${tabId} extracted ${extractedContent.length} chars`);
+    logger.system.debug('Final URL obtained', {
+      category: logger.CATEGORIES.FETCH,
+      data: {
+        tabId,
+        originalUrl: article.link.substring(0, 80),
+        finalUrl: finalUrl.substring(0, 80),
+        wasRedirected: article.link !== finalUrl
+      }
+    });
 
-    // Close the tab
+    // Step 5: Extract content with Readability
+    const extractionMethodStart = Date.now();
+    const extractedContent = await extractContentFromTab(tabId);
+    const extractionMethodDuration = Date.now() - extractionMethodStart;
+
+    // Step 6: Quality validation
+    const quality = assessContentQuality(extractedContent);
+
+    logger.system.debug('Content extracted and validated', {
+      category: logger.CATEGORIES.FETCH,
+      data: {
+        tabId,
+        method: extractedContent.method,
+        contentLength: extractedContent.textContent?.length || 0,
+        wordCount: countWords(extractedContent.textContent || ''),
+        quality: quality.score.toFixed(2),
+        qualityLevel: quality.level,
+        extractionDuration: extractionMethodDuration
+      }
+    });
+
+    // Step 7: Cleanup tab
     await chrome.tabs.remove(tabId);
-    logger.debug(`Tab ${tabId} closed`);
+    
+    logger.system.trace('Tab closed', {
+      category: logger.CATEGORIES.FETCH,
+      data: { tabId }
+    });
+
+    const totalDuration = Date.now() - extractionStart;
+
+    logger.system.info('Article extraction successful', {
+      category: logger.CATEGORIES.FETCH,
+      data: {
+        source: article.source,
+        method: extractedContent.method,
+        quality: quality.score.toFixed(2),
+        totalDuration,
+        breakdown: {
+          redirect: redirectDuration,
+          extraction: extractionMethodDuration
+        }
+      }
+    });
 
     return {
       ...article,
       contentExtracted: true,
-      extractedContent,
-      extractionMethod: 'chrome-tab',
-      finalUrl: finalUrl,
+      extractedContent: {
+        ...extractedContent,
+        quality: quality.score,
+        qualityLevel: quality.level,
+        qualityIssues: quality.issues
+      },
+      extractionMethod: extractedContent.method,
+      finalUrl,
+      extractionDuration: totalDuration,
       extractedAt: new Date().toISOString()
     };
-
   } catch (error) {
-    // Clean up tab on error
+    const duration = Date.now() - extractionStart;
+
+    // Cleanup tab on error
     if (tabId) {
       try {
         await chrome.tabs.remove(tabId);
+        logger.system.trace('Tab cleaned up after error', {
+          category: logger.CATEGORIES.FETCH,
+          data: { tabId }
+        });
       } catch (closeError) {
-        // Tab might already be closed
+        logger.system.trace('Tab already closed', {
+          category: logger.CATEGORIES.FETCH,
+          data: { tabId }
+        });
       }
     }
 
-    logger.error(`Tab extraction failed for ${article.title}:`, error.message);
+    logger.system.error('Article extraction failed', {
+      category: logger.CATEGORIES.FETCH,
+      error,
+      data: {
+        article: article.title.substring(0, 60),
+        source: article.source,
+        duration
+      }
+    });
+
     throw error;
   }
 }
 
 /**
- * Wait for a tab to finish loading
+ * Wait for tab to finish loading
+ * 
  * @param {number} tabId - Tab ID
- * @returns {Promise<chrome.tabs.Tab>} Loaded tab
+ * @returns {Promise<Object>} Loaded tab
  */
 function waitForTabToLoad(tabId) {
   return new Promise((resolve, reject) => {
-    // Check if already loaded
     chrome.tabs.get(tabId, (tab) => {
       if (chrome.runtime.lastError) {
         reject(new Error(chrome.runtime.lastError.message));
@@ -200,7 +374,6 @@ function waitForTabToLoad(tabId) {
         return;
       }
 
-      // Listen for tab updates
       const listener = (updatedTabId, changeInfo, updatedTab) => {
         if (updatedTabId === tabId && changeInfo.status === 'complete') {
           chrome.tabs.onUpdated.removeListener(listener);
@@ -221,7 +394,8 @@ function waitForTabToLoad(tabId) {
 
 /**
  * Wait for URL redirects to complete
- * Google News redirects can take 1-3 seconds to fully resolve
+ * Handles Google News and other redirect services
+ * 
  * @param {number} tabId - Tab ID
  * @param {number} maxWait - Maximum wait time in ms
  * @returns {Promise<void>}
@@ -230,16 +404,19 @@ async function waitForRedirectsToComplete(tabId, maxWait = 3000) {
   const startTime = Date.now();
   let previousUrl = null;
   let stableCount = 0;
-  const checksNeeded = 3; // URL must be stable for 3 checks
+  const checksNeeded = 3;
 
   while (Date.now() - startTime < maxWait) {
     try {
       const tab = await chrome.tabs.get(tabId);
       const currentUrl = tab.url;
 
-      // Check if URL is still a Google News redirect
+      // Check if still on redirect page
       if (currentUrl.includes('news.google.com/rss/articles')) {
-        logger.debug(`Tab ${tabId} still on redirect page, waiting...`);
+        logger.system.trace('Tab on redirect page, waiting', {
+          category: logger.CATEGORIES.FETCH,
+          data: { tabId }
+        });
         previousUrl = currentUrl;
         stableCount = 0;
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -250,7 +427,10 @@ async function waitForRedirectsToComplete(tabId, maxWait = 3000) {
       if (currentUrl === previousUrl) {
         stableCount++;
         if (stableCount >= checksNeeded) {
-          logger.debug(`Tab ${tabId} URL stabilized at: ${currentUrl.substring(0, 60)}...`);
+          logger.system.trace('URL stabilized', {
+            category: logger.CATEGORIES.FETCH,
+            data: { tabId, url: currentUrl.substring(0, 60), checks: stableCount }
+          });
           return;
         }
       } else {
@@ -259,31 +439,47 @@ async function waitForRedirectsToComplete(tabId, maxWait = 3000) {
 
       previousUrl = currentUrl;
       await new Promise(resolve => setTimeout(resolve, 300));
-
     } catch (error) {
-      // Tab might have been closed
-      logger.warn(`Tab ${tabId} check failed:`, error.message);
+      logger.system.warn('Tab check failed during redirect wait', {
+        category: logger.CATEGORIES.FETCH,
+        data: { tabId, error: error.message }
+      });
       return;
     }
   }
 
-  logger.debug(`Tab ${tabId} redirect wait timeout (${maxWait}ms)`);
+  logger.system.debug('Redirect wait timeout reached', {
+    category: logger.CATEGORIES.FETCH,
+    data: { tabId, maxWait }
+  });
 }
 
 /**
- * Extract content from a loaded tab using content script
+ * Extract content from loaded tab using Readability.js
+ * Implements multiple extraction strategies with fallbacks
+ * 
  * @param {number} tabId - Tab ID
  * @returns {Promise<Object>} Extracted content
  */
 async function extractContentFromTab(tabId) {
+  logger.system.trace('Injecting Readability and extracting content', {
+    category: logger.CATEGORIES.FETCH,
+    data: { tabId }
+  });
+
   try {
-    // Inject Readability library
+    // Step 1: Inject Readability library
     await chrome.scripting.executeScript({
       target: { tabId },
       files: ['offscreen/readability.js']
     });
 
-    // Execute content extraction script
+    logger.system.trace('Readability.js injected', {
+      category: logger.CATEGORIES.FETCH,
+      data: { tabId }
+    });
+
+    // Step 2: Execute extraction script with enhanced fallbacks
     const results = await chrome.scripting.executeScript({
       target: { tabId },
       func: extractContentInPage
@@ -293,54 +489,277 @@ async function extractContentFromTab(tabId) {
       throw new Error('No content extracted from page');
     }
 
-    return results[0].result;
+    const content = results[0].result;
 
+    logger.system.debug('Content extraction completed in tab', {
+      category: logger.CATEGORIES.FETCH,
+      data: {
+        tabId,
+        method: content.method,
+        contentLength: content.textContent?.length || 0,
+        hasTitle: !!content.title,
+        hasExcerpt: !!content.excerpt
+      }
+    });
+
+    return content;
   } catch (error) {
-    logger.error('Failed to extract content from tab:', error);
+    logger.system.error('Tab content extraction failed', {
+      category: logger.CATEGORIES.FETCH,
+      error,
+      data: { tabId }
+    });
     throw error;
   }
 }
 
 /**
- * Function to be executed in the page context
- * This extracts article content using Readability
+ * Function executed in page context
+ * Extracts article content using Readability.js with intelligent fallbacks
+ * 
+ * @returns {Object} Extracted content
  */
 function extractContentInPage() {
   try {
-    // Clone document for Readability
     const documentClone = document.cloneNode(true);
-
     let article = null;
     let method = 'readability';
 
-    // Try Readability first
+    // Strategy 1: Try Readability.js (Mozilla's battle-tested library)
     if (typeof Readability !== 'undefined') {
       try {
-        const reader = new Readability(documentClone);
+        const reader = new Readability(documentClone, {
+          charThreshold: 100,
+          classesToPreserve: ['caption', 'credit']
+        });
         article = reader.parse();
 
-        if (!article) {
-          method = 'fallback';
-          article = extractWithFallback();
+        if (article && article.textContent && article.textContent.length >= 200) {
+          return formatExtractedContent(article, method);
+        } else {
+          method = 'fallback-selector';
+          article = extractWithSmartSelectors();
         }
       } catch (error) {
-        method = 'fallback';
-        article = extractWithFallback();
+        method = 'fallback-selector';
+        article = extractWithSmartSelectors();
       }
     } else {
-      method = 'fallback';
-      article = extractWithFallback();
+      method = 'fallback-selector';
+      article = extractWithSmartSelectors();
+    }
+
+    // Strategy 2: If content too short, try enhanced fallback
+    if (!article || !article.textContent || article.textContent.length < 200) {
+      method = 'fallback-aggressive';
+      article = extractWithAggressiveFallback();
     }
 
     if (!article || !article.textContent) {
-      throw new Error('No content extracted');
+      throw new Error('All extraction methods failed');
     }
 
+    return formatExtractedContent(article, method);
+  } catch (error) {
+    // Last resort: basic extraction
     return {
-      title: article.title || document.title || 'Untitled',
+      title: document.title || 'Untitled',
+      content: '',
+      textContent: document.body?.textContent?.trim() || '',
+      excerpt: document.body?.textContent?.trim().substring(0, 200) || '',
+      byline: '',
+      siteName: '',
+      lang: document.documentElement?.lang || 'unknown',
+      length: document.body?.textContent?.trim().length || 0,
+      url: window.location.href,
+      method: 'error-fallback',
+      error: error.message,
+      extractedAt: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Smart selector-based extraction
+   * Uses prioritized list of common article selectors
+   */
+  function extractWithSmartSelectors() {
+    const selectors = [
+      // Semantic HTML5
+      'article[role="main"]',
+      'main article',
+      'article',
+      '[role="article"]',
+      
+      // Common CMS patterns
+      '.post-content article',
+      '.article-content',
+      '.entry-content',
+      '.post-content',
+      '.article-body',
+      '.story-body',
+      '.content-body',
+      
+      // News sites
+      '[itemprop="articleBody"]',
+      '.article__body',
+      '.story__body',
+      
+      // Fallbacks
+      'main',
+      '#content article',
+      '#main-content',
+      '#content'
+    ];
+
+    const title = extractTitle();
+    const metadata = extractMetadata();
+
+    for (const selector of selectors) {
+      const element = document.querySelector(selector);
+      if (element && element.textContent.trim().length >= 200) {
+        const textContent = cleanText(element.textContent);
+        
+        return {
+          title,
+          content: element.innerHTML,
+          textContent,
+          excerpt: textContent.substring(0, 300),
+          byline: metadata.author,
+          siteName: metadata.siteName,
+          lang: document.documentElement?.lang || 'unknown',
+          length: textContent.length
+        };
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Aggressive fallback with content scoring
+   * Finds largest text block on page
+   */
+  function extractWithAggressiveFallback() {
+    const title = extractTitle();
+    const metadata = extractMetadata();
+
+    // Find all potential content containers
+    const candidates = Array.from(document.querySelectorAll('div, section, article, main'));
+    
+    let bestCandidate = null;
+    let bestScore = 0;
+
+    for (const candidate of candidates) {
+      const text = candidate.textContent.trim();
+      const textLength = text.length;
+      
+      // Skip if too short or too much HTML
+      if (textLength < 200) continue;
+      
+      const htmlLength = candidate.innerHTML.length;
+      const textToHtmlRatio = textLength / htmlLength;
+      
+      // Skip if mostly HTML (ads, navigation, etc.)
+      if (textToHtmlRatio < 0.3) continue;
+
+      // Score based on length, class names, and position
+      let score = textLength;
+      
+      const className = (candidate.className || '').toLowerCase();
+      if (className.includes('content') || className.includes('article') || 
+          className.includes('post') || className.includes('story')) {
+        score *= 1.5;
+      }
+      if (className.includes('sidebar') || className.includes('nav') || 
+          className.includes('footer') || className.includes('header')) {
+        score *= 0.3;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestCandidate = candidate;
+      }
+    }
+
+    if (bestCandidate) {
+      const textContent = cleanText(bestCandidate.textContent);
+      return {
+        title,
+        content: bestCandidate.innerHTML,
+        textContent,
+        excerpt: textContent.substring(0, 300),
+        byline: metadata.author,
+        siteName: metadata.siteName,
+        lang: document.documentElement?.lang || 'unknown',
+        length: textContent.length
+      };
+    }
+
+    // Ultimate fallback: body
+    const bodyText = cleanText(document.body.textContent);
+    return {
+      title,
+      content: document.body.innerHTML,
+      textContent: bodyText,
+      excerpt: bodyText.substring(0, 300),
+      byline: metadata.author,
+      siteName: metadata.siteName,
+      lang: document.documentElement?.lang || 'unknown',
+      length: bodyText.length
+    };
+  }
+
+  /**
+   * Extract title from various sources
+   */
+  function extractTitle() {
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    const twitterTitle = document.querySelector('meta[name="twitter:title"]');
+    const h1 = document.querySelector('h1');
+    const titleTag = document.querySelector('title');
+
+    return (ogTitle?.content || 
+            twitterTitle?.content || 
+            h1?.textContent || 
+            titleTag?.textContent || 
+            'Untitled').trim();
+  }
+
+  /**
+   * Extract metadata from page
+   */
+  function extractMetadata() {
+    const author = document.querySelector('meta[name="author"]')?.content ||
+                   document.querySelector('[rel="author"]')?.textContent ||
+                   document.querySelector('.author')?.textContent ||
+                   '';
+
+    const siteName = document.querySelector('meta[property="og:site_name"]')?.content ||
+                     document.querySelector('meta[name="application-name"]')?.content ||
+                     '';
+
+    return { author: author.trim(), siteName: siteName.trim() };
+  }
+
+  /**
+   * Clean and normalize text content
+   */
+  function cleanText(text) {
+    return text
+      .replace(/\s+/g, ' ')           // Normalize whitespace
+      .replace(/\n{3,}/g, '\n\n')     // Limit consecutive newlines
+      .trim();
+  }
+
+  /**
+   * Format extracted content into standard structure
+   */
+  function formatExtractedContent(article, method) {
+    return {
+      title: article.title || extractTitle(),
       content: article.content || '',
       textContent: article.textContent || '',
-      excerpt: article.excerpt || article.textContent?.substring(0, 200) || '',
+      excerpt: article.excerpt || article.textContent?.substring(0, 300) || '',
       byline: article.byline || '',
       siteName: article.siteName || '',
       lang: article.lang || document.documentElement?.lang || 'unknown',
@@ -349,70 +768,184 @@ function extractContentInPage() {
       method,
       extractedAt: new Date().toISOString()
     };
+  }
+}
 
-  } catch (error) {
-    return {
-      title: document.title || 'Untitled',
-      content: '',
-      textContent: '',
-      excerpt: '',
-      byline: '',
-      siteName: '',
-      lang: document.documentElement?.lang || 'unknown',
-      length: 0,
-      url: window.location.href,
-      method: 'error',
-      error: error.message,
-      extractedAt: new Date().toISOString()
-    };
+/**
+ * Assess content quality with scoring
+ * 
+ * @param {Object} content - Extracted content
+ * @returns {Object} Quality assessment
+ */
+function assessContentQuality(content) {
+  const issues = [];
+  let score = 100;
+
+  const textLength = content.textContent?.length || 0;
+  const wordCount = countWords(content.textContent || '');
+
+  // Length checks
+  if (textLength < QUALITY_THRESHOLDS.MIN_CONTENT_LENGTH) {
+    issues.push('content_too_short');
+    score -= 40;
   }
 
-  // Fallback extraction function
-  function extractWithFallback() {
-    const selectors = [
-      'article',
-      '[role="article"]',
-      'main article',
-      '.article-content',
-      '.post-content',
-      '.entry-content',
-      'main',
-      '#content'
-    ];
+  if (wordCount < QUALITY_THRESHOLDS.MIN_WORD_COUNT) {
+    issues.push('word_count_low');
+    score -= 30;
+  }
 
-    // Extract title
-    const ogTitle = document.querySelector('meta[property="og:title"]');
-    const twitterTitle = document.querySelector('meta[name="twitter:title"]');
-    const h1 = document.querySelector('h1');
-    const title = ogTitle?.content || twitterTitle?.content || h1?.textContent || document.title || 'Untitled';
-
-    // Extract content
-    for (const selector of selectors) {
-      const element = document.querySelector(selector);
-      if (element && element.textContent.trim().length > 200) {
-        return {
-          title: title.trim(),
-          content: element.innerHTML,
-          textContent: element.textContent.trim(),
-          excerpt: element.textContent.trim().substring(0, 200) + '...',
-          byline: null,
-          siteName: document.querySelector('meta[property="og:site_name"]')?.content || '',
-          lang: document.documentElement?.lang || 'unknown',
-          length: element.textContent.trim().length
-        };
-      }
+  // HTML ratio check (detect if too much HTML vs text)
+  if (content.content) {
+    const htmlLength = content.content.length;
+    const htmlRatio = htmlLength / (textLength || 1);
+    
+    if (htmlRatio > QUALITY_THRESHOLDS.MAX_HTML_RATIO) {
+      issues.push('high_html_ratio');
+      score -= 20;
     }
-
-    // Last resort: body
-    return {
-      title: title.trim(),
-      content: document.body.innerHTML,
-      textContent: document.body.textContent.trim(),
-      excerpt: document.body.textContent.trim().substring(0, 200) + '...',
-      byline: null,
-      siteName: '',
-      lang: document.documentElement?.lang || 'unknown',
-      length: document.body.textContent.trim().length
-    };
   }
+
+  // Title check
+  if (!content.title || content.title === 'Untitled') {
+    issues.push('missing_title');
+    score -= 10;
+  }
+
+  // Excerpt check
+  if (!content.excerpt || content.excerpt.length < 50) {
+    issues.push('poor_excerpt');
+    score -= 10;
+  }
+
+  // Method penalty
+  if (content.method.includes('fallback')) {
+    score -= 15;
+  }
+  if (content.method.includes('error')) {
+    score -= 50;
+  }
+
+  // Determine quality level
+  let level = 'low';
+  if (score >= 80) level = 'high';
+  else if (score >= 60) level = 'medium';
+
+  return {
+    score: Math.max(0, score),
+    level,
+    issues,
+    metrics: {
+      textLength,
+      wordCount,
+      hasTitle: !!content.title,
+      hasExcerpt: !!content.excerpt,
+      method: content.method
+    }
+  };
+}
+
+/**
+ * Retry extractions that produced low-quality results
+ * 
+ * @param {Array<Object>} results - Initial extraction results
+ * @param {number} timeout - Timeout per retry
+ * @returns {Promise<Array<Object>>} Updated results
+ */
+async function retryLowQualityExtractions(results, timeout) {
+  const lowQualityResults = results.filter(r => 
+    r.contentExtracted && 
+    r.extractedContent?.qualityLevel === 'low'
+  );
+
+  if (lowQualityResults.length === 0) {
+    logger.system.debug('No low-quality extractions to retry', {
+      category: logger.CATEGORIES.FETCH
+    });
+    return results;
+  }
+
+  logger.system.info('Retrying low-quality extractions', {
+    category: logger.CATEGORIES.FETCH,
+    data: {
+      toRetry: lowQualityResults.length,
+      sources: lowQualityResults.map(r => r.source)
+    }
+  });
+
+  const retryPromises = lowQualityResults.map(async (result) => {
+    try {
+      logger.system.debug('Retrying extraction', {
+        category: logger.CATEGORIES.FETCH,
+        data: {
+          source: result.source,
+          previousQuality: result.extractedContent.quality
+        }
+      });
+
+      const retried = await extractSingleArticleWithTab(result, timeout);
+      
+      // Only replace if quality improved
+      if (retried.extractedContent.quality > result.extractedContent.quality) {
+        logger.system.info('Retry improved quality', {
+          category: logger.CATEGORIES.FETCH,
+          data: {
+            source: result.source,
+            before: result.extractedContent.quality.toFixed(2),
+            after: retried.extractedContent.quality.toFixed(2)
+          }
+        });
+        return retried;
+      } else {
+        logger.system.debug('Retry did not improve quality', {
+          category: logger.CATEGORIES.FETCH,
+          data: { source: result.source }
+        });
+        return result;
+      }
+    } catch (error) {
+      logger.system.warn('Retry extraction failed', {
+        category: logger.CATEGORIES.FETCH,
+        error,
+        data: { source: result.source }
+      });
+      return result;
+    }
+  });
+
+  const retriedResults = await Promise.all(retryPromises);
+
+  // Merge retried results back
+  const resultMap = new Map(results.map(r => [r.link, r]));
+  retriedResults.forEach(retried => {
+    resultMap.set(retried.link, retried);
+  });
+
+  return Array.from(resultMap.values());
+}
+
+/**
+ * Count words in text
+ * 
+ * @param {string} text - Text to count
+ * @returns {number} Word count
+ */
+function countWords(text) {
+  return (text || '').trim().split(/\s+/).filter(w => w.length > 0).length;
+}
+
+/**
+ * Calculate average quality score
+ * 
+ * @param {Array<Object>} articles - Articles with quality scores
+ * @returns {number} Average quality
+ */
+function calculateAverageQuality(articles) {
+  if (articles.length === 0) return 0;
+  
+  const totalQuality = articles.reduce((sum, article) => {
+    return sum + (article.extractedContent?.quality || 0);
+  }, 0);
+  
+  return totalQuality / articles.length;
 }

@@ -1,12 +1,13 @@
 /**
- * Translator API wrapper for PerspectiveLens
+ * Professional Translator API wrapper for PerspectiveLens
  * Handles translation using Chrome's built-in Translator API
  * Automatically normalizes language codes to ISO 639-1 standard
- *
+ * 
  * Supported languages (Chrome 138+):
- * - en, es, fr, de, ar, zh, ja, pt
- *
+ * - en, es, fr, de, it, nl, pl, pt, ru, ar, zh, hi, ja, ko, th, tr, vi
+ * 
  * Reference: https://developer.chrome.com/docs/ai/translator-api
+ * Available: Chrome 138+
  */
 
 import { logger } from '../utils/logger.js';
@@ -20,59 +21,119 @@ import {
 } from '../utils/languages.js';
 
 /**
+ * Translation configuration
+ */
+const TRANSLATION_CONFIG = {
+  // Maximum text length for single translation (recommended chunking above this)
+  MAX_TEXT_LENGTH: 10000,
+  
+  // Chunk size for long text translations
+  CHUNK_SIZE: 5000,
+  
+  // Minimum text length worth translating
+  MIN_TEXT_LENGTH: 3
+};
+
+/**
  * Check if Translator API is available
- * @returns {Promise<boolean>}
+ * Reference: https://developer.chrome.com/docs/ai/translator-api#get_started
+ * 
+ * @returns {Promise<boolean>} True if available
+ * @throws {AIModelError} If API is not supported
  */
 export async function checkTranslatorAvailability() {
-  if (typeof self.Translator === 'undefined') {
-    logger.error('Translator API not available');
-    throw new AIModelError(ERROR_MESSAGES.AI_UNAVAILABLE, {
-      reason: 'Translator API not available (requires Chrome 138+)'
-    });
-  }
+  logger.system.debug('Checking Translator API availability', {
+    category: logger.CATEGORIES.TRANSLATE
+  });
 
   try {
+    if (typeof self.Translator === 'undefined') {
+      logger.system.error('Translator API not available in browser', {
+        category: logger.CATEGORIES.TRANSLATE,
+        data: { requiredChrome: '138+' }
+      });
+      
+      throw new AIModelError(ERROR_MESSAGES.NOT_SUPPORTED, {
+        reason: 'Translator API not available (requires Chrome 138+)'
+      });
+    }
+
     const available = typeof self.Translator.create === 'function';
-    logger.info('Translator API available:', available);
+    
+    logger.system.info('Translator API availability checked', {
+      category: logger.CATEGORIES.TRANSLATE,
+      data: { available }
+    });
+
     return available;
   } catch (error) {
-    logger.error('Failed to check Translator availability:', error);
-    return false;
+    logger.system.error('Failed to check Translator availability', {
+      category: logger.CATEGORIES.ERROR,
+      error
+    });
+
+    if (error instanceof AIModelError) throw error;
+    throw new AIModelError('Failed to check translator availability', error);
   }
 }
 
 /**
- * Check if a language pair is available for translation
- * Automatically normalizes language codes
- *
- * @param {string} sourceLanguage - Source language code (any format)
- * @param {string} targetLanguage - Target language code (any format)
- * @returns {Promise<boolean>}
+ * Check if a specific language pair is available for translation
+ * Reference: https://developer.chrome.com/docs/ai/translator-api#check_language_pair_support
+ * 
+ * @param {string} sourceLanguage - Source language code
+ * @param {string} targetLanguage - Target language code
+ * @returns {Promise<string>} Availability status: 'available', 'downloading', 'downloadable', 'unavailable'
  */
-export async function canTranslate(sourceLanguage, targetLanguage) {
+export async function checkLanguagePairAvailability(sourceLanguage, targetLanguage) {
   if (!sourceLanguage || !targetLanguage) {
-    throw new AIModelError('Source and target languages required');
+    throw new AIModelError('Source and target languages are required');
   }
 
-  // Normalize language codes
+  // Normalize language codes to BCP 47 short codes
   const normalizedSource = normalizeLanguageCode(sourceLanguage);
   const normalizedTarget = normalizeLanguageCode(targetLanguage);
 
+  logger.system.debug('Checking language pair availability', {
+    category: logger.CATEGORIES.TRANSLATE,
+    data: {
+      source: `${sourceLanguage} → ${normalizedSource}`,
+      target: `${targetLanguage} → ${normalizedTarget}`
+    }
+  });
+
   // Skip if same language
   if (normalizedSource === normalizedTarget) {
-    logger.debug(`Skip translation: same language (${normalizedSource})`);
-    return false;
+    logger.system.debug('Same language, translation not needed', {
+      category: logger.CATEGORIES.TRANSLATE,
+      data: { language: normalizedSource }
+    });
+    return 'unavailable';
   }
 
-  // Check if both languages are supported
+  // Check if both languages are supported by Translator API
   if (!isTranslatorSupported(normalizedSource)) {
-    logger.warn(`Source language not supported: ${sourceLanguage} (${normalizedSource})`);
-    return false;
+    logger.system.warn('Source language not supported by Translator API', {
+      category: logger.CATEGORIES.TRANSLATE,
+      data: {
+        provided: sourceLanguage,
+        normalized: normalizedSource,
+        supported: getSupportedLanguages('translator')
+      }
+    });
+    return 'unavailable';
   }
 
   if (!isTranslatorSupported(normalizedTarget)) {
-    logger.warn(`Target language not supported: ${targetLanguage} (${normalizedTarget})`);
-    return false;
+    logger.system.warn('Target language not supported by Translator API', {
+      category: logger.CATEGORIES.TRANSLATE,
+      data: {
+        provided: targetLanguage,
+        normalized: normalizedTarget,
+        supported: getSupportedLanguages('translator')
+      }
+    });
+    return 'unavailable';
   }
 
   try {
@@ -81,33 +142,57 @@ export async function canTranslate(sourceLanguage, targetLanguage) {
       targetLanguage: normalizedTarget
     });
 
-    logger.debug(`Translation ${normalizedSource}→${normalizedTarget}: ${availability}`);
-    return availability === 'available' || availability === 'downloadable';
+    logger.system.info('Language pair availability checked', {
+      category: logger.CATEGORIES.TRANSLATE,
+      data: {
+        pair: `${normalizedSource} → ${normalizedTarget}`,
+        availability
+      }
+    });
+
+    return availability;
   } catch (error) {
-    logger.error('Failed to check translation availability:', error);
-    return false;
+    logger.system.error('Failed to check language pair availability', {
+      category: logger.CATEGORIES.ERROR,
+      error,
+      data: {
+        source: normalizedSource,
+        target: normalizedTarget
+      }
+    });
+    return 'unavailable';
   }
 }
 
 /**
  * Create a translator instance for a language pair
- * Automatically normalizes language codes
- *
- * @param {string} sourceLanguage - Source language code (any format)
- * @param {string} targetLanguage - Target language code (any format)
- * @param {Function} onProgress - Progress callback for model download
+ * Reference: https://developer.chrome.com/docs/ai/translator-api#create_and_run_the_translator
+ * 
+ * @param {string} sourceLanguage - Source language code
+ * @param {string} targetLanguage - Target language code
+ * @param {Function} onProgress - Progress callback for model download (optional)
  * @returns {Promise<Object>} Translator instance
+ * @throws {AIModelError} If creation fails
  */
 export async function createTranslator(
   sourceLanguage,
   targetLanguage,
   onProgress = null
 ) {
+  const startTime = Date.now();
+
   // Normalize language codes
   const normalizedSource = normalizeLanguageCode(sourceLanguage);
   const normalizedTarget = normalizeLanguageCode(targetLanguage);
 
-  logger.info(`Creating translator: ${getLanguageName(normalizedSource)} → ${getLanguageName(normalizedTarget)}`);
+  logger.system.info('Creating translator', {
+    category: logger.CATEGORIES.TRANSLATE,
+    data: {
+      sourceLang: getLanguageName(normalizedSource),
+      targetLang: getLanguageName(normalizedTarget),
+      pair: `${normalizedSource} → ${normalizedTarget}`
+    }
+  });
 
   // Validate languages are supported
   if (!isTranslatorSupported(normalizedSource)) {
@@ -124,11 +209,16 @@ export async function createTranslator(
     });
   }
 
-  // Check availability
-  const available = await canTranslate(normalizedSource, normalizedTarget);
-  if (!available) {
+  // Check availability for this specific language pair
+  const availability = await checkLanguagePairAvailability(
+    normalizedSource,
+    normalizedTarget
+  );
+
+  if (availability === 'unavailable') {
     throw new AIModelError(
-      `Translation not available for ${normalizedSource}→${normalizedTarget}`
+      `Translation not available for ${normalizedSource} → ${normalizedTarget}`,
+      { availability }
     );
   }
 
@@ -139,22 +229,62 @@ export async function createTranslator(
     };
 
     // Add download monitor if callback provided
-    if (onProgress) {
+    if (onProgress && (availability === 'downloadable' || availability === 'downloading')) {
       translatorConfig.monitor = (m) => {
         m.addEventListener('downloadprogress', (e) => {
           const progress = Math.round(e.loaded * 100);
-          logger.debug(`Translator download: ${progress}%`);
+          
+          logger.system.debug('Translation model download progress', {
+            category: logger.CATEGORIES.TRANSLATE,
+            data: {
+              progress,
+              loaded: e.loaded,
+              pair: `${normalizedSource} → ${normalizedTarget}`
+            }
+          });
+          
           onProgress(progress);
         });
       };
+
+      logger.system.info('Download monitor attached to translator', {
+        category: logger.CATEGORIES.TRANSLATE,
+        data: { availability }
+      });
     }
 
-    const translator = await self.Translator.create(translatorConfig);
-    logger.info(`Translator created: ${normalizedSource}→${normalizedTarget}`);
-    return translator;
+    logger.system.debug('Requesting translator from API', {
+      category: logger.CATEGORIES.TRANSLATE,
+      data: translatorConfig
+    });
 
+    const translator = await self.Translator.create(translatorConfig);
+
+    const duration = Date.now() - startTime;
+
+    logger.system.info('Translator created successfully', {
+      category: logger.CATEGORIES.TRANSLATE,
+      data: {
+        pair: `${normalizedSource} → ${normalizedTarget}`,
+        duration
+      }
+    });
+
+    return translator;
   } catch (error) {
-    logger.error('Failed to create translator:', error);
+    const duration = Date.now() - startTime;
+
+    logger.system.error('Failed to create translator', {
+      category: logger.CATEGORIES.ERROR,
+      error,
+      data: {
+        source: normalizedSource,
+        target: normalizedTarget,
+        duration
+      }
+    });
+
+    if (error instanceof AIModelError) throw error;
     throw new AIModelError('Failed to create translator', {
       originalError: error,
       sourceLanguage: normalizedSource,
@@ -166,11 +296,14 @@ export async function createTranslator(
 /**
  * Translate text from source language to target language
  * Automatically normalizes language codes and validates support
- *
+ * Reference: https://developer.chrome.com/docs/ai/translator-api#create_and_run_the_translator
+ * 
  * @param {string} text - Text to translate
- * @param {string} sourceLanguage - Source language code (any format)
- * @param {string} targetLanguage - Target language code (any format)
+ * @param {string} sourceLanguage - Source language code
+ * @param {string} targetLanguage - Target language code
  * @param {Object} options - Translation options
+ * @param {Function} options.onProgress - Progress callback for downloads
+ * @param {boolean} options.stream - Use streaming API for long texts (default: false)
  * @returns {Promise<string>} Translated text
  */
 export async function translate(
@@ -179,8 +312,21 @@ export async function translate(
   targetLanguage,
   options = {}
 ) {
+  const operationStart = Date.now();
+
+  // Validation
   if (!text || text.trim().length === 0) {
-    logger.warn('Empty text provided for translation');
+    logger.system.warn('Empty text provided for translation', {
+      category: logger.CATEGORIES.TRANSLATE
+    });
+    return text;
+  }
+
+  if (text.length < TRANSLATION_CONFIG.MIN_TEXT_LENGTH) {
+    logger.system.debug('Text too short for translation', {
+      category: logger.CATEGORIES.TRANSLATE,
+      data: { textLength: text.length, minLength: TRANSLATION_CONFIG.MIN_TEXT_LENGTH }
+    });
     return text;
   }
 
@@ -188,58 +334,188 @@ export async function translate(
   const normalizedSource = normalizeLanguageCode(sourceLanguage);
   const normalizedTarget = normalizeLanguageCode(targetLanguage);
 
+  logger.system.info('Starting translation', {
+    category: logger.CATEGORIES.TRANSLATE,
+    data: {
+      textLength: text.length,
+      sourceLang: getLanguageName(normalizedSource),
+      targetLang: getLanguageName(normalizedTarget),
+      pair: `${normalizedSource} → ${normalizedTarget}`
+    }
+  });
+
   // Skip if same language
   if (normalizedSource === normalizedTarget) {
-    logger.debug(`Same language (${normalizedSource}), skipping translation`);
+    logger.system.debug('Same language, skipping translation', {
+      category: logger.CATEGORIES.TRANSLATE,
+      data: { language: normalizedSource }
+    });
     return text;
   }
 
   // Check if translation is needed and supported
   if (!shouldTranslate(normalizedSource, normalizedTarget)) {
-    logger.debug(`Translation not needed: ${normalizedSource}→${normalizedTarget}`);
+    logger.system.debug('Translation not needed or supported', {
+      category: logger.CATEGORIES.TRANSLATE,
+      data: { source: normalizedSource, target: normalizedTarget }
+    });
     return text;
   }
 
   try {
     // Create translator
+    const translatorStart = Date.now();
     const translator = await createTranslator(
       normalizedSource,
       normalizedTarget,
       options.onProgress
     );
+    const translatorDuration = Date.now() - translatorStart;
 
-    // Translate text
-    logger.debug(`Translating ${text.length} chars: ${normalizedSource}→${normalizedTarget}`);
-    const translated = await translator.translate(text);
+    logger.system.debug('Translator ready, starting translation', {
+      category: logger.CATEGORIES.TRANSLATE,
+      data: {
+        translatorCreationTime: translatorDuration,
+        textLength: text.length
+      }
+    });
 
-    // Clean up
+    // Execute translation
+    let translated;
+    const translationStart = Date.now();
+
+    if (options.stream || text.length > TRANSLATION_CONFIG.MAX_TEXT_LENGTH) {
+      // Use streaming for long texts
+      logger.system.debug('Using streaming translation', {
+        category: logger.CATEGORIES.TRANSLATE,
+        data: { textLength: text.length, threshold: TRANSLATION_CONFIG.MAX_TEXT_LENGTH }
+      });
+
+      translated = await translateStreaming(translator, text);
+    } else {
+      // Standard translation
+      logger.system.debug('Executing standard translation', {
+        category: logger.CATEGORIES.TRANSLATE
+      });
+
+      translated = await translator.translate(text);
+    }
+
+    const translationDuration = Date.now() - translationStart;
+
+    // Cleanup
     translator.destroy();
 
-    logger.info(`Translation completed: ${getLanguageName(normalizedSource)} → ${getLanguageName(normalizedTarget)}`);
-    return translated;
+    const totalDuration = Date.now() - operationStart;
 
+    logger.system.info('Translation completed successfully', {
+      category: logger.CATEGORIES.TRANSLATE,
+      data: {
+        pair: `${normalizedSource} → ${normalizedTarget}`,
+        originalLength: text.length,
+        translatedLength: translated.length,
+        totalDuration,
+        breakdown: {
+          translatorCreation: translatorDuration,
+          translation: translationDuration
+        }
+      }
+    });
+
+    return translated;
   } catch (error) {
-    logger.error('Translation failed:', error);
-    logger.warn('Returning original text due to translation error');
-    return text;
+    const duration = Date.now() - operationStart;
+
+    logger.system.error('Translation failed', {
+      category: logger.CATEGORIES.ERROR,
+      error,
+      data: {
+        pair: `${normalizedSource} → ${normalizedTarget}`,
+        textLength: text.length,
+        duration
+      }
+    });
+
+    logger.system.warn('Returning original text due to translation error', {
+      category: logger.CATEGORIES.TRANSLATE
+    });
+
+    return text; // Fallback to original text
   }
 }
 
 /**
- * Translate multiple texts in batch (reuses translator instance)
- * Automatically normalizes language codes
- *
+ * Streaming translation for long texts
+ * Reference: https://developer.chrome.com/docs/ai/translator-api#create_and_run_the_translator
+ * 
+ * @param {Object} translator - Translator instance
+ * @param {string} text - Text to translate
+ * @returns {Promise<string>} Translated text
+ */
+async function translateStreaming(translator, text) {
+  logger.system.debug('Starting streaming translation', {
+    category: logger.CATEGORIES.TRANSLATE,
+    data: { textLength: text.length }
+  });
+
+  try {
+    const stream = translator.translateStreaming(text);
+    let result = '';
+    let chunks = 0;
+
+    for await (const chunk of stream) {
+      result = chunk; // Each chunk contains the full result so far
+      chunks++;
+      
+      if (chunks % 10 === 0) { // Log every 10 chunks to avoid spam
+        logger.system.trace('Streaming translation progress', {
+          category: logger.CATEGORIES.TRANSLATE,
+          data: { chunks, currentLength: result.length }
+        });
+      }
+    }
+
+    logger.system.debug('Streaming translation completed', {
+      category: logger.CATEGORIES.TRANSLATE,
+      data: {
+        totalChunks: chunks,
+        finalLength: result.length
+      }
+    });
+
+    return result;
+  } catch (error) {
+    logger.system.error('Streaming translation failed', {
+      category: logger.CATEGORIES.ERROR,
+      error
+    });
+    throw error;
+  }
+}
+
+/**
+ * Translate multiple texts in batch using a single translator instance
+ * More efficient than multiple individual translations
+ * Reference: https://developer.chrome.com/docs/ai/translator-api#sequential_translations
+ * 
  * @param {Array<string>} texts - Array of texts to translate
- * @param {string} sourceLanguage - Source language code (any format)
- * @param {string} targetLanguage - Target language code (any format)
+ * @param {string} sourceLanguage - Source language code
+ * @param {string} targetLanguage - Target language code
+ * @param {Object} options - Translation options
  * @returns {Promise<Array<string>>} Array of translated texts
  */
 export async function translateBatch(
   texts,
   sourceLanguage,
-  targetLanguage
+  targetLanguage,
+  options = {}
 ) {
-  if (!texts || texts.length === 0) {
+  const operationStart = Date.now();
+
+  if (!Array.isArray(texts) || texts.length === 0) {
+    logger.system.warn('No texts provided for batch translation', {
+      category: logger.CATEGORIES.TRANSLATE
+    });
     return [];
   }
 
@@ -247,65 +523,183 @@ export async function translateBatch(
   const normalizedSource = normalizeLanguageCode(sourceLanguage);
   const normalizedTarget = normalizeLanguageCode(targetLanguage);
 
+  logger.system.info('Starting batch translation', {
+    category: logger.CATEGORIES.TRANSLATE,
+    data: {
+      textsCount: texts.length,
+      totalChars: texts.reduce((sum, t) => sum + t.length, 0),
+      pair: `${normalizedSource} → ${normalizedTarget}`
+    }
+  });
+
   // Skip if same language
   if (normalizedSource === normalizedTarget) {
-    logger.debug('Same language, returning original texts');
+    logger.system.debug('Same language, returning original texts', {
+      category: logger.CATEGORIES.TRANSLATE,
+      data: { language: normalizedSource }
+    });
     return texts;
   }
 
   // Check if translation is supported
   if (!shouldTranslate(normalizedSource, normalizedTarget)) {
-    logger.debug('Translation not supported, returning original texts');
+    logger.system.debug('Translation not supported, returning original texts', {
+      category: logger.CATEGORIES.TRANSLATE
+    });
     return texts;
   }
 
   try {
-    // Create translator once
-    const translator = await createTranslator(normalizedSource, normalizedTarget);
-
-    // Translate all texts
-    logger.info(`Translating ${texts.length} texts in batch: ${normalizedSource}→${normalizedTarget}`);
-    const translations = await Promise.all(
-      texts.map(async (text) => {
-        try {
-          return await translator.translate(text);
-        } catch (error) {
-          logger.error('Failed to translate text in batch:', error);
-          return text; // Return original on error
-        }
-      })
+    // Create translator once for all texts (efficient)
+    const translator = await createTranslator(
+      normalizedSource,
+      normalizedTarget,
+      options.onProgress
     );
 
-    // Clean up
+    logger.system.debug('Translating texts sequentially', {
+      category: logger.CATEGORIES.TRANSLATE,
+      data: { count: texts.length }
+    });
+
+    // Translate all texts sequentially (API processes sequentially)
+    const translations = [];
+    
+    for (let i = 0; i < texts.length; i++) {
+      try {
+        const text = texts[i];
+        
+        if (!text || text.trim().length === 0) {
+          translations.push(text);
+          continue;
+        }
+
+        logger.system.trace(`Translating text ${i + 1}/${texts.length}`, {
+          category: logger.CATEGORIES.TRANSLATE,
+          data: { index: i + 1, textLength: text.length }
+        });
+
+        const translated = await translator.translate(text);
+        translations.push(translated);
+      } catch (error) {
+        logger.system.error('Failed to translate text in batch', {
+          category: logger.CATEGORIES.TRANSLATE,
+          error,
+          data: { index: i + 1, total: texts.length }
+        });
+        
+        // Return original text on error
+        translations.push(texts[i]);
+      }
+    }
+
+    // Cleanup
     translator.destroy();
 
-    logger.info('Batch translation completed');
+    const duration = Date.now() - operationStart;
+
+    logger.system.info('Batch translation completed', {
+      category: logger.CATEGORIES.TRANSLATE,
+      data: {
+        successful: translations.length,
+        failed: texts.length - translations.length,
+        duration,
+        avgPerText: Math.round(duration / texts.length)
+      }
+    });
+
     return translations;
-
   } catch (error) {
-    logger.error('Batch translation failed:', error);
-    return texts; // Return originals on error
-  }
-}
+    const duration = Date.now() - operationStart;
 
-/**
- * Get list of supported languages for translation
- * @returns {Array<string>} Array of ISO 639-1 codes
- */
-export function getSupportedTranslationLanguages() {
-  return getSupportedLanguages('translator');
+    logger.system.error('Batch translation failed', {
+      category: logger.CATEGORIES.ERROR,
+      error,
+      data: {
+        textsCount: texts.length,
+        duration
+      }
+    });
+
+    logger.system.warn('Returning original texts due to batch translation error', {
+      category: logger.CATEGORIES.TRANSLATE
+    });
+
+    return texts; // Fallback to original texts
+  }
 }
 
 /**
  * Check if translation is needed between two languages
  * Wrapper around utility function with normalization
- *
- * @param {string} sourceLanguage - Source language code (any format)
- * @param {string} targetLanguage - Target language code (any format)
- * @returns {boolean}
+ * 
+ * @param {string} sourceLanguage - Source language code
+ * @param {string} targetLanguage - Target language code
+ * @returns {boolean} True if translation is needed
  */
 export function needsTranslation(sourceLanguage, targetLanguage) {
   const normalizedSource = normalizeLanguageCode(sourceLanguage);
   const normalizedTarget = normalizeLanguageCode(targetLanguage);
-  return shouldTranslate(normalizedSource, normalizedTarget);
+  
+  const needs = shouldTranslate(normalizedSource, normalizedTarget);
+  
+  logger.system.trace('Translation necessity check', {
+    category: logger.CATEGORIES.TRANSLATE,
+    data: {
+      source: normalizedSource,
+      target: normalizedTarget,
+      needed: needs
+    }
+  });
+  
+  return needs;
+}
+
+/**
+ * Get list of supported languages for translation
+ * 
+ * @returns {Array<string>} Array of ISO 639-1 language codes
+ */
+export function getSupportedTranslationLanguages() {
+  const languages = getSupportedLanguages('translator');
+  
+  logger.system.trace('Retrieved supported translation languages', {
+    category: logger.CATEGORIES.TRANSLATE,
+    data: { count: languages.length, languages }
+  });
+  
+  return languages;
+}
+
+/**
+ * Get human-readable name for language code
+ * 
+ * @param {string} languageCode - ISO 639-1 code
+ * @returns {string} Language name
+ */
+export function getTranslationLanguageName(languageCode) {
+  const normalized = normalizeLanguageCode(languageCode);
+  return getLanguageName(normalized);
+}
+
+/**
+ * Validate if a language is supported for translation
+ * 
+ * @param {string} languageCode - Language code to check
+ * @returns {boolean} True if supported
+ */
+export function isLanguageSupportedForTranslation(languageCode) {
+  const normalized = normalizeLanguageCode(languageCode);
+  const supported = isTranslatorSupported(normalized);
+  
+  logger.system.trace('Language support check', {
+    category: logger.CATEGORIES.TRANSLATE,
+    data: {
+      provided: languageCode,
+      normalized,
+      supported
+    }
+  });
+  
+  return supported;
 }

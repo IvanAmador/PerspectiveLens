@@ -1,304 +1,341 @@
 /**
- * Content Validator Utility
- * Validates and filters extracted article content before AI processing
+ * Content Validator for PerspectiveLens
+ * Validates and sanitizes article content for AI processing
+ * 
+ * Features:
+ * - Content quality scoring
+ * - Sanitization for AI input
+ * - Structural validation
+ * - Language detection integration
  */
 
 import { logger } from './logger.js';
 
 /**
- * Patterns that indicate low-quality or invalid content
- */
-const INVALID_CONTENT_PATTERNS = [
-  // JavaScript code patterns
-  /window\./i,
-  /function\s*\(/i,
-  /var\s+\w+\s*=/i,
-  /const\s+\w+\s*=/i,
-  /let\s+\w+\s*=/i,
-  /\.addEventListener\(/i,
-  /\.prototype\./i,
-  /\}\s*\(\s*\)/,  // IIFE pattern
-
-  // Framework/library detection
-  /react|vue|angular|jquery/i,
-  /webpack|babel|rollup/i,
-
-  // Common tracking/analytics
-  /google-analytics|gtag|analytics\.js/i,
-  /facebook|fbevents|twitter|tweet/i,
-
-  // Cookie consent banners
-  /cookie.*consent|accept.*cookie/i,
-  /gdpr|privacy.*policy/i,
-
-  // Ad content
-  /advertisement|sponsored.*content/i,
-  /click.*here|buy.*now/i
-];
-
-/**
- * Minimum quality thresholds
+ * Quality thresholds for content validation
  */
 const QUALITY_THRESHOLDS = {
-  minLength: 100,           // Minimum character count
-  minWords: 20,             // Minimum word count
-  maxJSRatio: 0.3,          // Maximum ratio of JS-like content
-  minAlphaRatio: 0.6,       // Minimum ratio of alphabetic characters
-  minSentences: 3,          // Minimum sentence count
-  maxRepeatedChars: 0.2     // Maximum ratio of repeated characters
+  MIN_CONTENT_LENGTH: 100,
+  MIN_WORD_COUNT: 20,
+  MAX_CONTENT_LENGTH: 50000,
+  MIN_QUALITY_SCORE: 60
 };
 
 /**
- * Validate if extracted content is suitable for AI analysis
- * @param {string} content - Raw extracted content
- * @param {string} source - Source identifier for logging
- * @returns {Object} { valid: boolean, reason: string, score: number }
+ * Validate article has minimum required content
+ * @param {Object} article - Article object
+ * @returns {boolean} True if valid
  */
-export function validateArticleContent(content, source = 'Unknown') {
-  if (!content || typeof content !== 'string') {
-    return {
-      valid: false,
-      reason: 'Content is null or not a string',
-      score: 0
-    };
+export function hasValidContent(article) {
+  if (!article) {
+    logger.system.trace('Article is null or undefined', {
+      category: logger.CATEGORIES.VALIDATE
+    });
+    return false;
   }
 
-  const trimmed = content.trim();
-
-  // Check 1: Minimum length
-  if (trimmed.length < QUALITY_THRESHOLDS.minLength) {
-    return {
-      valid: false,
-      reason: `Too short: ${trimmed.length} chars (min: ${QUALITY_THRESHOLDS.minLength})`,
-      score: 0.1
-    };
+  const content = article.extractedContent?.textContent || article.content || '';
+  
+  if (!content || content.trim().length < QUALITY_THRESHOLDS.MIN_CONTENT_LENGTH) {
+    logger.system.trace('Article content too short', {
+      category: logger.CATEGORIES.VALIDATE,
+      data: {
+        source: article.source,
+        contentLength: content.length,
+        minRequired: QUALITY_THRESHOLDS.MIN_CONTENT_LENGTH
+      }
+    });
+    return false;
   }
 
-  // Check 2: Word count
-  const words = trimmed.split(/\s+/).filter(w => w.length > 0);
-  if (words.length < QUALITY_THRESHOLDS.minWords) {
-    return {
-      valid: false,
-      reason: `Too few words: ${words.length} (min: ${QUALITY_THRESHOLDS.minWords})`,
-      score: 0.2
-    };
+  return true;
+}
+
+/**
+ * Calculate content quality score
+ * @param {Object} article - Article object
+ * @returns {number} Quality score (0-100)
+ */
+export function getContentQualityScore(article) {
+  if (!article) return 0;
+
+  let score = 0;
+  const content = article.extractedContent?.textContent || article.content || '';
+  const title = article.title || '';
+  const excerpt = article.extractedContent?.excerpt || '';
+
+  // Factor 1: Content length (0-30 points)
+  const contentLength = content.length;
+  if (contentLength >= 5000) score += 30;
+  else if (contentLength >= 2000) score += 25;
+  else if (contentLength >= 1000) score += 20;
+  else if (contentLength >= 500) score += 15;
+  else if (contentLength >= 100) score += 10;
+
+  // Factor 2: Word count (0-20 points)
+  const wordCount = content.trim().split(/\s+/).length;
+  if (wordCount >= 500) score += 20;
+  else if (wordCount >= 200) score += 15;
+  else if (wordCount >= 100) score += 10;
+  else if (wordCount >= 50) score += 5;
+
+  // Factor 3: Has title (0-15 points)
+  if (title && title.length > 10) score += 15;
+  else if (title && title.length > 0) score += 5;
+
+  // Factor 4: Has excerpt (0-15 points)
+  if (excerpt && excerpt.length > 50) score += 15;
+  else if (excerpt && excerpt.length > 0) score += 5;
+
+  // Factor 5: Structure quality (0-20 points)
+  const hasParagraphs = content.includes('\n\n') || content.includes('</p>');
+  const hasProperPunctuation = /[.!?]/.test(content);
+  const notTooManyLineBreaks = (content.match(/\n/g) || []).length < (contentLength / 50);
+  
+  if (hasParagraphs) score += 7;
+  if (hasProperPunctuation) score += 7;
+  if (notTooManyLineBreaks) score += 6;
+
+  logger.system.trace('Content quality score calculated', {
+    category: logger.CATEGORIES.VALIDATE,
+    data: {
+      source: article.source,
+      score,
+      factors: {
+        contentLength,
+        wordCount,
+        hasTitle: !!title,
+        hasExcerpt: !!excerpt,
+        hasParagraphs,
+        hasProperPunctuation
+      }
+    }
+  });
+
+  return Math.min(score, 100);
+}
+
+/**
+ * Check if article meets quality requirements
+ * @param {Object} article - Article object
+ * @returns {boolean} True if meets requirements
+ */
+export function meetsQualityRequirements(article) {
+  const score = getContentQualityScore(article);
+  const meetsRequirements = score >= QUALITY_THRESHOLDS.MIN_QUALITY_SCORE;
+
+  if (!meetsRequirements) {
+    logger.system.debug('Article does not meet quality requirements', {
+      category: logger.CATEGORIES.VALIDATE,
+      data: {
+        source: article.source,
+        score,
+        threshold: QUALITY_THRESHOLDS.MIN_QUALITY_SCORE
+      }
+    });
   }
 
-  // Check 3: JavaScript pattern detection
-  const jsMatches = INVALID_CONTENT_PATTERNS.filter(pattern => pattern.test(trimmed));
-  const jsRatio = jsMatches.length / INVALID_CONTENT_PATTERNS.length;
+  return meetsRequirements;
+}
 
-  if (jsRatio > QUALITY_THRESHOLDS.maxJSRatio) {
-    return {
-      valid: false,
-      reason: `High JS pattern ratio: ${(jsRatio * 100).toFixed(1)}% (max: ${QUALITY_THRESHOLDS.maxJSRatio * 100}%)`,
-      score: 0.3,
-      matches: jsMatches.map(p => p.toString())
-    };
+/**
+ * Filter articles to only valid ones
+ * @param {Array<Object>} articles - Articles to filter
+ * @returns {Array<Object>} Valid articles
+ */
+export function filterValidArticles(articles) {
+  const startTime = Date.now();
+
+  logger.system.debug('Starting article validation', {
+    category: logger.CATEGORIES.VALIDATE,
+    data: { totalArticles: articles.length }
+  });
+
+  const validArticles = articles.filter(article => {
+    const hasContent = hasValidContent(article);
+    const meetsQuality = meetsQualityRequirements(article);
+    
+    return hasContent && meetsQuality;
+  });
+
+  const duration = Date.now() - startTime;
+
+  logger.system.info('Article validation completed', {
+    category: logger.CATEGORIES.VALIDATE,
+    data: {
+      input: articles.length,
+      valid: validArticles.length,
+      invalid: articles.length - validArticles.length,
+      duration
+    }
+  });
+
+  return validArticles;
+}
+
+/**
+ * Sanitize content for AI processing
+ * Removes excessive whitespace, special characters, etc.
+ * @param {string} content - Raw content
+ * @returns {string} Sanitized content
+ */
+export function sanitizeContentForAI(content) {
+  if (!content) return '';
+
+  logger.system.trace('Sanitizing content for AI', {
+    category: logger.CATEGORIES.VALIDATE,
+    data: { originalLength: content.length }
+  });
+
+  let sanitized = content;
+
+  // Remove excessive whitespace
+  sanitized = sanitized.replace(/\s+/g, ' ');
+  
+  // Remove leading/trailing whitespace
+  sanitized = sanitized.trim();
+  
+  // Remove control characters except newlines and tabs
+  sanitized = sanitized.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, '');
+  
+  // Normalize line breaks (max 2 consecutive)
+  sanitized = sanitized.replace(/\n{3,}/g, '\n\n');
+  
+  // Remove zero-width characters
+  sanitized = sanitized.replace(/[\u200B-\u200D\uFEFF]/g, '');
+
+  // Truncate if too long
+  if (sanitized.length > QUALITY_THRESHOLDS.MAX_CONTENT_LENGTH) {
+    sanitized = sanitized.substring(0, QUALITY_THRESHOLDS.MAX_CONTENT_LENGTH) + '...';
+    
+    logger.system.debug('Content truncated to max length', {
+      category: logger.CATEGORIES.VALIDATE,
+      data: {
+        originalLength: content.length,
+        truncatedLength: sanitized.length,
+        maxLength: QUALITY_THRESHOLDS.MAX_CONTENT_LENGTH
+      }
+    });
   }
 
-  // Check 4: Alphabetic character ratio
-  const alphaChars = trimmed.replace(/[^a-zA-Z]/g, '');
-  const alphaRatio = alphaChars.length / trimmed.length;
+  logger.system.trace('Content sanitization completed', {
+    category: logger.CATEGORIES.VALIDATE,
+    data: {
+      originalLength: content.length,
+      sanitizedLength: sanitized.length,
+      reductionPercent: ((1 - sanitized.length / content.length) * 100).toFixed(1)
+    }
+  });
 
-  if (alphaRatio < QUALITY_THRESHOLDS.minAlphaRatio) {
-    return {
-      valid: false,
-      reason: `Low alphabetic ratio: ${(alphaRatio * 100).toFixed(1)}% (min: ${QUALITY_THRESHOLDS.minAlphaRatio * 100}%)`,
-      score: 0.4
-    };
+  return sanitized;
+}
+
+/**
+ * Get excerpt from content (first N characters)
+ * @param {string} content - Content text
+ * @param {number} maxLength - Maximum excerpt length
+ * @returns {string} Excerpt
+ */
+export function getContentExcerpt(content, maxLength = 500) {
+  if (!content) return '';
+
+  const sanitized = sanitizeContentForAI(content);
+  
+  if (sanitized.length <= maxLength) {
+    return sanitized;
   }
 
-  // Check 5: Sentence detection (basic)
-  const sentences = trimmed.split(/[.!?]+/).filter(s => s.trim().length > 10);
-  if (sentences.length < QUALITY_THRESHOLDS.minSentences) {
-    return {
-      valid: false,
-      reason: `Too few sentences: ${sentences.length} (min: ${QUALITY_THRESHOLDS.minSentences})`,
-      score: 0.5
-    };
+  // Try to break at sentence end
+  const excerpt = sanitized.substring(0, maxLength);
+  const lastSentenceEnd = Math.max(
+    excerpt.lastIndexOf('.'),
+    excerpt.lastIndexOf('!'),
+    excerpt.lastIndexOf('?')
+  );
+
+  if (lastSentenceEnd > maxLength * 0.7) {
+    return excerpt.substring(0, lastSentenceEnd + 1).trim();
   }
 
-  // Check 6: Repeated characters (spam detection)
-  const repeatedCharsMatch = trimmed.match(/(.)\1{5,}/g);
-  if (repeatedCharsMatch) {
-    const repeatedRatio = repeatedCharsMatch.join('').length / trimmed.length;
-    if (repeatedRatio > QUALITY_THRESHOLDS.maxRepeatedChars) {
-      return {
-        valid: false,
-        reason: `Too many repeated characters: ${(repeatedRatio * 100).toFixed(1)}%`,
-        score: 0.6
-      };
+  // Break at word boundary
+  const lastSpace = excerpt.lastIndexOf(' ');
+  if (lastSpace > 0) {
+    return excerpt.substring(0, lastSpace).trim() + '...';
+  }
+
+  return excerpt.trim() + '...';
+}
+
+/**
+ * Validate article structure
+ * @param {Object} article - Article object
+ * @returns {Object} Validation result
+ */
+export function validateArticleStructure(article) {
+  const issues = [];
+
+  if (!article) {
+    issues.push('Article is null or undefined');
+  } else {
+    if (!article.title) issues.push('Missing title');
+    if (!article.source) issues.push('Missing source');
+    if (!article.link && !article.url) issues.push('Missing link/url');
+    
+    const content = article.extractedContent?.textContent || article.content;
+    if (!content) {
+      issues.push('Missing content');
+    } else if (content.length < QUALITY_THRESHOLDS.MIN_CONTENT_LENGTH) {
+      issues.push(`Content too short (${content.length} chars, need ${QUALITY_THRESHOLDS.MIN_CONTENT_LENGTH})`);
     }
   }
 
-  // Calculate quality score (0-1)
-  const score = Math.min(1, (
-    (words.length / 100) * 0.3 +
-    alphaRatio * 0.3 +
-    (sentences.length / 10) * 0.2 +
-    (1 - jsRatio) * 0.2
-  ));
+  const isValid = issues.length === 0;
 
-  logger.debug(`Content validation for ${source}: PASSED (score: ${score.toFixed(2)})`);
+  if (!isValid) {
+    logger.system.debug('Article structure validation failed', {
+      category: logger.CATEGORIES.VALIDATE,
+      data: {
+        source: article?.source,
+        issues
+      }
+    });
+  }
 
   return {
-    valid: true,
-    reason: 'Content passed all validation checks',
-    score,
-    stats: {
-      length: trimmed.length,
-      words: words.length,
-      sentences: sentences.length,
-      alphaRatio: alphaRatio.toFixed(2),
-      jsPatternRatio: jsRatio.toFixed(2)
-    }
+    valid: isValid,
+    issues
   };
 }
 
 /**
- * Filter array of articles to keep only valid content
- * @param {Array} articles - Array of article objects with extractedContent
- * @returns {Array} Filtered array with only valid articles + validation metadata
+ * Get content statistics
+ * @param {string} content - Content text
+ * @returns {Object} Statistics
  */
-export function filterValidArticles(articles) {
-  if (!Array.isArray(articles)) {
-    logger.error('filterValidArticles: input is not an array');
-    return [];
-  }
-
-  const results = articles.map(article => {
-    const content = article.extractedContent?.textContent || article.content || '';
-    const source = article.source || article.title?.substring(0, 30) || 'Unknown';
-
-    const validation = validateArticleContent(content, source);
-
+export function getContentStats(content) {
+  if (!content) {
     return {
-      ...article,
-      validation,
-      isValid: validation.valid
+      length: 0,
+      wordCount: 0,
+      sentenceCount: 0,
+      paragraphCount: 0
     };
-  });
-
-  const validArticles = results.filter(a => a.isValid);
-  const invalidArticles = results.filter(a => !a.isValid);
-
-  // Group valid articles by country to ensure diversity
-  const validArticlesByCountry = new Map();
-  validArticles.forEach(article => {
-    const country = article.searchCountry || 'Unknown';
-    if (!validArticlesByCountry.has(country)) {
-      validArticlesByCountry.set(country, []);
-    }
-    validArticlesByCountry.get(country).push(article);
-  });
-
-  // Build result starting with one article from each country (highest scoring)
-  const finalValidArticles = [];
-  const remainingValidArticles = [];
-
-  for (const [country, countryArticles] of validArticlesByCountry.entries()) {
-    // Sort articles from each country by validation score (highest first)
-    const sortedCountryArticles = countryArticles.sort((a, b) => b.validation.score - a.validation.score);
-    
-    // Add the best article from each country to guarantee diversity
-    finalValidArticles.push(sortedCountryArticles[0]);
-    
-    // Add remaining articles from this country to the remaining pool
-    if (sortedCountryArticles.length > 1) {
-      remainingValidArticles.push(...sortedCountryArticles.slice(1));
-    }
   }
 
-  // Add remaining valid articles to fill out the list
-  finalValidArticles.push(...remainingValidArticles);
+  const wordCount = content.trim().split(/\s+/).length;
+  const sentenceCount = (content.match(/[.!?]+/g) || []).length;
+  const paragraphCount = (content.match(/\n\n+/g) || []).length + 1;
 
-  // Log summary
-  logger.group('Content Validation Summary');
-  logger.info(`Total articles: ${articles.length}`);
-  logger.info(`Valid: ${finalValidArticles.length}`);
-  logger.info(`Invalid: ${invalidArticles.length}`);
-
-  // Log country distribution
-  const originalCountries = [...new Set(articles.map(a => a.searchCountry || 'Unknown'))];
-  const finalCountries = [...new Set(finalValidArticles.map(a => a.searchCountry || 'Unknown'))];
-  logger.info(`Original countries represented: ${originalCountries.length}`);
-  logger.info(`Final countries represented: ${finalCountries.length}`);
-  
-  if (invalidArticles.length > 0) {
-    logger.group('Invalid articles:');
-    invalidArticles.forEach(article => {
-      logger.warn(`❌ ${article.source}: ${article.validation.reason}`);
-    });
-    logger.groupEnd();
-  }
-
-  logger.groupEnd();
-
-  return finalValidArticles;
+  return {
+    length: content.length,
+    wordCount,
+    sentenceCount,
+    paragraphCount,
+    avgWordsPerSentence: sentenceCount > 0 ? Math.round(wordCount / sentenceCount) : 0
+  };
 }
 
 /**
- * Sanitize and truncate content for AI processing
- * Removes problematic patterns and limits length
- * @param {string} content - Raw content
- * @param {number} maxLength - Maximum character count (default: 2000)
- * @returns {string} Sanitized and truncated content
+ * Export quality thresholds for external use
  */
-export function sanitizeContentForAI(content, maxLength = 2000) {
-  if (!content) return '';
-
-  let cleaned = content
-    // Remove multiple newlines
-    .replace(/\n{3,}/g, '\n\n')
-    // Remove multiple spaces
-    .replace(/  +/g, ' ')
-    // Remove tabs
-    .replace(/\t+/g, ' ')
-    // Remove special Unicode characters that might confuse the model
-    .replace(/[\u200B-\u200D\uFEFF]/g, '')
-    .trim();
-
-  // Truncate at sentence boundary if possible
-  if (cleaned.length > maxLength) {
-    cleaned = cleaned.substring(0, maxLength);
-
-    // Try to find last sentence boundary
-    const lastPeriod = cleaned.lastIndexOf('. ');
-    const lastQuestion = cleaned.lastIndexOf('? ');
-    const lastExclamation = cleaned.lastIndexOf('! ');
-
-    const lastSentence = Math.max(lastPeriod, lastQuestion, lastExclamation);
-
-    if (lastSentence > maxLength * 0.7) {
-      // If we found a sentence boundary in the last 30%, use it
-      cleaned = cleaned.substring(0, lastSentence + 1).trim();
-    } else {
-      // Otherwise, add ellipsis
-      cleaned += '...';
-    }
-  }
-
-  return cleaned;
-}
-
-/**
- * Get excerpt for display/logging (first N characters with intelligent truncation)
- * @param {string} content - Content to excerpt
- * @param {number} length - Max length (default: 200)
- * @returns {string} Excerpt
- */
-export function getContentExcerpt(content, length = 200) {
-  if (!content || content.length <= length) {
-    return content || '';
-  }
-
-  const excerpt = content.substring(0, length);
-  const lastSpace = excerpt.lastIndexOf(' ');
-
-  if (lastSpace > length * 0.8) {
-    return excerpt.substring(0, lastSpace) + '...';
-  }
-
-  return excerpt + '...';
-}
+export { QUALITY_THRESHOLDS };

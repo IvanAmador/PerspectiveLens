@@ -1,16 +1,25 @@
 /**
  * PerspectiveLens Background Service Worker
  * Coordinates AI processing, API calls, and message handling
+ * 
+ * Processing Pipeline (Simplified):
+ * 1. Content already extracted by content script
+ * 2. Search perspectives using title (with automatic translation)
+ * 3. Extract content from perspective articles
+ * 4. Comparative analysis with Gemini Nano
  */
 
 import { logger } from '../utils/logger.js';
-import { extractKeywords, checkAvailability, createSession, compareArticles } from '../api/languageModel.js';
+import { checkAvailability, createSession, compareArticles } from '../api/languageModel.js';
 import { handleError } from '../utils/errors.js';
 import { normalizeLanguageCode } from '../utils/languages.js';
 import { fetchPerspectives } from '../api/newsFetcher.js';
 import { extractArticlesContentWithTabs } from '../api/contentExtractor.js';
 
-logger.info('Background service worker started');
+// Initialize background service
+logger.system.info('Background service worker started', {
+  category: logger.CATEGORIES.GENERAL
+});
 
 /**
  * Global download state (persists while service worker is active)
@@ -31,78 +40,77 @@ let aiAvailabilityCache = {
 };
 
 /**
- * Active tab tracker for progress updates
+ * Active analysis tracker for request correlation
  */
-let activeAnalysisTab = null;
-
-/**
- * Send progress update to content script
- */
-async function broadcastProgress(step, status, message, progress = 0) {
-  if (!activeAnalysisTab) {
-    logger.warn('No active analysis tab to send progress to');
-    return;
-  }
-
-  try {
-    await chrome.tabs.sendMessage(activeAnalysisTab, {
-      type: 'PROGRESS_UPDATE',
-      data: { step, status, message, progress }
-    });
-    logger.debug(`Progress broadcast: [${step}] ${message}`);
-  } catch (error) {
-    logger.warn('Failed to broadcast progress:', error.message);
-  }
-}
+let activeAnalysis = {
+  tabId: null,
+  requestId: null
+};
 
 /**
  * Handle messages from content scripts and popup
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  logger.debug('Message received:', message.type);
+  logger.system.debug('Message received', {
+    category: logger.CATEGORIES.GENERAL,
+    data: { type: message.type, tabId: sender.tab?.id }
+  });
 
   // Handle async responses
   if (message.type === 'START_ANALYSIS') {
-    // Store tab ID for progress updates
-    activeAnalysisTab = sender.tab?.id || null;
+    // Store tab ID for progress updates and start request tracking
+    activeAnalysis.tabId = sender.tab?.id || null;
+    activeAnalysis.requestId = logger.startRequest('article_analysis');
 
     handleNewArticle(message.data)
-      .then(response => sendResponse({ success: true, data: response }))
+      .then(response => {
+        const duration = logger.endRequest(activeAnalysis.requestId);
+        logger.both.info('Analysis completed successfully', {
+          category: logger.CATEGORIES.GENERAL,
+          data: { duration, articlesAnalyzed: response.perspectives?.length || 0 }
+        });
+        sendResponse({ success: true, data: response });
+      })
       .catch(error => {
+        logger.endRequest(activeAnalysis.requestId);
         const errorInfo = handleError(error, 'handleNewArticle');
+        logger.user.error('Analysis failed', {
+          category: logger.CATEGORIES.ERROR,
+          error,
+          data: { errorInfo }
+        });
         sendResponse({ success: false, error: errorInfo });
       })
       .finally(() => {
-        activeAnalysisTab = null;
+        activeAnalysis.tabId = null;
+        logger.clearRequest();
       });
 
-    // Return true to indicate async response
     return true;
   }
 
   // Legacy support for old message type
   if (message.type === 'NEW_ARTICLE_DETECTED') {
-    activeAnalysisTab = sender.tab?.id || null;
+    activeAnalysis.tabId = sender.tab?.id || null;
+    activeAnalysis.requestId = logger.startRequest('article_analysis');
 
     handleNewArticle(message.data)
-      .then(response => sendResponse({ success: true, data: response }))
+      .then(response => {
+        const duration = logger.endRequest(activeAnalysis.requestId);
+        logger.system.info('Analysis completed', {
+          category: logger.CATEGORIES.GENERAL,
+          data: { duration }
+        });
+        sendResponse({ success: true, data: response });
+      })
       .catch(error => {
+        logger.endRequest(activeAnalysis.requestId);
         const errorInfo = handleError(error, 'handleNewArticle');
         sendResponse({ success: false, error: errorInfo });
       })
       .finally(() => {
-        activeAnalysisTab = null;
-      });
-
-    return true;
-  }
-
-  if (message.type === 'EXTRACT_KEYWORDS') {
-    extractKeywords(message.title, message.language)
-      .then(keywords => sendResponse({ success: true, keywords }))
-      .catch(error => {
-        const errorInfo = handleError(error, 'extractKeywords');
-        sendResponse({ success: false, error: errorInfo });
+        activeAnalysis.tabId = null;
+        logger.clearRequest();
       });
 
     return true;
@@ -144,194 +152,342 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 /**
  * Process new article detection from content script
- * Implements F-002: Keyword Extraction + F-005: Summarization
+ * Simplified Pipeline: Search Perspectives → Extract Content → Analyze
  */
 async function handleNewArticle(articleData) {
-  logger.group('🔍 Processing new article');
-  logger.info('URL:', articleData.url);
-  logger.info('Title:', articleData.title);
-  logger.info('Source:', articleData.source);
-  logger.info('Language:', articleData.language);
-  logger.info('Content length:', articleData.content?.length || 0);
+  logger.system.info('Processing new article', {
+    category: logger.CATEGORIES.GENERAL,
+    data: {
+      url: articleData.url,
+      title: articleData.title,
+      source: articleData.source,
+      language: articleData.language,
+      contentLength: articleData.content?.length || 0
+    }
+  });
 
   try {
-    // Step 1: Extract keywords (F-002)
-    await broadcastProgress('extract', 'completed', 'Content extracted successfully', 100);
-    await broadcastProgress('keywords', 'active', 'Generating search keywords...', 0);
+    // Step 1: Content already extracted by content script
+    logger.progress(logger.CATEGORIES.EXTRACT, {
+      status: 'completed',
+      userMessage: 'Content extracted successfully',
+      progress: 100
+    });
 
-    logger.info('📝 Step 1: Extracting keywords...');
-    const keywords = await extractKeywords(
-      articleData.title,
-      articleData.language || null // Let it auto-detect
-    );
-    logger.info('✅ Keywords extracted:', keywords);
+    // Step 2: Fetch perspectives (with automatic translation)
+    logger.progress(logger.CATEGORIES.SEARCH, {
+      status: 'active',
+      userMessage: 'Searching for related articles globally...',
+      progress: 0
+    });
 
-    await broadcastProgress('keywords', 'completed', `Generated ${keywords.length} keywords: ${keywords.slice(0, 3).join(', ')}...`, 100);
-
-    logger.info('📄 Step 2: Skipping summarization (feature removed)');
-
-    // Step 3: Check cache (F-007 - to be implemented)
-    // const cachedAnalysis = await checkCache(articleData.url);
-    // if (cachedAnalysis) return cachedAnalysis;
-
-    // Step 4: Fetch perspectives (F-003)
-    await broadcastProgress('search', 'active', 'Searching for related articles globally...', 0);
-
-    logger.info('📰 Step 3: Fetching perspectives from other sources...');
     let perspectives = [];
     try {
-      perspectives = await fetchPerspectives(keywords, articleData);
-      logger.info(`✅ Found ${perspectives.length} perspectives`);
+      // Simply pass the title - newsFetcher handles translation automatically
+      perspectives = await fetchPerspectives(articleData.title, articleData);
+      
+      logger.system.info('Perspectives fetched successfully', {
+        category: logger.CATEGORIES.SEARCH,
+        data: {
+          total: perspectives.length,
+          countries: [...new Set(perspectives.map(p => p.country))].length
+        }
+      });
 
-      await broadcastProgress('search', 'completed', `Found ${perspectives.length} articles from multiple countries`, 100);
+      logger.progress(logger.CATEGORIES.SEARCH, {
+        status: 'completed',
+        userMessage: `Found ${perspectives.length} articles from multiple countries`,
+        systemMessage: `Found ${perspectives.length} articles from ${[...new Set(perspectives.map(p => p.country))].length} countries`,
+        progress: 100,
+        data: { 
+          total: perspectives.length,
+          byCountry: perspectives.reduce((acc, p) => {
+            acc[p.country] = (acc[p.country] || 0) + 1;
+            return acc;
+          }, {})
+        }
+      });
     } catch (error) {
-      logger.error('Failed to fetch perspectives:', error);
-      await broadcastProgress('search', 'error', `Search failed: ${error.message}`);
-      // Continue without perspectives rather than failing completely
+      logger.system.error('Failed to fetch perspectives', {
+        category: logger.CATEGORIES.SEARCH,
+        error,
+        data: { title: articleData.title }
+      });
+
+      logger.user.warn('Search encountered issues', {
+        category: logger.CATEGORIES.SEARCH,
+        data: { message: 'Continuing with available results' }
+      });
+
+      logger.progress(logger.CATEGORIES.SEARCH, {
+        status: 'error',
+        userMessage: 'Search completed with errors'
+      });
     }
 
-    // Step 5: Extract content from perspectives (F-004)
-    await broadcastProgress('fetch', 'active', 'Fetching article content...', 0);
+    // Step 3: Extract content from perspectives
+    logger.progress(logger.CATEGORIES.FETCH, {
+      status: 'active',
+      userMessage: 'Fetching article content...',
+      progress: 0
+    });
 
-    logger.info('📄 Step 4: Extracting content from perspective articles...');
     let perspectivesWithContent = perspectives;
     try {
       if (perspectives.length > 0) {
-        await broadcastProgress('fetch', 'active', `Processing ${perspectives.length} articles...`, 20);
+        logger.system.debug('Starting content extraction', {
+          category: logger.CATEGORIES.FETCH,
+          data: { 
+            articlesCount: perspectives.length,
+            config: { maxArticles: 10, timeout: 20000, parallel: true, batchSize: 10 }
+          }
+        });
+
+        logger.progress(logger.CATEGORIES.FETCH, {
+          status: 'active',
+          userMessage: `Processing ${perspectives.length} articles...`,
+          systemMessage: `Starting batch extraction with parallel processing`,
+          progress: 20
+        });
 
         perspectivesWithContent = await extractArticlesContentWithTabs(perspectives, {
-          maxArticles: 10,
-          timeout: 15000,
+          maxArticles: 5,
+          timeout: 20000,
           parallel: true,
-          batchSize: 5 // Process 5 tabs at a time
+          batchSize: 10
         });
 
         const extractedCount = perspectivesWithContent.filter(p => p.contentExtracted).length;
-        logger.info(`✅ Extracted content from ${extractedCount}/${perspectives.length} articles`);
+        
+        logger.system.info('Content extraction completed', {
+          category: logger.CATEGORIES.FETCH,
+          data: {
+            successful: extractedCount,
+            total: perspectives.length,
+            successRate: `${((extractedCount / perspectives.length) * 100).toFixed(1)}%`
+          }
+        });
 
-        await broadcastProgress('fetch', 'completed', `Extracted content from ${extractedCount} articles`, 100);
+        logger.progress(logger.CATEGORIES.FETCH, {
+          status: 'completed',
+          userMessage: `Extracted content from ${extractedCount} articles`,
+          systemMessage: `Successfully extracted ${extractedCount}/${perspectives.length} articles`,
+          progress: 100,
+          data: { successful: extractedCount, total: perspectives.length }
+        });
 
-        // Log sample of extracted content for verification
+        // Log sample of extracted content (system only)
         perspectivesWithContent
           .filter(p => p.contentExtracted)
           .slice(0, 3)
           .forEach(article => {
-            logger.group(`📰 Sample: ${article.source} - ${article.title.substring(0, 60)}...`);
-            logger.info('Final URL:', article.finalUrl);
-            logger.info('Extraction Method:', article.extractionMethod);
-            logger.info('Content Length:', article.extractedContent?.textContent?.length || 0);
-            logger.info('Excerpt:', article.extractedContent?.excerpt?.substring(0, 150) || 'N/A');
-            logger.info('First 300 chars:', article.extractedContent?.textContent?.substring(0, 300) || 'N/A');
-            logger.groupEnd();
+            logger.system.trace('Sample extraction result', {
+              category: logger.CATEGORIES.FETCH,
+              data: {
+                source: article.source,
+                title: article.title.substring(0, 60),
+                finalUrl: article.finalUrl,
+                method: article.extractionMethod,
+                contentLength: article.extractedContent?.textContent?.length || 0,
+                excerpt: article.extractedContent?.excerpt?.substring(0, 150)
+              }
+            });
           });
       } else {
-        await broadcastProgress('fetch', 'completed', 'No articles to fetch', 100);
+        logger.progress(logger.CATEGORIES.FETCH, {
+          status: 'completed',
+          userMessage: 'No articles to fetch',
+          progress: 100
+        });
       }
     } catch (error) {
-      logger.error('Failed to extract article contents:', error);
-      await broadcastProgress('fetch', 'error', `Content extraction failed: ${error.message}`);
-      // Continue with perspectives without content
+      logger.system.error('Content extraction failed', {
+        category: logger.CATEGORIES.FETCH,
+        error,
+        data: { articlesAttempted: perspectives.length }
+      });
+
+      logger.user.warn('Some articles could not be loaded', {
+        category: logger.CATEGORIES.FETCH,
+        data: { message: 'Continuing with available content' }
+      });
+
+      logger.progress(logger.CATEGORIES.FETCH, {
+        status: 'error',
+        userMessage: 'Content extraction encountered errors'
+      });
+
       perspectivesWithContent = perspectives;
     }
 
-    // Step 6: Compare perspectives (F-006) - OPTIMIZED VERSION!
-    await broadcastProgress('analyze', 'active', 'Performing comparative analysis with AI...', 0);
+    // Step 4: Compare perspectives
+    logger.progress(logger.CATEGORIES.ANALYZE, {
+      status: 'active',
+      userMessage: 'Performing comparative analysis with AI...',
+      progress: 0
+    });
 
-    logger.info('🔍 Step 5: Performing OPTIMIZED comparative analysis...');
     let comparativeAnalysis = null;
     try {
-      // Only run analysis if we have content from at least 2 articles
       const articlesWithContent = perspectivesWithContent.filter(p => p.contentExtracted);
-
+      
       if (articlesWithContent.length >= 2) {
-        logger.info(`Running analysis on ${articlesWithContent.length} articles with optimizations enabled`);
-
-        await broadcastProgress('analyze', 'active', `Analyzing ${articlesWithContent.length} articles...`, 30);
-
-        comparativeAnalysis = await compareArticles(articlesWithContent, {
-          // OPTIMIZATION FLAGS
-          useCompression: true,           // Use Summarizer API to compress long articles (70-80% reduction)
-          validateContent: true,           // Filter out JavaScript/invalid content
-          maxArticles: 8,                  // Limit to top 8 articles by quality
-          compressionLevel: 'medium',      // Balance between detail and token usage
-          useV2Prompt: true                // Enhanced prompt with few-shot examples
+        logger.system.info('Starting comparative analysis', {
+          category: logger.CATEGORIES.ANALYZE,
+          data: {
+            articlesCount: articlesWithContent.length,
+            optimizations: {
+              compression: true,
+              validation: true,
+              maxArticles: 8
+            }
+          }
         });
 
-        // Check if analysis succeeded or returned fallback
+        logger.progress(logger.CATEGORIES.ANALYZE, {
+          status: 'active',
+          userMessage: `Analyzing ${articlesWithContent.length} articles...`,
+          systemMessage: `Running optimized analysis with compression and validation`,
+          progress: 30,
+          data: { articlesCount: articlesWithContent.length }
+        });
+
+        comparativeAnalysis = await compareArticles(articlesWithContent, {
+          useCompression: true,
+          validateContent: true,
+          maxArticles: 4,
+          compressionLevel: 'long',
+          useV2Prompt: true
+        });
+
         if (comparativeAnalysis.error) {
-          logger.warn('⚠️ Analysis returned with errors:', comparativeAnalysis.metadata);
-          await broadcastProgress('analyze', 'completed', 'Analysis completed with warnings', 100);
+          logger.system.warn('Analysis completed with warnings', {
+            category: logger.CATEGORIES.ANALYZE,
+            data: { metadata: comparativeAnalysis.metadata }
+          });
+
+          logger.user.warn('Analysis completed with warnings', {
+            category: logger.CATEGORIES.ANALYZE,
+            data: { message: 'Some results may be incomplete' }
+          });
+
+          logger.progress(logger.CATEGORIES.ANALYZE, {
+            status: 'completed',
+            userMessage: 'Analysis completed with warnings',
+            progress: 100
+          });
         } else {
-          logger.info('✅ Comparative analysis completed successfully');
-          logger.group('📊 Analysis Summary');
-          logger.info(`Consensus: ${comparativeAnalysis.consensus?.length || 0} points`);
-          logger.info(`Disputes: ${comparativeAnalysis.disputes?.length || 0} topics`);
-          logger.info(`Omissions: ${Object.keys(comparativeAnalysis.omissions || {}).length} sources`);
-          logger.info(`Bias indicators: ${comparativeAnalysis.bias_indicators?.length || 0}`);
-          logger.info(`Articles analyzed: ${comparativeAnalysis.metadata?.articlesAnalyzed || 0}/${articlesWithContent.length}`);
-          logger.info(`Compression used: ${comparativeAnalysis.metadata?.compressionUsed ? 'Yes' : 'No'}`);
-          logger.info(`Input length: ${comparativeAnalysis.metadata?.totalInputLength || 0} chars`);
-          logger.info(`Main story: ${comparativeAnalysis.summary?.main_story?.substring(0, 80) || 'N/A'}...`);
-          logger.groupEnd();
+          logger.system.info('Analysis completed successfully', {
+            category: logger.CATEGORIES.ANALYZE,
+            data: {
+              consensus: comparativeAnalysis.consensus?.length || 0,
+              disputes: comparativeAnalysis.disputes?.length || 0,
+              omissions: Object.keys(comparativeAnalysis.omissions || {}).length,
+              biasIndicators: comparativeAnalysis.bias_indicators?.length || 0,
+              articlesAnalyzed: comparativeAnalysis.metadata?.articlesAnalyzed || 0,
+              compressionUsed: comparativeAnalysis.metadata?.compressionUsed || false,
+              inputLength: comparativeAnalysis.metadata?.totalInputLength || 0
+            }
+          });
 
           const stats = `${comparativeAnalysis.consensus?.length || 0} consensus, ${comparativeAnalysis.disputes?.length || 0} disputes`;
-          await broadcastProgress('analyze', 'completed', `Analysis complete: ${stats}`, 100);
+          
+          logger.progress(logger.CATEGORIES.ANALYZE, {
+            status: 'completed',
+            userMessage: `Analysis complete: ${stats}`,
+            systemMessage: `Full analysis: ${stats}, ${comparativeAnalysis.bias_indicators?.length || 0} bias indicators`,
+            progress: 100,
+            data: {
+              consensus: comparativeAnalysis.consensus?.length || 0,
+              disputes: comparativeAnalysis.disputes?.length || 0,
+              biasIndicators: comparativeAnalysis.bias_indicators?.length || 0
+            }
+          });
         }
       } else {
-        logger.warn(`Skipping analysis: Only ${articlesWithContent.length} article(s) with content (need 2+)`);
-        await broadcastProgress('analyze', 'error', `Need at least 2 articles for analysis (found ${articlesWithContent.length})`);
+        logger.system.warn('Insufficient articles for analysis', {
+          category: logger.CATEGORIES.ANALYZE,
+          data: {
+            articlesFound: articlesWithContent.length,
+            required: 2
+          }
+        });
+
+        logger.user.warn('Not enough articles for analysis', {
+          category: logger.CATEGORIES.ANALYZE,
+          data: {
+            message: `Found ${articlesWithContent.length} article(s), need at least 2`
+          }
+        });
+
+        logger.progress(logger.CATEGORIES.ANALYZE, {
+          status: 'error',
+          userMessage: `Need at least 2 articles for analysis (found ${articlesWithContent.length})`
+        });
       }
     } catch (error) {
-      logger.error('Comparative analysis failed catastrophically:', error);
-      await broadcastProgress('analyze', 'error', `Analysis failed: ${error.message}`);
-      // Continue without analysis rather than failing completely
-      comparativeAnalysis = null;
+      logger.system.error('Analysis failed catastrophically', {
+        category: logger.CATEGORIES.ANALYZE,
+        error
+      });
+
+      logger.user.error('Analysis could not be completed', {
+        category: logger.CATEGORIES.ANALYZE,
+        data: { message: 'Please try again or contact support' }
+      });
+
+      logger.progress(logger.CATEGORIES.ANALYZE, {
+        status: 'error',
+        userMessage: 'Analysis failed'
+      });
     }
 
-    // Step 7: Cache results (F-007 - to be implemented)
-    // await cacheAnalysis(articleData.url, result);
-
+    // Prepare result (no keywords field)
     const result = {
       articleData,
-      keywords, // Already in English
-      perspectives: perspectivesWithContent, // Array of related articles with extracted content
-      analysis: comparativeAnalysis, // Structured comparative analysis (or null if skipped)
-      sourceLanguage: normalizeLanguageCode(articleData.language || 'en'), // Store for later translation
+      perspectives: perspectivesWithContent,
+      analysis: comparativeAnalysis,
+      sourceLanguage: normalizeLanguageCode(articleData.language || 'en'),
       status: comparativeAnalysis ? 'analysis_complete' :
-              perspectivesWithContent.length > 0 ? 'content_extracted' : 'keywords_extracted',
+              perspectivesWithContent.length > 0 ? 'content_extracted' : 'perspectives_found',
       timestamp: new Date().toISOString()
     };
 
-    // Update statistics
+    // Update statistics (no keywordsExtracted)
     try {
       const storage = await chrome.storage.local.get(['stats']);
       const stats = storage.stats || {
         articlesAnalyzed: 0,
-        keywordsExtracted: 0,
         perspectivesFound: 0
       };
 
       stats.articlesAnalyzed += 1;
-      stats.keywordsExtracted += keywords.length;
       stats.perspectivesFound += perspectives.length;
 
       await chrome.storage.local.set({ stats });
-      logger.debug('Stats updated:', stats);
+      
+      logger.system.debug('Statistics updated', {
+        category: logger.CATEGORIES.GENERAL,
+        data: stats
+      });
     } catch (error) {
-      logger.warn('Failed to update stats:', error);
-      // Non-critical, continue
+      logger.system.warn('Failed to update statistics', {
+        category: logger.CATEGORIES.GENERAL,
+        error
+      });
     }
 
-    // Step 8: Send analysis to content script for UI display
+    // Send analysis to content script for UI display
     if (comparativeAnalysis) {
       try {
-        // Find the tab that triggered the analysis
         const tabs = await chrome.tabs.query({ url: articleData.url });
-        logger.debug(`Found ${tabs.length} tabs matching URL:`, articleData.url);
+        
+        logger.system.debug('Sending analysis to content script', {
+          category: logger.CATEGORIES.GENERAL,
+          data: { tabsFound: tabs.length, url: articleData.url }
+        });
 
         if (tabs.length > 0) {
-          logger.debug(`Sending SHOW_ANALYSIS message to tab ${tabs[0].id}`);
-
           const response = await chrome.tabs.sendMessage(tabs[0].id, {
             type: 'SHOW_ANALYSIS',
             data: {
@@ -341,24 +497,40 @@ async function handleNewArticle(articleData) {
             }
           });
 
-          logger.info('✅ Analysis sent to UI, response:', response);
+          logger.system.info('Analysis sent to UI successfully', {
+            category: logger.CATEGORIES.GENERAL,
+            data: { tabId: tabs[0].id, response }
+          });
         } else {
-          logger.warn('⚠️ No tabs found matching the article URL');
+          logger.system.warn('No matching tabs found for URL', {
+            category: logger.CATEGORIES.GENERAL,
+            data: { url: articleData.url }
+          });
         }
       } catch (error) {
-        logger.error('❌ Failed to send analysis to content script:', error);
-        logger.error('Error details:', error.message, error.stack);
-        // Non-critical, continue
+        logger.system.error('Failed to send analysis to content script', {
+          category: logger.CATEGORIES.GENERAL,
+          error
+        });
       }
     }
 
-    logger.info('✅ Article processed successfully');
-    logger.groupEnd();
+    logger.both.info('Article processed successfully', {
+      category: logger.CATEGORIES.GENERAL,
+      data: {
+        status: result.status,
+        perspectivesCount: perspectivesWithContent.length,
+        hasAnalysis: !!comparativeAnalysis
+      }
+    });
 
     return result;
-
   } catch (error) {
-    logger.groupEnd();
+    logger.system.error('Article processing failed', {
+      category: logger.CATEGORIES.ERROR,
+      error,
+      data: { url: articleData.url }
+    });
     throw error;
   }
 }
@@ -368,54 +540,66 @@ async function handleNewArticle(articleData) {
  */
 async function getExtensionStatus() {
   try {
-    // Check AI availability and status (with cache)
     let aiStatus = {
       availability: 'unavailable',
       downloadProgress: 0
     };
 
-    if (typeof LanguageModel !== 'undefined') {
+    // Check if LanguageModel API is available (official way)
+    if (typeof self.LanguageModel !== 'undefined') {
       try {
-        // Use cache if available and recent
         const now = Date.now();
         const cacheValid = aiAvailabilityCache.status &&
-                          aiAvailabilityCache.timestamp &&
-                          (now - aiAvailabilityCache.timestamp) < aiAvailabilityCache.cacheDuration;
+          aiAvailabilityCache.timestamp &&
+          (now - aiAvailabilityCache.timestamp) < aiAvailabilityCache.cacheDuration;
 
         let availability;
         if (cacheValid) {
           availability = aiAvailabilityCache.status;
-          logger.debug('Using cached AI availability:', availability);
+          logger.system.trace('Using cached AI availability', {
+            category: logger.CATEGORIES.GENERAL,
+            data: { availability }
+          });
         } else {
           availability = await checkAvailability();
-          // Cache the result
           aiAvailabilityCache.status = availability;
           aiAvailabilityCache.timestamp = now;
-          logger.debug('Cached new AI availability:', availability);
+          logger.system.debug('AI availability checked', {
+            category: logger.CATEGORIES.GENERAL,
+            data: { availability }
+          });
         }
 
         aiStatus.availability = availability;
 
-        // If downloading, include progress
         if (availability === 'downloading' && downloadState.inProgress) {
           aiStatus.downloadProgress = downloadState.progress;
         }
       } catch (error) {
-        logger.error('Failed to check AI availability:', error);
+        logger.system.error('Failed to check AI availability', {
+          category: logger.CATEGORIES.ERROR,
+          error
+        });
       }
+    } else {
+      logger.system.warn('LanguageModel API not available in environment', {
+        category: logger.CATEGORIES.GENERAL,
+        data: { 
+          hasLanguageModel: typeof self.LanguageModel !== 'undefined',
+          chromeVersion: navigator.userAgent.match(/Chrome\/(\d+)/)?.[1] || 'unknown',
+          recommendation: 'Enable chrome://flags/#prompt-api-for-gemini-nano'
+        }
+      });
     }
 
-    // Get cache and stats from storage
     const storage = await chrome.storage.local.get(['cache', 'stats']);
-
     const cache = storage.cache || [];
     const stats = storage.stats || {
       articlesAnalyzed: 0,
-      keywordsExtracted: 0,
       perspectivesFound: 0
     };
 
-    return {
+    const status = {
       aiStatus,
       stats: {
         articlesAnalyzed: stats.articlesAnalyzed,
@@ -425,48 +609,82 @@ async function getExtensionStatus() {
       timestamp: new Date().toISOString()
     };
 
+    logger.system.debug('Extension status retrieved', {
+      category: logger.CATEGORIES.GENERAL,
+      data: status
+    });
+
+    return status;
   } catch (error) {
-    logger.error('Failed to get status:', error);
-    throw error;
+    logger.system.error('Failed to get extension status', {
+      category: logger.CATEGORIES.ERROR,
+      error
+    });
+    
+    // Return fallback status instead of throwing
+    return {
+      aiStatus: {
+        availability: 'unavailable',
+        downloadProgress: 0
+      },
+      stats: {
+        articlesAnalyzed: 0,
+        cacheCount: 0,
+        perspectivesFound: 0
+      },
+      timestamp: new Date().toISOString(),
+      error: error.message
+    };
   }
 }
 
 /**
  * Start AI model download in background
- * Download continues even if popup is closed!
  */
 async function startModelDownload() {
   if (downloadState.inProgress) {
-    logger.warn('Download already in progress');
+    logger.system.warn('Model download already in progress', {
+      category: logger.CATEGORIES.GENERAL,
+      data: { progress: downloadState.progress }
+    });
     return;
   }
 
   try {
-    logger.info('Starting AI model download in background...');
+    logger.both.info('Starting AI model download', {
+      category: logger.CATEGORIES.GENERAL
+    });
+
     downloadState.inProgress = true;
     downloadState.progress = 0;
 
-    // Create session with progress monitoring
     const session = await createSession({}, (progress) => {
       downloadState.progress = progress;
-      logger.debug(`Download progress: ${progress}%`);
+      logger.system.debug('Download progress update', {
+        category: logger.CATEGORIES.GENERAL,
+        data: { progress }
+      });
     });
 
-    // Download complete
     downloadState.inProgress = false;
     downloadState.progress = 100;
     downloadState.session = session;
 
-    logger.info('AI model download completed!');
+    logger.both.info('AI model download completed', {
+      category: logger.CATEGORIES.GENERAL
+    });
 
-    // Clean up session (we'll create new ones when needed)
     session.destroy();
     downloadState.session = null;
-
   } catch (error) {
     downloadState.inProgress = false;
     downloadState.progress = 0;
-    logger.error('Model download failed:', error);
+    
+    logger.both.error('Model download failed', {
+      category: logger.CATEGORIES.ERROR,
+      error
+    });
+    
     throw error;
   }
 }
@@ -476,16 +694,20 @@ async function startModelDownload() {
  */
 async function clearCache() {
   try {
-    logger.info('Clearing cache...');
-
-    await chrome.storage.local.set({
-      cache: []
+    logger.system.info('Clearing cache', {
+      category: logger.CATEGORIES.GENERAL
     });
 
-    logger.info('Cache cleared successfully');
+    await chrome.storage.local.set({ cache: [] });
 
+    logger.both.info('Cache cleared successfully', {
+      category: logger.CATEGORIES.GENERAL
+    });
   } catch (error) {
-    logger.error('Failed to clear cache:', error);
+    logger.system.error('Failed to clear cache', {
+      category: logger.CATEGORIES.ERROR,
+      error
+    });
     throw error;
   }
 }
@@ -494,12 +716,16 @@ async function clearCache() {
  * Handle extension installation
  */
 chrome.runtime.onInstalled.addListener(({ reason }) => {
-  logger.info('Extension installed/updated:', reason);
+  logger.system.info('Extension installed/updated', {
+    category: logger.CATEGORIES.GENERAL,
+    data: { reason }
+  });
 
   if (reason === 'install') {
-    logger.info('First install - initializing storage');
+    logger.system.info('First install - initializing storage', {
+      category: logger.CATEGORIES.GENERAL
+    });
 
-    // Initialize default settings
     chrome.storage.local.set({
       settings: {
         autoAnalyze: true,
@@ -509,7 +735,6 @@ chrome.runtime.onInstalled.addListener(({ reason }) => {
       cache: [],
       stats: {
         articlesAnalyzed: 0,
-        keywordsExtracted: 0,
         perspectivesFound: 0
       }
     });
@@ -520,13 +745,21 @@ chrome.runtime.onInstalled.addListener(({ reason }) => {
  * Handle extension errors
  */
 self.addEventListener('error', (event) => {
-  logger.error('Unhandled error in service worker:', event.error);
+  logger.system.error('Unhandled error in service worker', {
+    category: logger.CATEGORIES.ERROR,
+    error: event.error
+  });
   handleError(event.error, 'ServiceWorker');
 });
 
 self.addEventListener('unhandledrejection', (event) => {
-  logger.error('Unhandled promise rejection:', event.reason);
+  logger.system.error('Unhandled promise rejection', {
+    category: logger.CATEGORIES.ERROR,
+    error: event.reason
+  });
   handleError(event.reason, 'ServiceWorker:Promise');
 });
 
-logger.info('Background service worker initialized');
+logger.system.info('Background service worker initialized', {
+  category: logger.CATEGORIES.GENERAL
+});

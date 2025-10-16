@@ -1,82 +1,129 @@
 /**
- * News Fetcher for PerspectiveLens
- * Fetches news articles from Google News RSS based on keywords
- * Inspired by gnews library (https://github.com/DatanewsOrg/google-news-js)
- *
- * F-003: Fetch Perspectives
- * Uses extracted keywords to search for related news articles from various sources
+ * Professional News Fetcher for PerspectiveLens
+ * Fetches news articles from Google News RSS with smart query building
+ * 
+ * Key Features:
+ * - Automatic title translation to English for better global search results
+ * - Multi-country parallel fetching for diverse perspectives
+ * - Smart deduplication and filtering
+ * - Country-balanced results
+ * 
+ * Reference: https://news.google.com/rss
+ * Google News RSS: Simple, effective, no complex keyword optimization needed
  */
 
 import { logger } from '../utils/logger.js';
-
-// Google News RSS endpoints
-const SEARCH_RSS = 'https://news.google.com/rss/search?q=';
-
-// Countries to search for diverse perspectives
-const SEARCH_COUNTRIES = [
-  { code: 'US', language: 'en', name: 'United States' },
-  { code: 'GB', language: 'en', name: 'United Kingdom' },
-  { code: 'BR', language: 'pt', name: 'Brazil' },
-  { code: 'FR', language: 'fr', name: 'France' },
-  { code: 'DE', language: 'de', name: 'Germany' },
-  { code: 'ES', language: 'es', name: 'Spain' },
-  { code: 'CN', language: 'zh-CN', name: 'China' },
-  { code: 'JP', language: 'ja', name: 'Japan' },
-  { code: 'IN', language: 'en', name: 'India' },
-  { code: 'AU', language: 'en', name: 'Australia' }
-];
+import { detectLanguageSimple } from './languageDetector.js';
+import { translate } from './translator.js';
 
 /**
- * Build URL parameters for language and country
+ * Google News RSS configuration
  */
-function buildParams(country = 'US', language = 'en') {
+const NEWS_CONFIG = {
+  // Base RSS search endpoint
+  SEARCH_RSS: 'https://news.google.com/rss/search?q=',
+  
+  // Countries to search for diverse perspectives
+  SEARCH_COUNTRIES: [
+    { code: 'US', language: 'en', name: 'United States' },
+    { code: 'GB', language: 'en', name: 'United Kingdom' },
+    { code: 'BR', language: 'pt', name: 'Brazil' },
+    { code: 'FR', language: 'fr', name: 'France' },
+    { code: 'DE', language: 'de', name: 'Germany' },
+    { code: 'ES', language: 'es', name: 'Spain' },
+    { code: 'CN', language: 'zh-CN', name: 'China' },
+    { code: 'JP', language: 'ja', name: 'Japan' },
+    { code: 'IN', language: 'en', name: 'India' },
+    { code: 'AU', language: 'en', name: 'Australia' }
+  ],
+  
+  // Search configuration
+  MAX_RESULTS_PER_COUNTRY: 3,
+  FINAL_RESULTS_COUNT: 15,
+  
+  // RSS parsing patterns
+  REGEX_PATTERNS: {
+    ITEM: /<item>([\s\S]*?)<\/item>/g,
+    TITLE_CDATA: /<title><!\[CDATA\[(.*?)\]\]><\/title>/,
+    TITLE_PLAIN: /<title>(.*?)<\/title>/,
+    LINK: /<link>(.*?)<\/link>/,
+    PUBDATE: /<pubDate>(.*?)<\/pubDate>/,
+    DESC_CDATA: /<description><!\[CDATA\[(.*?)\]\]><\/description>/,
+    DESC_PLAIN: /<description>(.*?)<\/description>/
+  }
+};
+
+/**
+ * Build URL parameters for Google News RSS
+ * 
+ * @param {string} country - Country code (e.g., 'US', 'BR')
+ * @param {string} language - Language code (e.g., 'en', 'pt')
+ * @returns {string} URL parameters string
+ */
+function buildRSSParams(country = 'US', language = 'en') {
   const countryUpper = country.toUpperCase();
   const languageLower = language.toLowerCase();
+  
   return `hl=${languageLower}&gl=${countryUpper}&ceid=${countryUpper}%3A${languageLower}`;
 }
 
 /**
- * Parse RSS feed from URL
- * Uses regex parsing (service worker compatible - no DOMParser available)
+ * Parse Google News RSS feed
+ * Uses regex parsing (Service Worker compatible - no DOMParser)
+ * 
+ * @param {string} url - RSS feed URL
+ * @returns {Promise<Array<Object>>} Parsed articles
  */
-async function fetchRSS(url) {
+async function fetchAndParseRSS(url) {
+  const fetchStart = Date.now();
+  
+  logger.system.trace('Fetching RSS feed', {
+    category: logger.CATEGORIES.SEARCH,
+    data: { url: url.substring(0, 100) }
+  });
+
   try {
     const response = await fetch(url);
-
+    
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
     const xmlText = await response.text();
+    const fetchDuration = Date.now() - fetchStart;
 
-    // Parse RSS items using regex (service worker compatible)
+    logger.system.trace('RSS XML fetched', {
+      category: logger.CATEGORIES.SEARCH,
+      data: { xmlLength: xmlText.length, duration: fetchDuration }
+    });
+
+    // Parse RSS items using regex
     const items = [];
-    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+    const { REGEX_PATTERNS } = NEWS_CONFIG;
+    
     let itemMatch;
-
-    while ((itemMatch = itemRegex.exec(xmlText)) !== null) {
+    while ((itemMatch = REGEX_PATTERNS.ITEM.exec(xmlText)) !== null) {
       const itemContent = itemMatch[1];
-
-      // Try different title formats (CDATA vs plain text)
-      let titleMatch = itemContent.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/);
+      
+      // Extract title (try CDATA first, then plain)
+      let titleMatch = itemContent.match(REGEX_PATTERNS.TITLE_CDATA);
       if (!titleMatch) {
-        titleMatch = itemContent.match(/<title>(.*?)<\/title>/);
+        titleMatch = itemContent.match(REGEX_PATTERNS.TITLE_PLAIN);
       }
-
-      const linkMatch = itemContent.match(/<link>(.*?)<\/link>/);
-      const pubDateMatch = itemContent.match(/<pubDate>(.*?)<\/pubDate>/);
-
-      let descriptionMatch = itemContent.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/);
+      
+      // Extract other fields
+      const linkMatch = itemContent.match(REGEX_PATTERNS.LINK);
+      const pubDateMatch = itemContent.match(REGEX_PATTERNS.PUBDATE);
+      
+      let descriptionMatch = itemContent.match(REGEX_PATTERNS.DESC_CDATA);
       if (!descriptionMatch) {
-        descriptionMatch = itemContent.match(/<description>(.*?)<\/description>/);
+        descriptionMatch = itemContent.match(REGEX_PATTERNS.DESC_PLAIN);
       }
 
       const fullTitle = titleMatch ? titleMatch[1] : '';
-
+      
       // Extract source from title (Google News format: "Title - Source")
-      // Try to match the last " - Source" part
-      const sourceSplit = fullTitle.match(/^(.*)\s+-\s+([^-]+)$/);
-
+      const sourceSplit = fullTitle.match(/^(.*)[\s\-]+([^\-]+)$/);
       const title = sourceSplit ? sourceSplit[1].trim() : fullTitle;
       const source = sourceSplit ? sourceSplit[2].trim() : 'Unknown';
 
@@ -92,20 +139,33 @@ async function fetchRSS(url) {
       items.push(article);
     }
 
-    return items;
+    logger.system.trace('RSS feed parsed', {
+      category: logger.CATEGORIES.SEARCH,
+      data: { articlesFound: items.length }
+    });
 
+    return items;
   } catch (error) {
-    logger.error('RSS fetch failed:', error);
+    const duration = Date.now() - fetchStart;
+    
+    logger.system.error('RSS fetch/parse failed', {
+      category: logger.CATEGORIES.ERROR,
+      error,
+      data: { url: url.substring(0, 100), duration }
+    });
+
     throw new Error(`Failed to fetch RSS: ${error.message}`);
   }
 }
 
 /**
- * Search for news articles using keywords
+ * Search Google News for articles
+ * 
  * @param {string} query - Search query
  * @param {Object} options - Search options
+ * @returns {Promise<Array<Object>>} Search results
  */
-export async function searchNews(query, options = {}) {
+async function searchNews(query, options = {}) {
   const {
     country = 'US',
     language = 'en',
@@ -113,221 +173,357 @@ export async function searchNews(query, options = {}) {
   } = options;
 
   if (!query || query.trim().length === 0) {
-    throw new Error('Query is required for news search');
+    logger.system.warn('Empty query provided to searchNews', {
+      category: logger.CATEGORIES.SEARCH
+    });
+    return [];
   }
 
+  logger.system.trace('Searching Google News', {
+    category: logger.CATEGORIES.SEARCH,
+    data: { query, country, language }
+  });
+
   try {
-    // Build search URL
-    const url = SEARCH_RSS + encodeURIComponent(query) + '&' + buildParams(country, language);
+    const encodedQuery = encodeURIComponent(query);
+    const params = buildRSSParams(country, language);
+    const url = `${NEWS_CONFIG.SEARCH_RSS}${encodedQuery}&${params}`;
 
-    // Fetch and parse RSS
-    const items = await fetchRSS(url);
-
-    // Limit results
+    const items = await fetchAndParseRSS(url);
     const results = items.slice(0, Math.max(0, maxResults));
 
     return results;
-
   } catch (error) {
-    logger.error(`Search failed for ${country}:`, error);
-    return []; // Return empty instead of throwing
+    logger.system.error('Search failed', {
+      category: logger.CATEGORIES.SEARCH,
+      error,
+      data: { query, country }
+    });
+
+    return []; // Graceful degradation
   }
 }
 
 /**
- * Build smart search query from keywords
- * Prioritizes proper nouns and combines with context words
+ * Build smart search query from article title
+ * Extracts key entities and removes filler words
+ * 
+ * @param {string} title - Article title
+ * @returns {string} Optimized search query
  */
-function buildSearchQuery(keywords) {
-  if (!keywords || keywords.length === 0) return '';
-
-  // Important context words that should be included
-  const contextWords = new Set(['death', 'died', 'killed', 'accident', 'resign', 'appointed', 'elected', 'announced']);
-
-  // Generic filler words to exclude
-  const fillerWords = new Set([
-    'actress', 'actor', 'age', 'year', 'years', 'old', 'former',
-    'president', 'minister', 'official', 'company', 'news',
-    'report', 'says', 'state', 'city', 'country', 'world'
-  ]);
-
-  // Separate keywords into categories
-  const properNouns = [];
-  const contexts = [];
-
-  keywords.forEach(kw => {
-    const kwLower = kw.toLowerCase();
-
-    // Skip filler words
-    if (fillerWords.has(kwLower)) {
-      return;
-    }
-
-    // Keep context words
-    if (contextWords.has(kwLower)) {
-      contexts.push(kw);
-      return;
-    }
-
-    // Proper nouns (names, places, etc.)
-    properNouns.push(kw);
+function buildSearchQuery(title) {
+  logger.system.debug('Building search query from title', {
+    category: logger.CATEGORIES.SEARCH,
+    data: { title }
   });
 
-  // Build query: proper nouns + important context
-  // Example: "diane keaton" + "death" = "diane keaton death"
-  const queryParts = [...properNouns.slice(0, 2), ...contexts.slice(0, 1)];
-
-  // If we have nothing, use first 2 keywords
-  if (queryParts.length === 0) {
-    return keywords.slice(0, 2).join(' ');
+  if (!title || title.trim().length === 0) {
+    throw new Error('Title is required to build search query');
   }
 
-  const query = queryParts.join(' ');
-  logger.info('🎯 Smart query built:', query, '(from:', keywords, ')');
+  // Stopwords to remove
+  const stopwords = new Set([
+    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+    'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
+    'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
+    'should', 'could', 'may', 'might', 'must', 'can', 'this', 'that',
+    'these', 'those', 'what', 'which', 'who', 'when', 'where', 'why', 'how'
+  ]);
 
-  return query;
+  // Filler words that don't add value
+  const fillerWords = new Set([
+    'says', 'report', 'reports', 'news', 'latest', 'breaking',
+    'update', 'updates', 'according', 'statement', 'announced',
+    'announces', 'article', 'story', 'coverage'
+  ]);
+
+  // Split title and filter
+  const words = title
+    .toLowerCase()
+    .replace(/[^\w\s\-]/g, '') // Remove punctuation except hyphens
+    .split(/\s+/)
+    .filter(word => {
+      return word.length >= 3 && 
+             !stopwords.has(word) && 
+             !fillerWords.has(word);
+    });
+
+  // Take first 5 significant words
+  const queryWords = words.slice(0, 5);
+  const query = queryWords.join(' ');
+
+  logger.system.info('Search query built successfully', {
+    category: logger.CATEGORIES.SEARCH,
+    data: {
+      originalTitle: title,
+      extractedWords: queryWords,
+      query
+    }
+  });
+
+  return query || title; // Fallback to full title
 }
 
 /**
- * Fetch perspectives for an article using keywords
- * This is the main function for F-003: Fetch Perspectives
- *
- * Returns diverse news sources covering the same story
- * @param {Array<string>} keywords - Keywords from article (in English)
+ * Fetch diverse perspectives for an article
+ * Main function for F-003: Fetch Perspectives
+ * Automatically translates title to English for better global search results
+ * 
+ * @param {string} title - Article title
  * @param {Object} articleData - Original article data
- * @returns {Promise<Array>} Array of perspective articles with metadata
+ * @returns {Promise<Array<Object>>} Perspective articles with metadata
  */
-export async function fetchPerspectives(keywords, articleData = {}) {
-  logger.group('📰 Fetching Global Perspectives');
-  logger.info('Keywords:', keywords);
-  logger.info('Original source:', articleData.source);
+export async function fetchPerspectives(title, articleData = {}) {
+  const operationStart = Date.now();
+  
+  if (!title || typeof title !== 'string') {
+    throw new Error('Title string is required');
+  }
+
+  logger.system.info('Starting perspective search with title', {
+    category: logger.CATEGORIES.SEARCH,
+    data: {
+      originalTitle: title,
+      originalSource: articleData.source
+    }
+  });
 
   try {
-    // Build smart search query
-    const query = buildSearchQuery(keywords);
+    // Step 1: Detect title language
+    logger.system.debug('Detecting title language', {
+      category: logger.CATEGORIES.SEARCH
+    });
 
-    if (!query) {
-      throw new Error('Could not build search query from keywords');
+    const detectedLang = await detectLanguageSimple(title);
+    
+    logger.system.debug('Title language detected', {
+      category: logger.CATEGORIES.SEARCH,
+      data: { language: detectedLang }
+    });
+
+    // Step 2: Translate to English if needed (better global search results)
+    let searchTitle = title;
+    if (detectedLang !== 'en') {
+      logger.system.info('Translating title to English for better search results', {
+        category: logger.CATEGORIES.SEARCH,
+        data: { from: detectedLang, to: 'en' }
+      });
+
+      const translationStart = Date.now();
+      
+      try {
+        searchTitle = await translate(title, detectedLang, 'en');
+        const translationDuration = Date.now() - translationStart;
+        
+        logger.system.info('Title translated successfully', {
+          category: logger.CATEGORIES.SEARCH,
+          data: {
+            originalTitle: title,
+            translatedTitle: searchTitle,
+            duration: translationDuration
+          }
+        });
+      } catch (translationError) {
+        logger.system.warn('Translation failed, using original title', {
+          category: logger.CATEGORIES.SEARCH,
+          error: translationError,
+          data: {
+            errorMessage: translationError.message
+          }
+        });
+        // Fallback to original title
+        searchTitle = title;
+      }
+    } else {
+      logger.system.debug('Title already in English, no translation needed', {
+        category: logger.CATEGORIES.SEARCH
+      });
     }
 
-    // Search across multiple countries in parallel for diverse perspectives
-    logger.info('🌍 Searching across multiple countries...');
+    // Step 3: Build search query from (translated) title
+    const query = buildSearchQuery(searchTitle);
 
-    // Fetch articles from each country in parallel, ensuring at least one from each country
-    const searchPromises = SEARCH_COUNTRIES.map(async (country) => {
-      const articles = await searchNews(query, {
-        country: country.code,
-        language: country.language,
-        maxResults: 3 // Get at least 3 from each country to ensure good content
-      });
-      
-      // Return articles with country metadata
-      return articles.map(article => ({
-        ...article,
-        searchCountry: country.name,
-        searchLanguage: country.language
-      }));
+    logger.system.info('Starting multi-country search', {
+      category: logger.CATEGORIES.SEARCH,
+      data: {
+        originalTitle: title,
+        searchTitle: searchTitle,
+        searchQuery: query,
+        titleLanguage: detectedLang,
+        wasTranslated: detectedLang !== 'en',
+        countriesCount: NEWS_CONFIG.SEARCH_COUNTRIES.length
+      }
+    });
+
+    // Step 4: Search across multiple countries in parallel
+    logger.system.debug('Launching parallel searches', {
+      category: logger.CATEGORIES.SEARCH,
+      data: {
+        countries: NEWS_CONFIG.SEARCH_COUNTRIES.map(c => c.code),
+        maxPerCountry: NEWS_CONFIG.MAX_RESULTS_PER_COUNTRY
+      }
+    });
+
+    const searchStart = Date.now();
+    
+    const searchPromises = NEWS_CONFIG.SEARCH_COUNTRIES.map(async (country) => {
+      try {
+        const articles = await searchNews(query, {
+          country: country.code,
+          language: country.language,
+          maxResults: NEWS_CONFIG.MAX_RESULTS_PER_COUNTRY
+        });
+
+        return articles.map(article => ({
+          ...article,
+          country: country.name,
+          countryCode: country.code,
+          language: country.language
+        }));
+      } catch (error) {
+        logger.system.warn('Country search failed', {
+          category: logger.CATEGORIES.SEARCH,
+          error,
+          data: { country: country.name }
+        });
+        return [];
+      }
     });
 
     const allCountryResults = await Promise.all(searchPromises);
-    
-    // Flatten all articles from all countries
+    const searchDuration = Date.now() - searchStart;
     const allArticles = allCountryResults.flat();
 
-    logger.info(`📊 Total articles found: ${allArticles.length} from ${SEARCH_COUNTRIES.length} countries`);
+    logger.system.info('Parallel searches completed', {
+      category: logger.CATEGORIES.SEARCH,
+      data: {
+        totalArticles: allArticles.length,
+        duration: searchDuration,
+        avgPerCountry: Math.round(allArticles.length / NEWS_CONFIG.SEARCH_COUNTRIES.length)
+      }
+    });
 
-    // Filter out duplicates and original article, while ensuring content is valid
+    // Step 5: Deduplication
+    logger.system.debug('Deduplicating results', {
+      category: logger.CATEGORIES.SEARCH,
+      data: { beforeDedup: allArticles.length }
+    });
+
     const seenUrls = new Set();
     const seenTitles = new Set();
-
+    
     const validPerspectives = allArticles.filter(article => {
-      // Skip if no link
       if (!article.link) return false;
-
-      // Skip if same URL as original
-      if (articleData.url && article.link === articleData.url) {
-        return false;
-      }
-
-      // Skip duplicate URLs
-      if (seenUrls.has(article.link)) {
-        return false;
-      }
-
-      // Skip very similar titles (likely same article)
+      if (articleData.url && article.link === articleData.url) return false;
+      if (seenUrls.has(article.link)) return false;
+      
       const titleKey = article.title.toLowerCase().replace(/\s+/g, '');
-      if (seenTitles.has(titleKey)) {
-        return false;
-      }
-
-      // Check if article has meaningful content (basic validation)
-      if (!article.title || article.title.trim().length < 5) {
-        return false;
-      }
+      if (seenTitles.has(titleKey)) return false;
+      if (!article.title || article.title.trim().length < 10) return false;
 
       seenUrls.add(article.link);
       seenTitles.add(titleKey);
       return true;
     });
 
-    // Group articles by country to ensure at least one from each country
-    const articlesByCountry = new Map();
-    validPerspectives.forEach(article => {
-      if (!articlesByCountry.has(article.searchCountry)) {
-        articlesByCountry.set(article.searchCountry, []);
+    logger.system.debug('Deduplication completed', {
+      category: logger.CATEGORIES.SEARCH,
+      data: {
+        beforeDedup: allArticles.length,
+        afterDedup: validPerspectives.length,
+        removed: allArticles.length - validPerspectives.length
       }
-      articlesByCountry.get(article.searchCountry).push(article);
     });
 
-    // Take at least one article from each country that has articles
+    // Step 6: Ensure country diversity
+    const articlesByCountry = new Map();
+    validPerspectives.forEach(article => {
+      if (!articlesByCountry.has(article.country)) {
+        articlesByCountry.set(article.country, []);
+      }
+      articlesByCountry.get(article.country).push(article);
+    });
+
     const guaranteedFromEachCountry = [];
     const remainingArticles = [];
 
     for (const [country, countryArticles] of articlesByCountry.entries()) {
-      // Take the first article from each country (which should be the most relevant by RSS order)
       guaranteedFromEachCountry.push(countryArticles[0]);
-      
-      // Add the rest to remaining articles
       if (countryArticles.length > 1) {
         remainingArticles.push(...countryArticles.slice(1));
       }
     }
 
-    // Combine: guaranteed from each country + remaining articles
     const allPrioritizedArticles = [...guaranteedFromEachCountry, ...remainingArticles];
 
-    // Add metadata to all articles
+    // Step 7: Add metadata and limit results
     const enrichedPerspectives = allPrioritizedArticles.map(article => ({
       ...article,
-      keywords,
-      searchedAt: new Date().toISOString()
+      searchQuery: query,
+      searchedAt: new Date().toISOString(),
+      titleTranslated: detectedLang !== 'en',
+      originalTitleLanguage: detectedLang
     }));
 
-    // Take top 15 perspectives, ensuring country diversity is maintained
-    const finalPerspectives = enrichedPerspectives.slice(0, 15);
+    const finalPerspectives = enrichedPerspectives.slice(0, NEWS_CONFIG.FINAL_RESULTS_COUNT);
+    const totalDuration = Date.now() - operationStart;
 
-    logger.info(`✅ Found ${finalPerspectives.length} unique perspectives`);
-
-    // Log sources by country for verification
+    // Statistics
     const countryStats = {};
     finalPerspectives.forEach(p => {
-      countryStats[p.searchCountry] = (countryStats[p.searchCountry] || 0) + 1;
+      countryStats[p.country] = (countryStats[p.country] || 0) + 1;
     });
-    logger.info('📍 Perspectives by country:', countryStats);
 
-    logger.debug('🔍 Sample perspectives:', finalPerspectives.slice(0, 5).map(p => ({
-      title: p.title,
-      source: p.source,
-      country: p.searchCountry
-    })));
-
-    logger.groupEnd();
+    logger.system.info('Perspective search completed', {
+      category: logger.CATEGORIES.SEARCH,
+      data: {
+        originalTitle: title,
+        searchQuery: query,
+        titleTranslated: detectedLang !== 'en',
+        totalFound: allArticles.length,
+        afterDedup: validPerspectives.length,
+        finalCount: finalPerspectives.length,
+        countriesRepresented: Object.keys(countryStats).length,
+        countryDistribution: countryStats,
+        duration: totalDuration
+      }
+    });
 
     return finalPerspectives;
-
   } catch (error) {
-    logger.error('Failed to fetch perspectives:', error);
-    logger.groupEnd();
+    const duration = Date.now() - operationStart;
+    
+    logger.system.error('Perspective search failed', {
+      category: logger.CATEGORIES.ERROR,
+      error,
+      data: { 
+        originalTitle: title,
+        duration,
+        errorName: error.name,
+        errorMessage: error.message
+      }
+    });
+
     throw error;
   }
+}
+
+/**
+ * Get available search countries
+ * @returns {Array<Object>} List of country configurations
+ */
+export function getSearchCountries() {
+  return [...NEWS_CONFIG.SEARCH_COUNTRIES];
+}
+
+/**
+ * Get search configuration
+ * @returns {Object} Current configuration
+ */
+export function getSearchConfig() {
+  return {
+    maxResultsPerCountry: NEWS_CONFIG.MAX_RESULTS_PER_COUNTRY,
+    finalResultsCount: NEWS_CONFIG.FINAL_RESULTS_COUNT,
+    countriesCount: NEWS_CONFIG.SEARCH_COUNTRIES.length
+  };
 }

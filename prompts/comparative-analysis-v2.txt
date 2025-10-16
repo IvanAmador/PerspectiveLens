@@ -116,8 +116,6 @@ OUTPUT:
 
 Analyze the following articles and provide comparative analysis in JSON format:
 
-{{perspectives}}
-
 Remember:
 - Output ONLY valid JSON
 - Base all findings on evidence from articles

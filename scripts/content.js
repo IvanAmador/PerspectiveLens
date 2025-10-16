@@ -11,8 +11,8 @@ console.log('[PerspectiveLens] Content script loaded');
 function waitForDependencies() {
   return new Promise((resolve) => {
     // Verificação inicial imediata
-    if (window.PerspectiveLensToast && window.PerspectiveLensProgress) {
-      console.log('[PerspectiveLens] Dependencies already loaded');
+    if (window.PerspectiveLensToast && window.PerspectiveLensProgress && window.PerspectiveLensPanel) {
+      console.log('[PerspectiveLens] All dependencies already loaded');
       resolve(true);
       return;
     }
@@ -24,13 +24,18 @@ function waitForDependencies() {
     const intervalId = setInterval(() => {
       attempts++;
 
-      if (window.PerspectiveLensToast && window.PerspectiveLensProgress) {
+      if (window.PerspectiveLensToast && window.PerspectiveLensProgress && window.PerspectiveLensPanel) {
         clearInterval(intervalId);
         console.log(`[PerspectiveLens] Dependencies loaded after ${attempts * checkInterval}ms`);
         resolve(true);
       } else if (attempts >= maxAttempts) {
         clearInterval(intervalId);
-        console.warn('[PerspectiveLens] Dependencies not loaded after 1s, continuing without toast/progress');
+        console.warn('[PerspectiveLens] Some dependencies not loaded after 1s');
+        console.log('[PerspectiveLens] Available:', {
+          toast: !!window.PerspectiveLensToast,
+          progress: !!window.PerspectiveLensProgress,
+          panel: !!window.PerspectiveLensPanel
+        });
         resolve(false);
       }
     }, checkInterval);
@@ -177,7 +182,7 @@ function detectNewsArticle() {
 
   if (score >= 3) {
     console.log('[PerspectiveLens] News article detected!');
-    
+
     detectedArticleData = extractArticleData();
     console.log('[PerspectiveLens] Article data extracted:', {
       title: detectedArticleData.title,
@@ -238,9 +243,11 @@ function startAnalysis() {
     window.PerspectiveLensProgress.start();
   }
 
+  // NÃO mostrar painel aqui - apenas quando tiver dados
+
   // Send data to background script
   console.log('[PerspectiveLens] Sending article data to background worker...');
-  
+
   chrome.runtime.sendMessage(
     {
       type: 'START_ANALYSIS',
@@ -250,7 +257,7 @@ function startAnalysis() {
       if (chrome.runtime.lastError) {
         console.error('[PerspectiveLens] Error sending message:', chrome.runtime.lastError);
         analysisInProgress = false;
-        
+
         if (window.PerspectiveLensToast) {
           window.PerspectiveLensToast.showError(
             'Analysis Failed',
@@ -258,9 +265,15 @@ function startAnalysis() {
             () => startAnalysis()
           );
         }
-        
+
         if (window.PerspectiveLensProgress) {
           window.PerspectiveLensProgress.complete(false, 'Communication error');
+        }
+
+        if (window.PerspectiveLensPanel) {
+          window.PerspectiveLensPanel.showError({
+            message: 'Could not communicate with background service'
+          });
         }
         return;
       }
@@ -270,7 +283,7 @@ function startAnalysis() {
       } else {
         console.error('[PerspectiveLens] Failed to start analysis:', response?.error);
         analysisInProgress = false;
-        
+
         if (window.PerspectiveLensToast) {
           window.PerspectiveLensToast.showError(
             'Analysis Failed',
@@ -278,9 +291,15 @@ function startAnalysis() {
             () => startAnalysis()
           );
         }
-        
+
         if (window.PerspectiveLensProgress) {
           window.PerspectiveLensProgress.complete(false, response?.error || 'Unknown error');
+        }
+
+        if (window.PerspectiveLensPanel) {
+          window.PerspectiveLensPanel.showError({
+            message: response?.error || 'Unknown error occurred'
+          });
         }
       }
     }
@@ -288,7 +307,7 @@ function startAnalysis() {
 }
 
 /**
- * Listen for progress updates from background
+ * Listen for messages from background (SHOW_ANALYSIS from background.js)
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('[PerspectiveLens] Content script received message:', message.type);
@@ -299,8 +318,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         handleProgressUpdate(message.data);
         break;
 
-      case 'ANALYSIS_COMPLETE':
-        handleAnalysisComplete(message.data);
+      case 'SHOW_ANALYSIS':  // ← CORRIGIDO: background envia SHOW_ANALYSIS
+        handleShowAnalysis(message.data);
         break;
 
       case 'ANALYSIS_FAILED':
@@ -331,17 +350,50 @@ function handleProgressUpdate(data) {
 }
 
 /**
- * Handle analysis completion
+ * Handle SHOW_ANALYSIS message from background
+ * Background envia: { analysis: {...}, perspectives: [...], articleData: {...} }
  */
-function handleAnalysisComplete(data) {
-  console.log('[PerspectiveLens] Analysis completed!', data);
+function handleShowAnalysis(data) {
+  console.log('[PerspectiveLens] Analysis data received from background:', data);
   analysisInProgress = false;
 
+  // Validar se temos dados de análise
+  if (!data || !data.analysis) {
+    console.error('[PerspectiveLens] No analysis data in response');
+    handleAnalysisError({ message: 'No analysis data received' });
+    return;
+  }
+
+  // Complete progress tracker
   if (window.PerspectiveLensProgress) {
     window.PerspectiveLensProgress.complete(
       true,
       `Found ${data.perspectives?.length || 0} perspectives`
     );
+  }
+
+  // IMPORTANTE: Passar data.analysis para o painel (não data inteiro)
+  if (window.PerspectiveLensPanel) {
+    console.log('[PerspectiveLens] Showing analysis in panel');
+
+    // Preparar dados no formato que o painel espera
+    const panelData = {
+      ...data.analysis,  // consensus, disputes, omissions, bias_indicators, summary
+      perspectives: data.perspectives  // adicionar metadados de perspectivas
+    };
+
+    console.log('[PerspectiveLens] Panel data structure:', {
+      hasConsensus: !!panelData.consensus,
+      hasDisputes: !!panelData.disputes,
+      hasOmissions: !!panelData.omissions,
+      hasBiasIndicators: !!panelData.bias_indicators,
+      hasSummary: !!panelData.summary,
+      perspectivesCount: panelData.perspectives?.length || 0
+    });
+
+    window.PerspectiveLensPanel.showAnalysis(panelData);
+  } else {
+    console.error('[PerspectiveLens] Panel not available!');
   }
 }
 
@@ -358,14 +410,26 @@ function handleAnalysisError(error) {
       error.message || 'Analysis failed'
     );
   }
+
+  if (window.PerspectiveLensPanel) {
+    window.PerspectiveLensPanel.showError(error);
+  }
 }
+
+/**
+ * Listen for retry events from panel
+ */
+window.addEventListener('perspectivelens:retry', () => {
+  console.log('[PerspectiveLens] Retry requested from panel');
+  startAnalysis();
+});
 
 /**
  * Initialize - Wait for dependencies then detect
  */
 async function initialize() {
   console.log('[PerspectiveLens] Initializing content script...');
-  
+
   // Wait for page to be fully loaded
   if (document.readyState === 'loading') {
     await new Promise(resolve => {
@@ -373,13 +437,13 @@ async function initialize() {
     });
   }
 
-  // Wait for dependencies (with 1s timeout instead of 5s)
+  // Wait for dependencies (with 1s timeout)
   dependenciesLoaded = await waitForDependencies();
 
   if (dependenciesLoaded) {
-    console.log('[PerspectiveLens] ✓ Toast and Progress modules ready');
+    console.log('[PerspectiveLens] ✓ All modules ready');
   } else {
-    console.log('[PerspectiveLens] ⚠ Running without toast notifications');
+    console.log('[PerspectiveLens] ⚠ Running with partial dependencies');
   }
 
   // Run detection
