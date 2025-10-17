@@ -1,0 +1,126 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Comparative News Analysis",
+  "description": "Structured analysis comparing multiple news sources on the same story",
+  "type": "object",
+  "required": [
+    "main_story",
+    "consensus",
+    "perspectives",
+    "framing_differences"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "main_story": {
+      "type": "string",
+      "description": "One sentence summarizing the core event all sources cover",
+      "maxLength": 200
+    },
+    "consensus": {
+      "type": "array",
+      "description": "Facts that 70%+ of sources agree on",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "fact",
+          "sources"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "fact": {
+            "type": "string",
+            "description": "A factual statement agreed upon by most sources"
+          },
+          "sources": {
+            "type": "array",
+            "description": "List of source names confirming this fact",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2
+          }
+        }
+      }
+    },
+    "perspectives": {
+      "type": "array",
+      "description": "Topics where sources present different interpretations or emphasis",
+      "items": {
+        "type": "object",
+        "required": [
+          "topic",
+          "views",
+          "significance"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "topic": {
+            "type": "string",
+            "description": "The subject matter where sources disagree"
+          },
+          "views": {
+            "type": "object",
+            "description": "Each source's perspective on this topic",
+            "patternProperties": {
+              ".*": {
+                "type": "string",
+                "description": "Source's viewpoint or interpretation"
+              }
+            },
+            "minProperties": 2
+          },
+          "significance": {
+            "type": "string",
+            "enum": [
+              "major",
+              "minor"
+            ],
+            "description": "Impact of this disagreement on understanding the story"
+          }
+        }
+      }
+    },
+    "framing_differences": {
+      "type": "array",
+      "description": "How each source structures and presents the narrative",
+      "items": {
+        "type": "object",
+        "required": [
+          "source",
+          "approach"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "type": "string",
+            "description": "Name of the news source"
+          },
+          "approach": {
+            "type": "string",
+            "description": "How this source frames the story (angle, emphasis, narrative structure)"
+          },
+          "frame_type": {
+            "type": "string",
+            "enum": [
+              "conflict",
+              "human_interest",
+              "economic",
+              "responsibility",
+              "morality"
+            ],
+            "description": "The predominant framing strategy used"
+          }
+        }
+      }
+    },
+    "sources_analyzed": {
+      "type": "array",
+      "description": "List of all sources included in this analysis",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 2
+    }
+  }
+}

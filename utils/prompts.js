@@ -173,12 +173,53 @@ export function clearPromptCache() {
 }
 
 /**
+ * Load JSON Schema for structured output
+ * @param {string} name - Schema filename (without .json extension)
+ * @returns {Promise<Object>} - Parsed JSON Schema object
+ */
+export async function loadSchema(name) {
+  try {
+    const url = chrome.runtime.getURL(`prompts/${name}.json`);
+    logger.system.debug('Loading schema from file', {
+      category: logger.CATEGORIES.GENERAL,
+      data: { name, url }
+    });
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to load schema: ${name} (${response.status})`);
+    }
+
+    const schema = await response.json();
+
+    logger.system.info('Loaded schema successfully', {
+      category: logger.CATEGORIES.GENERAL,
+      data: {
+        name,
+        schemaType: schema.type,
+        hasRequired: !!schema.required
+      }
+    });
+
+    return schema;
+
+  } catch (error) {
+    logger.system.error('Failed to load schema', {
+      category: logger.CATEGORIES.ERROR,
+      error,
+      data: { name }
+    });
+    throw new Error(`Schema loading failed: ${name}`);
+  }
+}
+
+/**
  * Preload commonly used prompts for performance
  */
 export async function preloadPrompts() {
   const commonPrompts = [
-    'comparative-analysis',
-    'comparative-analysis-v2'
+    'comparative-analysis'
   ];
 
   logger.system.info('Preloading common prompts', {
@@ -199,10 +240,10 @@ export async function preloadPrompts() {
     const failedPrompts = results
       .map((r, i) => r.status === 'rejected' ? commonPrompts[i] : null)
       .filter(Boolean);
-    
+
     logger.system.warn('Some prompts failed to preload', {
       category: logger.CATEGORIES.GENERAL,
-      data: { 
+      data: {
         succeeded,
         failed,
         total: commonPrompts.length,
@@ -213,7 +254,7 @@ export async function preloadPrompts() {
   } else {
     logger.system.info('All prompts preloaded successfully', {
       category: logger.CATEGORIES.GENERAL,
-      data: { 
+      data: {
         cacheSize: promptCache.size,
         succeeded,
         duration
