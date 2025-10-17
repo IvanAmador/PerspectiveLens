@@ -155,39 +155,24 @@
     }
 
     renderAnalysis(data) {
-      const { summary, consensus, disputes, omissions, bias_indicators, perspectives } = data;
-
       return `
-        ${summary ? this.renderSummary(summary) : ''}
+        ${data.summary ? this.renderSummary(data.summary) : ''}
         ${this.renderStats(data)}
-        ${consensus && consensus.length > 0 ? this.renderConsensusSection(consensus) : ''}
-        ${disputes && disputes.length > 0 ? this.renderDisputesSection(disputes) : ''}
-        ${omissions && Object.keys(omissions).length > 0 ? this.renderOmissionsSection(omissions) : ''}
-        ${bias_indicators && bias_indicators.length > 0 ? this.renderBiasSection(bias_indicators) : ''}
-        ${perspectives ? this.renderFooter(perspectives) : ''}
+        ${data.consensus?.length > 0 ? this.renderConsensus(data.consensus) : ''}
+        ${data.key_differences?.length > 0 ? this.renderKeyDifferences(data.key_differences) : ''}
+        ${this.renderFooter(data)}
       `;
     }
 
     renderSummary(summary) {
-      if (!summary || !summary.main_story) return '';
-
+      if (!summary || typeof summary !== 'string') return '';
       return `
         <div class="pl-card pl-card-summary">
           <div class="pl-card-title">
             ${PANEL_ICONS.info}
             Story Summary
           </div>
-          <div class="pl-main-story">${this.escapeHtml(summary.main_story)}</div>
-          ${summary.key_differences ? `
-            <div class="pl-key-differences">
-              <strong>Key Differences:</strong> ${this.escapeHtml(summary.key_differences)}
-            </div>
-          ` : ''}
-          ${summary.recommendation ? `
-            <div class="pl-recommendation">
-              <strong>Recommendation:</strong> ${this.escapeHtml(summary.recommendation)}
-            </div>
-          ` : ''}
+          <div class="pl-main-story">${this.escapeHtml(summary)}</div>
         </div>
       `;
     }
@@ -195,9 +180,7 @@
     renderStats(data) {
       const stats = [
         { label: 'Consensus', value: data.consensus?.length || 0, color: 'green' },
-        { label: 'Disputes', value: data.disputes?.length || 0, color: 'yellow' },
-        { label: 'Omissions', value: this.countOmissions(data.omissions), color: 'orange' },
-        { label: 'Bias Signs', value: data.bias_indicators?.length || 0, color: 'red' }
+        { label: 'Key Differences', value: data.key_differences?.length || 0, color: 'yellow' }
       ];
 
       return `
@@ -212,16 +195,7 @@
       `;
     }
 
-    countOmissions(omissions) {
-      if (!omissions) return 0;
-      if (Array.isArray(omissions)) return omissions.length;
-      return Object.values(omissions).reduce((total, arr) => {
-        return total + (Array.isArray(arr) ? arr.length : 0);
-      }, 0);
-    }
-
-    // ============ CONSENSUS SECTION ============
-    renderConsensusSection(consensus) {
+    renderConsensus(consensus) {
       return `
         <div class="pl-section">
           <div class="pl-section-title">
@@ -229,7 +203,7 @@
             Consensus
             <span class="pl-badge pl-badge-green">${consensus.length}</span>
           </div>
-          <p class="pl-section-desc">Facts that all or most sources agree on</p>
+          <p class="pl-section-desc">Facts that 70% or more sources agree on</p>
           <div class="pl-list">
             ${consensus.map((item, idx) => this.renderConsensusItem(item, idx)).join('')}
           </div>
@@ -256,188 +230,74 @@
       `;
     }
 
-    // ============ DISPUTES SECTION ============
-    renderDisputesSection(disputes) {
+    renderKeyDifferences(keyDifferences) {
       return `
         <div class="pl-section">
           <div class="pl-section-title">
             ${PANEL_ICONS.dispute}
-            Disputes
-            <span class="pl-badge pl-badge-yellow">${disputes.length}</span>
+            Key Differences
+            <span class="pl-badge pl-badge-yellow">${keyDifferences.length}</span>
           </div>
-          <p class="pl-section-desc">Topics where sources disagree</p>
+          <p class="pl-section-desc">Significant differences that change reader perception</p>
           <div class="pl-list">
-            ${disputes.map((item, idx) => this.renderDisputeItem(item, idx)).join('')}
+            ${keyDifferences.map((item, idx) => this.renderKeyDifferenceItem(item, idx)).join('')}
           </div>
         </div>
       `;
     }
 
-    renderDisputeItem(item, idx) {
-      const topic = item.topic || 'Unnamed dispute';
-      const significance = item.significance || 'minor';
-      const perspectives = item.perspectives || {};
+    renderKeyDifferenceItem(item, idx) {
+      const aspect = item.aspect || 'Unnamed difference';
+      const pattern = item.pattern || 'coverage';
+      const significance = item.significance || 'medium';
+      const impact = item.impact || 'No impact description';
 
-      // Perspectives é sempre um OBJETO com source names como keys
-      const perspectivesHTML = Object.entries(perspectives)
-        .map(([sourceName, data]) => `
-          <div class="pl-perspective">
-            <div class="pl-perspective-source">${this.escapeHtml(sourceName)}</div>
-            <div class="pl-perspective-viewpoint">${this.escapeHtml(data.viewpoint || '')}</div>
-            ${data.evidence ? `
-              <blockquote class="pl-perspective-evidence">
-                "${this.escapeHtml(data.evidence)}"
-              </blockquote>
-            ` : ''}
-          </div>
-        `).join('');
-
-      const perspectiveCount = Object.keys(perspectives).length;
+      // UPDATED: Handle new flattened structure (arrays at top level)
+      const sourceGroups = [];
+      if (item.emphasizing?.length) sourceGroups.push({ label: 'Emphasizing', sources: item.emphasizing, color: 'red' });
+      if (item.minimizing?.length) sourceGroups.push({ label: 'Minimizing', sources: item.minimizing, color: 'blue' });
+      if (item.neutral?.length) sourceGroups.push({ label: 'Neutral', sources: item.neutral, color: 'gray' });
+      if (item.absent?.length) sourceGroups.push({ label: 'Absent', sources: item.absent, color: 'light' });
 
       return `
-        <div class="pl-list-item pl-list-item-dispute" id="pl-item-dispute-${idx}">
+        <div class="pl-list-item pl-list-item-difference" id="pl-item-difference-${idx}">
           <div class="pl-list-item-header">
-            <div class="pl-list-item-title">${this.escapeHtml(topic)}</div>
-            <span class="pl-badge pl-badge-yellow">${significance} significance</span>
+            <div class="pl-list-item-title">${this.escapeHtml(aspect)}</div>
+            <span class="pl-badge pl-badge-${significance === 'high' ? 'red' : significance === 'medium' ? 'yellow' : 'light'}">${significance}</span>
           </div>
           <div class="pl-list-item-subtitle">
-            ${perspectiveCount} perspective${perspectiveCount !== 1 ? 's' : ''}
+            <span class="pl-pattern-badge pl-pattern-${pattern}">${pattern}</span>
           </div>
-          <div class="pl-list-item-details">
-            <div class="pl-perspectives-list">
-              ${perspectivesHTML || '<p class="pl-no-data">No perspectives available</p>'}
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    // ============ OMISSIONS SECTION ============
-    renderOmissionsSection(omissions) {
-      if (!omissions || typeof omissions !== 'object') return '';
-
-      const items = [];
-      let counter = 0;
-
-      // Omissions é sempre um objeto com source names como keys
-      for (const [source, omittedFacts] of Object.entries(omissions)) {
-        if (!Array.isArray(omittedFacts)) continue;
-
-        omittedFacts.forEach((omission) => {
-          items.push(this.renderOmissionItem(omission, source, counter));
-          counter++;
-        });
-      }
-
-      if (items.length === 0) return '';
-
-      return `
-        <div class="pl-section">
-          <div class="pl-section-title">
-            ${PANEL_ICONS.document}
-            Omissions
-            <span class="pl-badge pl-badge-orange">${items.length}</span>
-          </div>
-          <p class="pl-section-desc">Information missing from some sources</p>
-          <div class="pl-list">
-            ${items.join('')}
-          </div>
-        </div>
-      `;
-    }
-
-    renderOmissionItem(omission, omittedBy, idx) {
-      const fact = omission.fact || 'No fact provided';
-      const relevance = omission.relevance || 'low';
-      const mentionedBy = Array.isArray(omission.mentioned_by) ? omission.mentioned_by : [];
-
-      return `
-        <div class="pl-list-item pl-list-item-omission" id="pl-item-omission-${idx}">
-          <div class="pl-list-item-header">
-            <div class="pl-list-item-title">${this.escapeHtml(fact)}</div>
-            <span class="pl-badge pl-tag-confidence-${relevance}">${relevance} relevance</span>
-          </div>
-          <div class="pl-list-item-content">
-            Omitted by <strong>${this.escapeHtml(String(omittedBy))}</strong>
-          </div>
-          ${mentionedBy.length > 0 ? `
-            <div class="pl-list-item-meta">
-              Mentioned by: ${mentionedBy.map(s => `<span class="pl-tag">${this.escapeHtml(String(s))}</span>`).join(' ')}
+          <div class="pl-list-item-content">${this.escapeHtml(impact)}</div>
+          ${sourceGroups.length > 0 ? `
+            <div class="pl-source-groups">
+              ${sourceGroups.map(group => `
+                <div class="pl-source-group">
+                  <strong>${group.label}:</strong>
+                  ${group.sources.map(s => `<span class="pl-tag pl-tag-${group.color}">${this.escapeHtml(s)}</span>`).join(' ')}
+                </div>
+              `).join('')}
             </div>
           ` : ''}
         </div>
       `;
     }
 
-    // ============ BIAS SECTION ============
-    renderBiasSection(biasIndicators) {
-      if (!biasIndicators || biasIndicators.length === 0) return '';
+    renderFooter(data) {
+      const sources = data.metadata?.sources_analyzed ||
+                      (Array.isArray(data.perspectives) ? data.perspectives.map(p => p.source || p.name).filter(Boolean) : []);
+      const timestamp = data.metadata?.analysis_timestamp || new Date().toISOString();
 
-      return `
-        <div class="pl-section">
-          <div class="pl-section-title">
-            ${PANEL_ICONS.dispute}
-            Bias Indicators
-            <span class="pl-badge pl-badge-red">${biasIndicators.length}</span>
-          </div>
-          <p class="pl-section-desc">Potential signs of media bias</p>
-          <div class="pl-list">
-            ${biasIndicators.map((item, idx) => this.renderBiasItem(item, idx)).join('')}
-          </div>
-        </div>
-      `;
-    }
-
-    renderBiasItem(item, idx) {
-      const source = item.source || 'Unknown';
-      const type = item.type || 'unspecified';
-      const description = item.description || 'No description';
-      const examples = Array.isArray(item.examples) ? item.examples : [];
-
-      return `
-        <div class="pl-list-item pl-list-item-bias" id="pl-item-bias-${idx}">
-          <div class="pl-list-item-header">
-            <div class="pl-list-item-title">${this.escapeHtml(source)}</div>
-            <span class="pl-badge pl-badge-red">${this.escapeHtml(type)}</span>
-          </div>
-          <div class="pl-list-item-content">
-            ${this.escapeHtml(description)}
-          </div>
-          ${examples.length > 0 ? `
-            <ul class="pl-bias-examples">
-              ${examples.map(ex => `<li>${this.escapeHtml(String(ex))}</li>`).join('')}
-            </ul>
-          ` : ''}
-        </div>
-      `;
-    }
-
-    // ============ FOOTER ============
-    renderFooter(perspectives) {
-      if (!Array.isArray(perspectives) || perspectives.length === 0) {
-        return `
-          <div class="pl-footer">
-            <p class="pl-sources-analyzed"><strong>Sources analyzed:</strong> No sources available</p>
-            <p class="pl-timestamp">Analysis completed at ${new Date().toLocaleString()}</p>
-          </div>
-        `;
-      }
-
-      const sourceNames = perspectives
-        .map(p => p.source || p.name)
-        .filter(Boolean)
-        .slice(0, 5)
-        .join(', ');
-
-      const moreCount = Math.max(0, perspectives.length - 5);
+      const sourceList = sources.slice(0, 5).join(', ');
+      const moreCount = Math.max(0, sources.length - 5);
 
       return `
         <div class="pl-footer">
           <p class="pl-sources-analyzed">
-            <strong>Sources analyzed:</strong> ${perspectives.length} source${perspectives.length !== 1 ? 's' : ''}
+            <strong>Sources analyzed:</strong> ${sources.length || 0} source${sources.length !== 1 ? 's' : ''}
           </p>
-          <p class="pl-source-list">${sourceNames}${moreCount > 0 ? ` and ${moreCount} more` : ''}</p>
-          <p class="pl-timestamp">Analysis completed at ${new Date().toLocaleString()}</p>
+          ${sourceList ? `<p class="pl-source-list">${sourceList}${moreCount > 0 ? ` and ${moreCount} more` : ''}</p>` : ''}
+          <p class="pl-timestamp">Analysis completed at ${new Date(timestamp).toLocaleString()}</p>
         </div>
       `;
     }

@@ -67,7 +67,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const duration = logger.endRequest(activeAnalysis.requestId);
         logger.both.info('Analysis completed successfully', {
           category: logger.CATEGORIES.GENERAL,
-          data: { duration, articlesAnalyzed: response.perspectives?.length || 0 }
+          data: {
+            duration,
+            articlesAnalyzed: response.analysis?.metadata?.articlesAnalyzed || 0,
+            perspectivesFound: response.perspectives?.length || 0
+          }
         });
         sendResponse({ success: true, data: response });
       })
@@ -328,8 +332,9 @@ async function handleNewArticle(articleData) {
     });
 
     let comparativeAnalysis = null;
+    let articlesWithContent = []; // Declare outside try block
     try {
-      const articlesWithContent = perspectivesWithContent.filter(p => p.contentExtracted);
+      articlesWithContent = perspectivesWithContent.filter(p => p.contentExtracted);
       
       if (articlesWithContent.length >= 2) {
         logger.system.info('Starting comparative analysis', {
@@ -380,28 +385,17 @@ async function handleNewArticle(articleData) {
           logger.system.info('Analysis completed successfully', {
             category: logger.CATEGORIES.ANALYZE,
             data: {
-              consensus: comparativeAnalysis.consensus?.length || 0,
-              disputes: comparativeAnalysis.disputes?.length || 0,
-              omissions: Object.keys(comparativeAnalysis.omissions || {}).length,
-              biasIndicators: comparativeAnalysis.bias_indicators?.length || 0,
               articlesAnalyzed: comparativeAnalysis.metadata?.articlesAnalyzed || 0,
               compressionUsed: comparativeAnalysis.metadata?.compressionUsed || false,
               inputLength: comparativeAnalysis.metadata?.totalInputLength || 0
             }
           });
 
-          const stats = `${comparativeAnalysis.consensus?.length || 0} consensus, ${comparativeAnalysis.disputes?.length || 0} disputes`;
-          
           logger.progress(logger.CATEGORIES.ANALYZE, {
             status: 'completed',
-            userMessage: `Analysis complete: ${stats}`,
-            systemMessage: `Full analysis: ${stats}, ${comparativeAnalysis.bias_indicators?.length || 0} bias indicators`,
-            progress: 100,
-            data: {
-              consensus: comparativeAnalysis.consensus?.length || 0,
-              disputes: comparativeAnalysis.disputes?.length || 0,
-              biasIndicators: comparativeAnalysis.bias_indicators?.length || 0
-            }
+            userMessage: 'Analysis complete',
+            systemMessage: 'Comparative analysis completed successfully',
+            progress: 100
           });
         }
       } else {
@@ -428,12 +422,36 @@ async function handleNewArticle(articleData) {
     } catch (error) {
       logger.system.error('Analysis failed catastrophically', {
         category: logger.CATEGORIES.ANALYZE,
-        error
+        error,
+        data: {
+          errorName: error.name,
+          errorMessage: error.message,
+          errorStack: error.stack,
+          errorCode: error.code,
+          articlesWithContent: articlesWithContent?.length || 0,
+          // Check for specific error types
+          isNotSupportedError: error.name === 'NotSupportedError',
+          isQuotaError: error.message?.includes('quota') || error.message?.includes('context'),
+          isModelError: error.message?.includes('model'),
+          isParseError: error.message?.includes('parse') || error.message?.includes('JSON')
+        }
       });
+
+      // Provide more specific user feedback based on error type
+      let userMessage = 'Please try again or contact support';
+      if (error.name === 'NotSupportedError') {
+        userMessage = 'AI model not available. Please check chrome://on-device-internals';
+      } else if (error.message?.includes('quota') || error.message?.includes('context')) {
+        userMessage = 'Content too large. Try analyzing fewer articles.';
+      } else if (error.message?.includes('model')) {
+        userMessage = 'AI model error. Try restarting Chrome.';
+      } else if (error.message?.includes('parse') || error.message?.includes('JSON')) {
+        userMessage = 'Model returned invalid format. Please try again.';
+      }
 
       logger.user.error('Analysis could not be completed', {
         category: logger.CATEGORIES.ANALYZE,
-        data: { message: 'Please try again or contact support' }
+        data: { message: userMessage }
       });
 
       logger.progress(logger.CATEGORIES.ANALYZE, {

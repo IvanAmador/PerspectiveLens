@@ -20,7 +20,7 @@ import { normalizeLanguageCode, getLanguageName } from '../utils/languages.js';
  */
 const DETECTION_CONFIG = {
   // Minimum confidence threshold for accepting detection (0.0 - 1.0)
-  MIN_CONFIDENCE: 0.5,
+  MIN_CONFIDENCE: 0.6,
   
   // High confidence threshold for automatic acceptance
   HIGH_CONFIDENCE: 0.85,

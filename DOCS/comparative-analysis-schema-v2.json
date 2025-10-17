@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Comparative News Analysis",
+  "description": "Minimalist schema for comparative analysis of news summaries optimized for lightweight LLMs",
+  "type": "object",
+  "required": ["consensus", "key_differences", "summary"],
+  "properties": {
+    "consensus": {
+      "type": "array",
+      "description": "Facts that 70% or more sources agree upon",
+      "items": {
+        "type": "object",
+        "required": ["fact", "sources", "confidence"],
+        "properties": {
+          "fact": {
+            "type": "string",
+            "description": "The agreed-upon fact (concise, 1-2 sentences max)",
+            "maxLength": 200
+          },
+          "sources": {
+            "type": "array",
+            "description": "Source names confirming this fact",
+            "items": { "type": "string" },
+            "minItems": 2
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "description": "Confidence level based on source agreement strength"
+          }
+        }
+      }
+    },
+    "key_differences": {
+      "type": "array",
+      "description": "Significant differences between sources that change reader perception",
+      "items": {
+        "type": "object",
+        "required": ["aspect", "pattern", "sources", "impact", "significance"],
+        "properties": {
+          "aspect": {
+            "type": "string",
+            "description": "What differs between sources (e.g., 'Emphasis on potential sentence', 'Coverage of defense arguments')",
+            "maxLength": 100
+          },
+          "pattern": {
+            "type": "string",
+            "enum": ["tone", "framing", "coverage"],
+            "description": "Type of difference: tone (positive/negative/neutral sentiment), framing (how story is presented), coverage (what's included/excluded or emphasized)"
+          },
+          "sources": {
+            "type": "object",
+            "description": "Sources grouped by how they handle this aspect",
+            "properties": {
+              "emphasizing": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Sources that highlight or emphasize this aspect"
+              },
+              "minimizing": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Sources that downplay or give minimal coverage"
+              },
+              "neutral": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Sources with balanced/neutral treatment"
+              },
+              "absent": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Sources that completely omit this aspect"
+              }
+            },
+            "minProperties": 2
+          },
+          "impact": {
+            "type": "string",
+            "description": "How this difference changes reader perception (1 sentence, concrete)",
+            "maxLength": 150
+          },
+          "significance": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "description": "How much this difference matters for understanding the story"
+          },
+          "examples": {
+            "type": "array",
+            "description": "Optional: specific quotes or phrases illustrating the difference",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source": { "type": "string" },
+                "text": { 
+                  "type": "string",
+                  "maxLength": 100
+                }
+              }
+            },
+            "maxItems": 3
+          }
+        }
+      },
+      "maxItems": 5
+    },
+    "summary": {
+      "type": "string",
+      "description": "Brief overview of the story and analysis (2-3 sentences max)",
+      "maxLength": 300
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional analysis metadata",
+      "properties": {
+        "sources_analyzed": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "analysis_timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

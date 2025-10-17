@@ -372,25 +372,11 @@ function handleShowAnalysis(data) {
     );
   }
 
-  // IMPORTANTE: Passar data.analysis para o painel (não data inteiro)
   if (window.PerspectiveLensPanel) {
-    console.log('[PerspectiveLens] Showing analysis in panel');
-
-    // Preparar dados no formato que o painel espera
     const panelData = {
-      ...data.analysis,  // consensus, disputes, omissions, bias_indicators, summary
-      perspectives: data.perspectives  // adicionar metadados de perspectivas
+      ...data.analysis,
+      perspectives: data.perspectives
     };
-
-    console.log('[PerspectiveLens] Panel data structure:', {
-      hasConsensus: !!panelData.consensus,
-      hasDisputes: !!panelData.disputes,
-      hasOmissions: !!panelData.omissions,
-      hasBiasIndicators: !!panelData.bias_indicators,
-      hasSummary: !!panelData.summary,
-      perspectivesCount: panelData.perspectives?.length || 0
-    });
-
     window.PerspectiveLensPanel.showAnalysis(panelData);
   } else {
     console.error('[PerspectiveLens] Panel not available!');

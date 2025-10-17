@@ -522,6 +522,103 @@
   border-color: var(--state-error);
 }
 
+/* Tag colors for source groups */
+.pl-tag-red {
+  background: var(--state-error-background);
+  color: var(--state-error);
+  border-color: var(--state-error);
+}
+
+.pl-tag-blue {
+  background: rgba(26, 115, 232, 0.1);
+  color: #1a73e8;
+  border-color: rgba(26, 115, 232, 0.3);
+}
+
+.pl-tag-gray {
+  background: var(--color-background-tertiary);
+  color: var(--color-text-secondary);
+  border-color: var(--border-color-subtle);
+}
+
+.pl-tag-light {
+  background: var(--color-background-secondary);
+  color: var(--color-text-tertiary);
+  border-color: var(--border-color-subtle);
+}
+
+/* ============================================
+   PATTERN BADGES
+   ============================================ */
+
+.pl-pattern-badge {
+  display: inline-block;
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: var(--radius-chip);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pl-pattern-tone {
+  background: rgba(234, 67, 53, 0.1);
+  color: #ea4335;
+  border: 1px solid rgba(234, 67, 53, 0.3);
+}
+
+.pl-pattern-framing {
+  background: rgba(251, 188, 5, 0.1);
+  color: #f9ab00;
+  border: 1px solid rgba(251, 188, 5, 0.3);
+}
+
+.pl-pattern-coverage {
+  background: rgba(52, 168, 83, 0.1);
+  color: #34a853;
+  border: 1px solid rgba(52, 168, 83, 0.3);
+}
+
+/* ============================================
+   SOURCE GROUPS
+   ============================================ */
+
+.pl-source-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-3);
+  padding-top: var(--spacing-3);
+  border-top: 1px solid var(--border-color-subtle);
+}
+
+.pl-source-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  align-items: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.pl-source-group strong {
+  color: var(--color-text-title);
+  font-weight: var(--font-weight-medium);
+  min-width: 90px;
+}
+
+/* ============================================
+   KEY DIFFERENCES - DIFFERENCE ITEM
+   ============================================ */
+
+.pl-list-item-difference {
+  border-left-color: var(--state-warning);
+}
+
+.pl-list-item-difference:hover {
+  border-left-color: var(--state-warning);
+}
+
 /* ============================================
    PERSPECTIVES (DISPUTES)
    ============================================ */

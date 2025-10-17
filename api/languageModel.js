@@ -245,12 +245,20 @@ export async function createSession(options = {}, onProgress = null) {
 /**
  * Compare multiple articles using optimized analysis pipeline
  *
- * Performance optimizations:
- * - Creates fresh session per analysis (best practice)
- * - Uses system prompt for context setting
+ * Performance optimizations (following Chrome Prompt API best practices):
+ * - Creates fresh session per analysis (avoids progressive slowdown)
+ * - Uses system prompt in initialPrompts for context setting
  * - Explicit temperature/topK for consistency
- * - Destroys session immediately after use
- * - No session cloning or parallel sessions
+ * - Destroys session immediately after use (frees resources)
+ * - Validates quota before prompting (prevents quota errors)
+ * - Detailed error logging with specific error types
+ * - No session cloning (not needed for single-use analysis)
+ *
+ * Error handling improvements:
+ * - Captures specific error types (NotSupportedError, AbortError, QuotaError)
+ * - Logs detailed error context (quota, input length, step failed)
+ * - Provides user-friendly error messages
+ * - Cleans up session even on error
  *
  * @param {Array<Object>} articles - Articles with extracted content
  * @param {Object} options - Analysis options
@@ -283,9 +291,14 @@ export async function compareArticles(articles, options = {}) {
     }
   });
 
+  // Declare variables outside try block to avoid ReferenceError in catch
+  let validArticles = articles;
+  let articlesToAnalyze = [];
+  let processedArticles = [];
+  let session = null;
+
   try {
     // Step 1: Validate content quality
-    let validArticles = articles;
 
     if (validateContent) {
       logger.system.debug('Validating article content quality', {
@@ -324,7 +337,7 @@ export async function compareArticles(articles, options = {}) {
     }
 
     // Step 2: Limit to max articles
-    const articlesToAnalyze = validArticles.slice(0, maxArticles);
+    articlesToAnalyze = validArticles.slice(0, maxArticles);
 
     if (articlesToAnalyze.length < validArticles.length) {
       logger.system.debug('Articles limited for analysis', {
@@ -338,7 +351,7 @@ export async function compareArticles(articles, options = {}) {
     }
 
     // Step 3: Compress articles (optional but recommended)
-    let processedArticles = articlesToAnalyze;
+    processedArticles = articlesToAnalyze;
     let originalLength = 0;
     let compressedLength = 0;
 
@@ -435,7 +448,7 @@ export async function compareArticles(articles, options = {}) {
       topK: topK ?? 3  // Keep default topK=3 (doesn't impact performance)
     };
 
-    const session = await createSession(sessionConfig);
+    session = await createSession(sessionConfig);
 
     logger.system.debug('Session ready, prompting model', {
       category: logger.CATEGORIES.ANALYZE,
@@ -448,12 +461,133 @@ export async function compareArticles(articles, options = {}) {
       }
     });
 
-    // Step 8: Prompt model with structured output constraint
-    // Note: System prompt is already in session, only send the data
-    const promptStart = Date.now();
-    const response = await session.prompt(analysisInput, {
-      responseConstraint: schema
+    // Step 8: Check quota before prompting (best practice)
+    // Note: According to Chrome docs, measureInputUsage() must receive same options as prompt()
+    const quotaRemaining = session.inputQuota - session.inputUsage;
+
+    let estimatedInputUsage;
+    try {
+      // IMPORTANT: Pass responseConstraint to measureInputUsage (required by API)
+      estimatedInputUsage = await session.measureInputUsage(analysisInput, {
+        responseConstraint: schema
+      });
+    } catch (measureError) {
+      // If measureInputUsage fails, skip quota check (non-critical)
+      logger.system.warn('Failed to measure input usage, skipping quota check', {
+        category: logger.CATEGORIES.ANALYZE,
+        error: measureError,
+        data: {
+          errorName: measureError.name,
+          errorMessage: measureError.message
+        }
+      });
+      estimatedInputUsage = 0; // Assume OK and let prompt() handle quota errors
+    }
+
+    logger.system.debug('Checking quota before prompt', {
+      category: logger.CATEGORIES.ANALYZE,
+      data: {
+        quotaUsed: session.inputUsage,
+        quotaTotal: session.inputQuota,
+        quotaRemaining,
+        estimatedUsage: estimatedInputUsage,
+        willExceed: estimatedInputUsage > 0 && estimatedInputUsage > quotaRemaining
+      }
     });
+
+    if (estimatedInputUsage > 0 && estimatedInputUsage > quotaRemaining) {
+      logger.system.error('Insufficient quota for analysis', {
+        category: logger.CATEGORIES.ANALYZE,
+        data: {
+          required: estimatedInputUsage,
+          available: quotaRemaining,
+          deficit: estimatedInputUsage - quotaRemaining
+        }
+      });
+      throw new AIModelError(`Insufficient context quota. Need ${estimatedInputUsage} tokens but only ${quotaRemaining} available. Try analyzing fewer or shorter articles.`);
+    }
+
+    // Step 9: Prompt model with structured output constraint
+    logger.system.info('Prompting model with data', {
+      category: logger.CATEGORIES.ANALYZE,
+      data: {
+        articlesInInput: processedArticles.length,
+        inputLength: analysisInput.length,
+        schemaRequired: schema.required,
+        hasSchema: !!schema,
+        quotaBefore: `${session.inputUsage}/${session.inputQuota} tokens`,
+        quotaRemaining,
+        estimatedUsage: estimatedInputUsage,
+        quotaAfterPrompt: `~${(session.inputUsage + estimatedInputUsage)}/${session.inputQuota}`
+      }
+    });
+
+    const promptStart = Date.now();
+    let response;
+    try {
+      response = await session.prompt(analysisInput, {
+        responseConstraint: schema
+      });
+    } catch (promptError) {
+      const promptDuration = Date.now() - promptStart;
+
+      // Log detailed error information
+      logger.system.error('Model prompt failed with specific error', {
+        category: logger.CATEGORIES.ERROR,
+        error: promptError,
+        data: {
+          errorName: promptError.name,
+          errorMessage: promptError.message,
+          errorStack: promptError.stack,
+          errorCode: promptError.code,
+          promptDuration,
+          inputLength: analysisInput.length,
+          inputChars: analysisInput.length,
+          systemPromptLength: systemPrompt.length,
+          articlesCount: processedArticles.length,
+          quotaUsed: `${session.inputUsage}/${session.inputQuota}`,
+          quotaRemaining: session.inputQuota - session.inputUsage,
+          estimatedTokens: estimatedInputUsage,
+          // System info for debugging UnknownError
+          totalInputSize: analysisInput.length + systemPrompt.length,
+          compressionUsed: useCompression,
+          temperature: sessionConfig.temperature,
+          topK: sessionConfig.topK,
+          // Check if it's a specific API error
+          isUnknownError: promptError.name === 'UnknownError',
+          isNotSupportedError: promptError.name === 'NotSupportedError',
+          isAbortError: promptError.name === 'AbortError',
+          isQuotaError: promptError.message?.includes('quota') || promptError.message?.includes('context'),
+          isModelError: promptError.message?.includes('model'),
+          isNetworkError: promptError.message?.includes('network') || promptError.message?.includes('connection')
+        }
+      });
+
+      // Provide user-friendly error messages based on error type
+      if (promptError.name === 'NotSupportedError') {
+        throw new AIModelError('Model does not support the requested operation. Check if Gemini Nano is properly installed.', promptError);
+      } else if (promptError.name === 'AbortError') {
+        throw new AIModelError('Analysis was cancelled', promptError);
+      } else if (promptError.name === 'UnknownError') {
+        // UnknownError is a generic Chrome AI error - often means model crashed or is unavailable
+        throw new AIModelError(
+          'AI model encountered an unknown error. This usually means:\n' +
+          '1. The model process crashed (check chrome://on-device-internals)\n' +
+          '2. Try restarting Chrome\n' +
+          '3. Ensure you have enough RAM (16GB+ recommended)\n' +
+          '4. Check if model is still downloaded (requires 22GB disk space)',
+          promptError
+        );
+      } else if (promptError.message?.includes('quota') || promptError.message?.includes('context')) {
+        throw new AIModelError('Context window exceeded. Try analyzing fewer articles or shorter content.', promptError);
+      } else if (promptError.message?.includes('model')) {
+        throw new AIModelError('Model execution failed. Try restarting Chrome or check chrome://on-device-internals', promptError);
+      }
+
+      // Re-throw the error for general handling
+      throw promptError;
+    }
+
     const promptDuration = Date.now() - promptStart;
 
     logger.system.info('Model response received', {
@@ -461,7 +595,9 @@ export async function compareArticles(articles, options = {}) {
       data: {
         responseChars: response.length,
         promptDuration: `${promptDuration}ms`,
-        quotaUsed: `${session.inputUsage}/${session.inputQuota} tokens`
+        quotaUsed: `${session.inputUsage}/${session.inputQuota} tokens`,
+        quotaRemaining: session.inputQuota - session.inputUsage,
+        responsePreview: response.substring(0, 200)
       }
     });
 
@@ -469,29 +605,58 @@ export async function compareArticles(articles, options = {}) {
     let analysisResult;
     try {
       analysisResult = JSON.parse(response);
+
+      logger.system.debug('JSON response parsed successfully', {
+        category: logger.CATEGORIES.ANALYZE,
+        data: {
+          hasConsensus: !!analysisResult.consensus,
+          consensusItems: analysisResult.consensus?.length || 0,
+          hasKeyDifferences: !!analysisResult.key_differences,
+          keyDifferencesItems: analysisResult.key_differences?.length || 0,
+          hasSummary: !!analysisResult.summary
+        }
+      });
     } catch (parseError) {
       logger.system.error('Failed to parse JSON response', {
         category: logger.CATEGORIES.ERROR,
         error: parseError,
         data: {
           response: response.substring(0, 500),
-          parseErrorMessage: parseError.message
+          responseLength: response.length,
+          parseErrorMessage: parseError.message,
+          parseErrorStack: parseError.stack,
+          // Check if response looks like markdown or other format
+          startsWithMarkdown: response.trim().startsWith('```'),
+          containsJson: response.includes('{') && response.includes('}'),
+          firstChars: response.substring(0, 100)
         }
       });
-      throw new AIModelError('Invalid JSON response from model', parseError);
+      throw new AIModelError('Invalid JSON response from model. Model may have returned unexpected format.', parseError);
     }
 
     // Step 10: Cleanup session immediately (best practice)
-    session.destroy();
+    try {
+      session.destroy();
 
-    logger.system.debug('Session destroyed', {
-      category: logger.CATEGORIES.ANALYZE
-    });
+      logger.system.debug('Session destroyed successfully', {
+        category: logger.CATEGORIES.ANALYZE
+      });
+    } catch (destroyError) {
+      // Non-critical error, just log it
+      logger.system.warn('Failed to destroy session', {
+        category: logger.CATEGORIES.ANALYZE,
+        error: destroyError,
+        data: {
+          errorName: destroyError.name,
+          errorMessage: destroyError.message
+        }
+      });
+    }
 
     const duration = Date.now() - operationStart;
 
-    // Step 11: Add metadata
-    analysisResult.metadata = {
+    if (!analysisResult.metadata) analysisResult.metadata = {};
+    Object.assign(analysisResult.metadata, {
       articlesAnalyzed: processedArticles.length,
       articlesInput: articles.length,
       compressionUsed: useCompression,
@@ -500,19 +665,20 @@ export async function compareArticles(articles, options = {}) {
       totalInputLength: analysisInput.length,
       promptDuration,
       duration,
-      timestamp: new Date().toISOString()
-    };
+      analysis_timestamp: new Date().toISOString()
+    });
 
     logger.system.info('Analysis completed successfully', {
       category: logger.CATEGORIES.ANALYZE,
       data: {
-        consensus: analysisResult.consensus?.length || 0,
-        disputes: analysisResult.disputes?.length || 0,
-        omissions: Object.keys(analysisResult.omissions || {}).length,
-        biasIndicators: analysisResult.bias_indicators?.length || 0,
         duration,
         promptDuration,
-        metadata: analysisResult.metadata
+        articlesProcessed: processedArticles.length,
+        articlesInput: articles.length,
+        resultKeys: Object.keys(analysisResult),
+        consensusItems: analysisResult.consensus?.length || 0,
+        keyDifferences: analysisResult.key_differences?.length || 0,
+        hasSummary: !!analysisResult.summary
       }
     });
 
@@ -520,17 +686,53 @@ export async function compareArticles(articles, options = {}) {
   } catch (error) {
     const duration = Date.now() - operationStart;
 
+    // Determine which step failed
+    const failedAtStep = !validArticles ? 'validation' :
+                        !articlesToAnalyze ? 'limiting' :
+                        !processedArticles ? 'compression' :
+                        !session ? 'session_creation' :
+                        'model_prompt';
+
     logger.system.error('Comparative analysis failed', {
       category: logger.CATEGORIES.ERROR,
       error,
       data: {
-        articlesCount: articles.length,
+        articlesInput: articles.length,
+        validArticles: validArticles?.length,
+        articlesToAnalyze: articlesToAnalyze?.length,
+        processedArticles: processedArticles?.length,
         duration,
         errorName: error.name,
         errorMessage: error.message,
-        errorStack: error.stack
+        errorStack: error.stack,
+        errorCode: error.code,
+        failedAtStep,
+        // Additional debugging context
+        hasSession: !!session,
+        sessionQuota: session ? `${session.inputUsage}/${session.inputQuota}` : 'N/A',
+        // Identify common error patterns
+        isAPIError: error.name?.includes('Error'),
+        isModelUnavailable: error.message?.includes('unavailable') || error.message?.includes('not available'),
+        isQuotaIssue: error.message?.includes('quota') || error.message?.includes('context'),
+        isParseError: error.message?.includes('parse') || error.message?.includes('JSON'),
+        isNetworkIssue: error.message?.includes('network') || error.message?.includes('connection')
       }
     });
+
+    // Clean up session if it was created
+    if (session) {
+      try {
+        session.destroy();
+        logger.system.debug('Session cleaned up after error', {
+          category: logger.CATEGORIES.ANALYZE
+        });
+      } catch (cleanupError) {
+        logger.system.warn('Failed to cleanup session after error', {
+          category: logger.CATEGORIES.ANALYZE,
+          error: cleanupError
+        });
+      }
+    }
 
     if (error instanceof AIModelError) throw error;
     throw new AIModelError(ERROR_MESSAGES.PROMPT_FAILED, error);

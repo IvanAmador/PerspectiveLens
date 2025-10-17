@@ -1,156 +1,82 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Comparative News Analysis",
-  "description": "Schema for structured comparative analysis of news articles from multiple sources",
+  "description": "Minimalist schema for comparative analysis of news summaries optimized for lightweight LLMs",
   "type": "object",
-  "required": ["consensus", "disputes", "omissions", "summary"],
+  "required": ["consensus", "key_differences", "summary"],
   "properties": {
     "consensus": {
       "type": "array",
-      "description": "Facts that all or most sources agree upon",
+      "description": "Facts that 70% or more sources agree upon",
       "items": {
         "type": "object",
-        "required": ["fact", "sources", "confidence"],
+        "required": ["fact", "sources"],
         "properties": {
           "fact": {
             "type": "string",
-            "description": "The agreed-upon fact or statement"
+            "description": "The agreed-upon fact (concise, 1-2 sentences max)"
           },
           "sources": {
             "type": "array",
-            "description": "List of source names that confirm this fact",
-            "items": { "type": "string" },
-            "minItems": 2
+            "description": "Source names confirming this fact",
+            "items": { "type": "string" }
           },
           "confidence": {
             "type": "string",
-            "enum": ["high", "medium", "low"],
-            "description": "Confidence level based on evidence strength"
+            "description": "Confidence level: high, medium, or low"
           }
         }
       }
     },
-    "disputes": {
+    "key_differences": {
       "type": "array",
-      "description": "Topics where sources disagree or present conflicting information",
+      "description": "Significant differences between sources that change reader perception",
       "items": {
         "type": "object",
-        "required": ["topic", "perspectives", "significance"],
+        "required": ["aspect", "pattern", "impact"],
         "properties": {
-          "topic": {
+          "aspect": {
             "type": "string",
-            "description": "The subject of disagreement"
+            "description": "What differs between sources"
           },
-          "perspectives": {
-            "type": "object",
-            "description": "Map of source names to their viewpoints",
-            "patternProperties": {
-              ".*": {
-                "type": "object",
-                "required": ["viewpoint"],
-                "properties": {
-                  "viewpoint": {
-                    "type": "string",
-                    "description": "The source's position on this topic"
-                  },
-                  "evidence": {
-                    "type": "string",
-                    "description": "Supporting evidence or quotes"
-                  }
-                }
-              }
-            },
-            "minProperties": 2
+          "pattern": {
+            "type": "string",
+            "description": "Type of difference: tone, framing, or coverage"
+          },
+          "emphasizing": {
+            "type": "array",
+            "description": "Sources that highlight this aspect",
+            "items": { "type": "string" }
+          },
+          "minimizing": {
+            "type": "array",
+            "description": "Sources that downplay this aspect",
+            "items": { "type": "string" }
+          },
+          "neutral": {
+            "type": "array",
+            "description": "Sources with balanced treatment",
+            "items": { "type": "string" }
+          },
+          "absent": {
+            "type": "array",
+            "description": "Sources that omit this aspect",
+            "items": { "type": "string" }
+          },
+          "impact": {
+            "type": "string",
+            "description": "How this difference changes reader perception"
           },
           "significance": {
             "type": "string",
-            "enum": ["major", "minor"],
-            "description": "How important this disagreement is to the overall story"
-          }
-        }
-      }
-    },
-    "omissions": {
-      "type": "object",
-      "description": "Information present in some sources but missing from others",
-      "patternProperties": {
-        ".*": {
-          "type": "array",
-          "description": "List of facts omitted by this source",
-          "items": {
-            "type": "object",
-            "required": ["fact", "mentioned_by", "relevance"],
-            "properties": {
-              "fact": {
-                "type": "string",
-                "description": "The omitted information"
-              },
-              "mentioned_by": {
-                "type": "array",
-                "description": "Sources that included this information",
-                "items": { "type": "string" },
-                "minItems": 1
-              },
-              "relevance": {
-                "type": "string",
-                "enum": ["high", "medium", "low"],
-                "description": "How relevant this omission is to the story"
-              }
-            }
-          }
-        }
-      }
-    },
-    "bias_indicators": {
-      "type": "array",
-      "description": "Potential indicators of media bias across sources",
-      "items": {
-        "type": "object",
-        "required": ["source", "type", "description"],
-        "properties": {
-          "source": {
-            "type": "string",
-            "description": "Name of the source showing potential bias"
-          },
-          "type": {
-            "type": "string",
-            "enum": ["framing", "selection", "omission", "tone", "language"],
-            "description": "Type of bias indicator"
-          },
-          "description": {
-            "type": "string",
-            "description": "Explanation of the bias indicator"
-          },
-          "examples": {
-            "type": "array",
-            "description": "Specific examples or quotes demonstrating the bias",
-            "items": { "type": "string" }
+            "description": "Significance level: high, medium, or low"
           }
         }
       }
     },
     "summary": {
-      "type": "object",
-      "description": "High-level summary of the comparative analysis",
-      "required": ["main_story", "key_differences"],
-      "properties": {
-        "main_story": {
-          "type": "string",
-          "description": "One-sentence summary of what all sources are covering"
-        },
-        "key_differences": {
-          "type": "string",
-          "description": "Brief explanation of how coverage differs across sources"
-        },
-        "recommendation": {
-          "type": "string",
-          "description": "Suggestion for readers on how to interpret the differences"
-        }
-      }
-    },
-    "methodology_note": {
       "type": "string",
-      "description": "Optional note about analysis methodology or limitations"
+      "description": "Brief overview of the story and analysis (2-3 sentences max)"
     }
   }
 }
