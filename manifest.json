@@ -30,6 +30,10 @@
         "ui/design-system.css",
         "ui/analysis-panel.css",
         "ui/analysis-panel.js",
+        "ui/panel-loader.js",
+        "ui/panel/panel-styles.css",
+        "ui/panel/panel-renderer.js",
+        "ui/panel/stages/*.js",
         "ui/toast-notification.css",
         "ui/toast-notification.js",
         "ui/progress-tracker.css",
@@ -52,14 +56,14 @@
       "js": [
         "ui/toast-notification.js",
         "ui/progress-tracker.js",
-        "ui/analysis-panel.js",
+        "ui/panel-loader.js",
         "scripts/content.js"
       ],
       "css": [
         "ui/design-system.css",
         "ui/toast-notification.css",
         "ui/progress-tracker.css",
-        "ui/analysis-panel.css"
+        "ui/panel/panel-styles.css"
       ],
       "matches": [
         "https://*.g1.globo.com/*",

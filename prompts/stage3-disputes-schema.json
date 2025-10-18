@@ -8,6 +8,7 @@
       "type": "array",
       "description": "Direct contradictions on verifiable facts (numbers, dates, quotes, events). Can be empty array if no disputes found. Maximum 3 most important disputes.",
       "maxItems": 3,
+      "minItems": 0,
       "items": {
         "type": "object",
         "required": ["what", "claim_a", "claim_b", "sources_a", "sources_b"],
@@ -27,14 +28,12 @@
           "sources_a": {
             "type": "array",
             "description": "Sources making claim A",
-            "items": {"type": "string"},
-            "minItems": 1
+            "items": {"type": "string"}
           },
           "sources_b": {
             "type": "array",
             "description": "Sources making claim B",
-            "items": {"type": "string"},
-            "minItems": 1
+            "items": {"type": "string"}
           }
         }
       }
