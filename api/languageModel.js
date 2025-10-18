@@ -291,12 +291,14 @@ export async function compareArticles(articles, options = {}) {
     }
   });
 
-  // Declare variables outside try block to avoid ReferenceError in catch
+  // Declare variables outside try block to avoid ReferenceError in catch/finally
   let validArticles = articles;
   let articlesToAnalyze = [];
   let processedArticles = [];
   let session = null;
+  let hadError = false;
 
+  // Use try-finally to GUARANTEE session cleanup (Chrome best practice)
   try {
     // Step 1: Validate content quality
 
@@ -637,25 +639,6 @@ export async function compareArticles(articles, options = {}) {
       throw new AIModelError('Invalid JSON response from model. Model may have returned unexpected format.', parseError);
     }
 
-    // Step 10: Cleanup session immediately (best practice)
-    try {
-      session.destroy();
-
-      logger.system.debug('Session destroyed successfully', {
-        category: logger.CATEGORIES.ANALYZE
-      });
-    } catch (destroyError) {
-      // Non-critical error, just log it
-      logger.system.warn('Failed to destroy session', {
-        category: logger.CATEGORIES.ANALYZE,
-        error: destroyError,
-        data: {
-          errorName: destroyError.name,
-          errorMessage: destroyError.message
-        }
-      });
-    }
-
     const duration = Date.now() - operationStart;
 
     if (!analysisResult.metadata) analysisResult.metadata = {};
@@ -722,6 +705,7 @@ export async function compareArticles(articles, options = {}) {
       }))
     };
   } catch (error) {
+    hadError = true;
     const duration = Date.now() - operationStart;
 
     // Determine which step failed
@@ -757,23 +741,38 @@ export async function compareArticles(articles, options = {}) {
       }
     });
 
-    // Clean up session if it was created
-    if (session) {
-      try {
-        session.destroy();
-        logger.system.debug('Session cleaned up after error', {
-          category: logger.CATEGORIES.ANALYZE
-        });
-      } catch (cleanupError) {
-        logger.system.warn('Failed to cleanup session after error', {
-          category: logger.CATEGORIES.ANALYZE,
-          error: cleanupError
-        });
-      }
-    }
+    // Note: Session cleanup is handled in finally block (guaranteed execution)
 
     if (error instanceof AIModelError) throw error;
     throw new AIModelError(ERROR_MESSAGES.PROMPT_FAILED, error);
+  } finally {
+    // CRITICAL: Always destroy session to prevent performance degradation
+    // Per Chrome docs: "Create new session per analysis for best performance"
+    // Reference: https://developer.chrome.com/docs/ai/prompt-api#session_management
+    if (session) {
+      try {
+        session.destroy();
+
+        logger.system.debug('Session destroyed in finally block', {
+          category: logger.CATEGORIES.ANALYZE,
+          data: {
+            hadError,
+            sessionQuotaUsed: `${session.inputUsage}/${session.inputQuota}`
+          }
+        });
+      } catch (destroyError) {
+        // Non-critical error, but log it for debugging
+        logger.system.warn('Failed to destroy session in finally block', {
+          category: logger.CATEGORIES.ANALYZE,
+          error: destroyError,
+          data: {
+            errorName: destroyError.name,
+            errorMessage: destroyError.message,
+            hadPreviousError: hadError
+          }
+        });
+      }
+    }
   }
 }
 

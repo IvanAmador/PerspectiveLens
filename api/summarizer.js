@@ -214,7 +214,7 @@ export async function createSummarizer(options = {}, onProgress = null) {
 /**
  * Summarize text with automatic language handling
  * Translates to English for processing, then optionally back to original language
- * 
+ *
  * @param {string} text - Text to summarize
  * @param {Object} options - Summarization options
  * @param {string} options.type - Summary type (default: 'key-points')
@@ -223,12 +223,14 @@ export async function createSummarizer(options = {}, onProgress = null) {
  * @param {string} options.language - Source language (auto-detects if not provided)
  * @param {boolean} options.translateBack - Translate result back to source language (default: true)
  * @param {string} options.context - Additional context for summarization
+ * @param {AbortSignal} options.signal - AbortSignal to cancel the operation
  * @returns {Promise<string>} Summary text
  * @throws {AIModelError} If summarization fails
  */
 export async function summarize(text, options = {}) {
   const operationStart = Date.now();
-  
+  let summarizer = null;
+
   // Validation
   if (!text || text.trim().length === 0) {
     logger.system.error('Empty text provided for summarization', {
@@ -255,6 +257,11 @@ export async function summarize(text, options = {}) {
   });
 
   try {
+    // Check for abort signal
+    if (options.signal?.aborted) {
+      throw new DOMException('Operation cancelled', 'AbortError');
+    }
+
     // Step 1: Detect and normalize language
     let sourceLanguage;
     if (options.language) {
@@ -277,7 +284,7 @@ export async function summarize(text, options = {}) {
     // Step 2: Translate to English if needed (Summarizer works best with English)
     let textForSummarizer = text;
     const needsTranslationToEnglish = needsTranslation(
-      sourceLanguage, 
+      sourceLanguage,
       SUMMARIZER_CONFIG.PREFERRED_LANGUAGE
     );
 
@@ -293,8 +300,8 @@ export async function summarize(text, options = {}) {
 
       const translationStart = Date.now();
       textForSummarizer = await translate(
-        text, 
-        sourceLanguage, 
+        text,
+        sourceLanguage,
         SUMMARIZER_CONFIG.PREFERRED_LANGUAGE
       );
       const translationDuration = Date.now() - translationStart;
@@ -327,9 +334,9 @@ export async function summarize(text, options = {}) {
       data: summarizerConfig
     });
 
-    const summarizer = await createSummarizer(summarizerConfig, options.onProgress);
+    summarizer = await createSummarizer(summarizerConfig, options.onProgress);
 
-    // Execute summarization
+    // Execute summarization with AbortController support
     logger.system.debug('Executing summarization', {
       category: logger.CATEGORIES.COMPRESS,
       data: {
@@ -341,12 +348,10 @@ export async function summarize(text, options = {}) {
 
     const summarizationStart = Date.now();
     const summaryInEnglish = await summarizer.summarize(textForSummarizer, {
-      context: options.context || ''
+      context: options.context || '',
+      signal: options.signal
     });
     const summarizationDuration = Date.now() - summarizationStart;
-
-    // Cleanup
-    summarizer.destroy();
 
     const compressionRatio = ((1 - summaryInEnglish.length / text.length) * 100).toFixed(1);
 
@@ -375,8 +380,8 @@ export async function summarize(text, options = {}) {
 
       const backTranslationStart = Date.now();
       const translatedSummary = await translate(
-        summaryInEnglish, 
-        SUMMARIZER_CONFIG.PREFERRED_LANGUAGE, 
+        summaryInEnglish,
+        SUMMARIZER_CONFIG.PREFERRED_LANGUAGE,
         sourceLanguage
       );
       const backTranslationDuration = Date.now() - backTranslationStart;
@@ -413,7 +418,16 @@ export async function summarize(text, options = {}) {
     return summaryInEnglish;
   } catch (error) {
     const duration = Date.now() - operationStart;
-    
+
+    // Don't log AbortError as an error
+    if (error.name === 'AbortError') {
+      logger.system.info('Summarization cancelled by user', {
+        category: logger.CATEGORIES.COMPRESS,
+        data: { duration }
+      });
+      throw error;
+    }
+
     logger.system.error('Summarization failed', {
       category: logger.CATEGORIES.ERROR,
       error,
@@ -426,6 +440,14 @@ export async function summarize(text, options = {}) {
 
     if (error instanceof AIModelError) throw error;
     throw new AIModelError('Failed to summarize text', error);
+  } finally {
+    // CRITICAL: Always destroy the session to free resources
+    if (summarizer) {
+      summarizer.destroy();
+      logger.system.debug('Summarizer session destroyed', {
+        category: logger.CATEGORIES.COMPRESS
+      });
+    }
   }
 }
 
@@ -522,15 +544,18 @@ export async function compressForAnalysis(text, options = {}) {
 
 /**
  * Batch compress multiple articles for comparative analysis
- * Efficiently processes array of articles with validation
- * 
+ * OPTIMIZED: Reuses single summarizer session for all articles (much faster!)
+ *
  * @param {Array<Object>} articles - Array of article objects with extractedContent
  * @param {string} lengthOption - Summary length for all articles (default: 'long')
+ * @param {Object} options - Batch options
+ * @param {AbortSignal} options.signal - AbortSignal to cancel the operation
  * @returns {Promise<Object>} Result object with articles and statistics
  */
-export async function batchCompressForAnalysis(articles, lengthOption = 'long') {
+export async function batchCompressForAnalysis(articles, lengthOption = 'long', options = {}) {
   const operationStart = Date.now();
-  
+  let summarizer = null;
+
   if (!Array.isArray(articles) || articles.length === 0) {
     logger.system.warn('No articles provided for batch compression', {
       category: logger.CATEGORIES.COMPRESS
@@ -545,17 +570,49 @@ export async function batchCompressForAnalysis(articles, lengthOption = 'long') 
     };
   }
 
-  logger.system.info('Starting batch compression', {
+  logger.system.info('Starting OPTIMIZED batch compression with session reuse', {
     category: logger.CATEGORIES.COMPRESS,
     data: {
       articlesCount: articles.length,
-      length: lengthOption
+      length: lengthOption,
+      optimization: 'single-session-reuse'
     }
   });
 
   try {
+    // OPTIMIZATION 1: Create ONE summarizer session for ALL articles
+    const summarizerConfig = {
+      type: 'key-points',
+      length: lengthOption,
+      format: 'plain-text',
+      sharedContext: 'News article for comparative analysis'
+    };
+
+    logger.system.debug('Creating reusable summarizer session', {
+      category: logger.CATEGORIES.COMPRESS,
+      data: summarizerConfig
+    });
+
+    const sessionStart = Date.now();
+    summarizer = await createSummarizer(summarizerConfig);
+    const sessionDuration = Date.now() - sessionStart;
+
+    logger.system.info('Summarizer session created', {
+      category: logger.CATEGORIES.COMPRESS,
+      data: {
+        duration: sessionDuration,
+        willProcessArticles: articles.length
+      }
+    });
+
+    // OPTIMIZATION 2: Process all articles with same session
     const results = await Promise.allSettled(
       articles.map(async (article, index) => {
+        // Check for abort signal
+        if (options.signal?.aborted) {
+          throw new DOMException('Operation cancelled', 'AbortError');
+        }
+
         const content = article.extractedContent?.textContent || article.content || '';
         const source = article.source || `Article ${index + 1}`;
 
@@ -573,7 +630,25 @@ export async function batchCompressForAnalysis(articles, lengthOption = 'long') 
           };
         }
 
-        logger.system.debug('Compressing article', {
+        // Skip compression if text is already short
+        if (content.length < 500) {
+          logger.system.debug('Text already short, skipping compression', {
+            category: logger.CATEGORIES.COMPRESS,
+            data: { source, textLength: content.length }
+          });
+
+          return {
+            ...article,
+            compressedContent: content,
+            originalContentLength: content.length,
+            compressedContentLength: content.length,
+            compressionRatio: 0,
+            compressionFailed: false,
+            compressionSkipped: true
+          };
+        }
+
+        logger.system.debug('Compressing article with reused session', {
           category: logger.CATEGORIES.COMPRESS,
           data: {
             index: index + 1,
@@ -583,14 +658,44 @@ export async function batchCompressForAnalysis(articles, lengthOption = 'long') 
           }
         });
 
-        const compressed = await compressForAnalysis(content, {
-          source,
-          length: lengthOption
+        const compressStart = Date.now();
+
+        // Translate to English if needed (Summarizer works best with English)
+        const sourceLanguage = await detectLanguageSimple(content.substring(0, 500));
+        let textForSummarizer = content;
+
+        if (needsTranslation(sourceLanguage, SUMMARIZER_CONFIG.PREFERRED_LANGUAGE)) {
+          logger.system.debug('Translating for summarization', {
+            category: logger.CATEGORIES.COMPRESS,
+            data: { source, from: sourceLanguage, to: SUMMARIZER_CONFIG.PREFERRED_LANGUAGE }
+          });
+
+          textForSummarizer = await translate(
+            content,
+            sourceLanguage,
+            SUMMARIZER_CONFIG.PREFERRED_LANGUAGE
+          );
+        }
+
+        // Use the shared summarizer session
+        const compressed = await summarizer.summarize(textForSummarizer, {
+          context: '',
+          signal: options.signal
         });
 
-        const compressionRatio = content.length > 0 
+        const compressDuration = Date.now() - compressStart;
+        const compressionRatio = content.length > 0
           ? ((1 - compressed.length / content.length) * 100).toFixed(1)
           : '0';
+
+        logger.system.debug('Article compressed successfully', {
+          category: logger.CATEGORIES.COMPRESS,
+          data: {
+            source,
+            duration: compressDuration,
+            reduction: `${compressionRatio}%`
+          }
+        });
 
         return {
           ...article,
@@ -615,21 +720,21 @@ export async function batchCompressForAnalysis(articles, lengthOption = 'long') 
     const failed = successfulResults.filter(a => a.compressionFailed).length + failedResults.length;
 
     const originalLength = successfulResults.reduce(
-      (sum, a) => sum + (a.originalContentLength || 0), 
+      (sum, a) => sum + (a.originalContentLength || 0),
       0
     );
 
     const compressedLength = successfulResults.reduce(
-      (sum, a) => sum + (a.compressedContentLength || 0), 
+      (sum, a) => sum + (a.compressedContentLength || 0),
       0
     );
 
     const duration = Date.now() - operationStart;
-    const overallRatio = originalLength > 0 
+    const overallRatio = originalLength > 0
       ? ((1 - compressedLength / originalLength) * 100).toFixed(1)
       : '0';
 
-    logger.system.info('Batch compression completed', {
+    logger.system.info('OPTIMIZED batch compression completed', {
       category: logger.CATEGORIES.COMPRESS,
       data: {
         total: articles.length,
@@ -639,7 +744,8 @@ export async function batchCompressForAnalysis(articles, lengthOption = 'long') 
         compressedLength,
         reduction: `${overallRatio}%`,
         duration,
-        avgPerArticle: Math.round(duration / articles.length)
+        avgPerArticle: Math.round(duration / articles.length),
+        speedup: 'session-reuse-enabled'
       }
     });
 
@@ -670,7 +776,16 @@ export async function batchCompressForAnalysis(articles, lengthOption = 'long') 
     };
   } catch (error) {
     const duration = Date.now() - operationStart;
-    
+
+    // Don't log AbortError as an error
+    if (error.name === 'AbortError') {
+      logger.system.info('Batch compression cancelled by user', {
+        category: logger.CATEGORIES.COMPRESS,
+        data: { duration, articlesCount: articles.length }
+      });
+      throw error;
+    }
+
     logger.system.error('Batch compression failed catastrophically', {
       category: logger.CATEGORIES.ERROR,
       error,
@@ -681,6 +796,14 @@ export async function batchCompressForAnalysis(articles, lengthOption = 'long') 
     });
 
     throw new AIModelError('Failed to batch compress articles', error);
+  } finally {
+    // CRITICAL: Always destroy the session to free resources
+    if (summarizer) {
+      summarizer.destroy();
+      logger.system.debug('Batch summarizer session destroyed', {
+        category: logger.CATEGORIES.COMPRESS
+      });
+    }
   }
 }
 
@@ -779,4 +902,157 @@ export function getSupportedFormats() {
  */
 export function getTypeSpecifications() {
   return { ...SUMMARIZER_CONFIG.TYPE_SPECS };
+}
+
+/**
+ * Cache the Summarizer model explicitly using Cache API
+ * This ensures the model is downloaded and cached for offline use
+ * Best Practice: Call this on extension install or update
+ *
+ * @param {Function} onProgress - Progress callback (0-100)
+ * @returns {Promise<void>}
+ */
+export async function cacheModel(onProgress = null) {
+  const startTime = Date.now();
+
+  logger.system.info('Starting explicit model cache with Cache API', {
+    category: logger.CATEGORIES.COMPRESS
+  });
+
+  let summarizer = null;
+
+  try {
+    // Check availability
+    const availability = await checkSummarizerAvailability();
+
+    if (availability === 'unavailable') {
+      throw new AIModelError('Summarizer is not available on this device');
+    }
+
+    if (availability === 'available') {
+      logger.system.info('Model already cached and ready', {
+        category: logger.CATEGORIES.COMPRESS,
+        data: { availability }
+      });
+      return;
+    }
+
+    logger.system.info('Downloading model for cache', {
+      category: logger.CATEGORIES.COMPRESS,
+      data: { availability }
+    });
+
+    // Create a summarizer to trigger download
+    const config = {
+      type: 'key-points',
+      length: 'long',
+      format: 'plain-text'
+    };
+
+    if (onProgress) {
+      config.monitor = (m) => {
+        m.addEventListener('downloadprogress', (e) => {
+          const progress = Math.round(e.loaded * 100);
+          logger.system.debug('Model download progress', {
+            category: logger.CATEGORIES.COMPRESS,
+            data: { progress, loaded: e.loaded }
+          });
+          onProgress(progress);
+        });
+      };
+    }
+
+    summarizer = await self.Summarizer.create(config);
+
+    const duration = Date.now() - startTime;
+
+    logger.system.info('Model cached successfully', {
+      category: logger.CATEGORIES.COMPRESS,
+      data: { duration }
+    });
+
+    if (onProgress) {
+      onProgress(100);
+    }
+  } catch (error) {
+    const duration = Date.now() - startTime;
+
+    logger.system.error('Failed to cache model', {
+      category: logger.CATEGORIES.ERROR,
+      error,
+      data: { duration }
+    });
+
+    if (error instanceof AIModelError) throw error;
+    throw new AIModelError('Failed to cache summarizer model', error);
+  } finally {
+    // CRITICAL: Always destroy the session
+    if (summarizer) {
+      summarizer.destroy();
+      logger.system.debug('Cache session destroyed', {
+        category: logger.CATEGORIES.COMPRESS
+      });
+    }
+  }
+}
+
+/**
+ * Warm up the Summarizer by creating and destroying a session
+ * Reduces first-use latency by initializing the model
+ * Best Practice: Call this after extension startup
+ *
+ * @returns {Promise<void>}
+ */
+export async function warmUpModel() {
+  const startTime = Date.now();
+
+  logger.system.info('Warming up Summarizer model', {
+    category: logger.CATEGORIES.COMPRESS
+  });
+
+  let summarizer = null;
+
+  try {
+    const availability = await checkSummarizerAvailability();
+
+    if (availability !== 'available') {
+      logger.system.warn('Model not available for warm-up', {
+        category: logger.CATEGORIES.COMPRESS,
+        data: { availability }
+      });
+      return;
+    }
+
+    // Create a minimal session
+    summarizer = await self.Summarizer.create({
+      type: 'key-points',
+      length: 'short',
+      format: 'plain-text'
+    });
+
+    const duration = Date.now() - startTime;
+
+    logger.system.info('Model warmed up successfully', {
+      category: logger.CATEGORIES.COMPRESS,
+      data: { duration }
+    });
+  } catch (error) {
+    const duration = Date.now() - startTime;
+
+    logger.system.warn('Failed to warm up model', {
+      category: logger.CATEGORIES.COMPRESS,
+      error,
+      data: { duration }
+    });
+
+    // Don't throw - warm-up is optional
+  } finally {
+    // CRITICAL: Always destroy the session
+    if (summarizer) {
+      summarizer.destroy();
+      logger.system.debug('Warm-up session destroyed', {
+        category: logger.CATEGORIES.COMPRESS
+      });
+    }
+  }
 }

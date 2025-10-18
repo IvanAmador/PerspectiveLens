@@ -261,7 +261,7 @@
             Consensus
             <span class="pl-badge pl-badge-green">${count}</span>
           </div>
-          <p class="pl-section-desc">Facts that 70% or more sources agree on</p>
+          <p class="pl-section-desc">Facts that most sources agree on</p>
           <div class="pl-list">
             ${items.map((item, idx) => this.renderConsensusItem(item, idx)).join('')}
           </div>
