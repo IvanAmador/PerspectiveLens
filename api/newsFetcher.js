@@ -1,3 +1,4 @@
+
 /**
  * Professional News Fetcher for PerspectiveLens
  * Fetches news articles from Google News RSS with smart query building
@@ -38,8 +39,8 @@ const NEWS_CONFIG = {
   ],
   
   // Search configuration
-  MAX_RESULTS_PER_COUNTRY: 3,
-  FINAL_RESULTS_COUNT: 15,
+  MAX_RESULTS_PER_COUNTRY: 5,
+  FINAL_RESULTS_COUNT: 20,
   
   // RSS parsing patterns
   REGEX_PATTERNS: {

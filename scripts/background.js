@@ -255,7 +255,7 @@ async function handleNewArticle(articleData) {
         });
 
         perspectivesWithContent = await extractArticlesContentWithTabs(perspectives, {
-          maxArticles: 4,
+          maxArticles: 10,
           timeout: 20000,
           parallel: true,
           batchSize: 10

@@ -22,10 +22,10 @@ import { logger } from '../utils/logger.js';
  * Content extraction quality thresholds
  */
 const QUALITY_THRESHOLDS = {
-  MIN_CONTENT_LENGTH: 200,        // Minimum chars for valid article
-  MIN_WORD_COUNT: 50,              // Minimum words for valid article
-  MAX_HTML_RATIO: 0.4,             // Max HTML tags to text ratio
-  PREFERRED_CONTENT_LENGTH: 500    // Target length for good quality
+  MIN_CONTENT_LENGTH: 3000,       // Minimum ~500 words for substantial content
+  MAX_CONTENT_LENGTH: 10000,      // Maximum ~1500 words to avoid overly long articles
+  MIN_WORD_COUNT: 500,            // Minimum words for substantial content
+  MAX_HTML_RATIO: 0.4             // Max HTML tags to text ratio
 };
 
 /**
@@ -788,6 +788,11 @@ function assessContentQuality(content) {
   if (textLength < QUALITY_THRESHOLDS.MIN_CONTENT_LENGTH) {
     issues.push('content_too_short');
     score -= 40;
+  }
+  
+  if (textLength > QUALITY_THRESHOLDS.MAX_CONTENT_LENGTH) {
+    issues.push('content-too-long');
+    score -= 20;
   }
 
   if (wordCount < QUALITY_THRESHOLDS.MIN_WORD_COUNT) {
