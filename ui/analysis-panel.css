@@ -1,9 +1,24 @@
 /**
  * PerspectiveLens Analysis Panel Styles
- * Chrome Material 3 design using design system
+ * Minimalist design with neutral colors
  */
 
 @import url('./design-system.css');
+
+/* ============================================
+   MINIMALIST COLOR SYSTEM
+   ============================================ */
+
+:root {
+  --pl-color-primary: #1a1a1a;
+  --pl-color-secondary: #666666;
+  --pl-color-tertiary: #999999;
+  --pl-color-border: #e0e0e0;
+  --pl-color-bg-card: #fafafa;
+  --pl-color-bg-guidance: #f5f5f5;
+  --pl-color-accent: #0066cc; /* Links */
+  --pl-color-accent-hover: #0052a3;
+}
 
 /* ============================================
    MAIN PANEL CONTAINER
@@ -217,8 +232,22 @@
 }
 
 .pl-card-summary {
-  background: var(--state-info-background);
-  border-color: var(--state-info);
+  background: var(--pl-color-bg-card);
+  border-left: 3px solid var(--pl-color-secondary);
+}
+
+.pl-card-guidance {
+  background: var(--pl-color-bg-guidance);
+  border-left: 3px solid var(--pl-color-secondary);
+  border-radius: var(--radius-card);
+  padding: var(--spacing-4);
+  border: 1px solid var(--pl-color-border);
+}
+
+.pl-guidance-text {
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-relaxed);
+  color: var(--pl-color-primary);
 }
 
 .pl-card-title {
@@ -370,16 +399,6 @@
   color: var(--state-warning);
 }
 
-.pl-badge-orange {
-  background: var(--state-warning-background);
-  color: var(--state-warning);
-}
-
-.pl-badge-red {
-  background: var(--state-error-background);
-  color: var(--state-error);
-}
-
 /* ============================================
    LIST ITEMS
    ============================================ */
@@ -504,80 +523,32 @@
   border: 1px solid var(--border-color-subtle);
 }
 
-.pl-tag-confidence-high {
-  background: var(--state-success-background);
-  color: var(--state-success);
-  border-color: var(--state-success);
-}
-
-.pl-tag-confidence-medium {
-  background: var(--state-warning-background);
-  color: var(--state-warning);
-  border-color: var(--state-warning);
-}
-
-.pl-tag-confidence-low {
-  background: var(--state-error-background);
-  color: var(--state-error);
-  border-color: var(--state-error);
-}
-
-/* Tag colors for source groups */
-.pl-tag-red {
-  background: var(--state-error-background);
-  color: var(--state-error);
-  border-color: var(--state-error);
-}
-
-.pl-tag-blue {
-  background: rgba(26, 115, 232, 0.1);
-  color: #1a73e8;
-  border-color: rgba(26, 115, 232, 0.3);
-}
-
-.pl-tag-gray {
-  background: var(--color-background-tertiary);
-  color: var(--color-text-secondary);
-  border-color: var(--border-color-subtle);
-}
-
-.pl-tag-light {
-  background: var(--color-background-secondary);
-  color: var(--color-text-tertiary);
-  border-color: var(--border-color-subtle);
-}
-
-/* ============================================
-   PATTERN BADGES
-   ============================================ */
-
-.pl-pattern-badge {
-  display: inline-block;
+.pl-tag-source {
+  background: white;
+  border: 1px solid var(--pl-color-border);
+  color: var(--pl-color-primary);
   padding: var(--spacing-1) var(--spacing-2);
   border-radius: var(--radius-chip);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  text-decoration: none;
+  display: inline-block;
+  transition: all var(--transition-fast);
 }
 
-.pl-pattern-tone {
-  background: rgba(234, 67, 53, 0.1);
-  color: #ea4335;
-  border: 1px solid rgba(234, 67, 53, 0.3);
+.pl-tag-link {
+  cursor: pointer;
 }
 
-.pl-pattern-framing {
-  background: rgba(251, 188, 5, 0.1);
-  color: #f9ab00;
-  border: 1px solid rgba(251, 188, 5, 0.3);
+.pl-tag-link:hover {
+  background: var(--pl-color-accent);
+  color: white;
+  border-color: var(--pl-color-accent);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.pl-pattern-coverage {
-  background: rgba(52, 168, 83, 0.1);
-  color: #34a853;
-  border: 1px solid rgba(52, 168, 83, 0.3);
-}
+/* Obsolete styles removed: confidence badges, pattern badges, old tag colors */
 
 /* ============================================
    SOURCE GROUPS
@@ -612,11 +583,51 @@
    ============================================ */
 
 .pl-list-item-difference {
-  border-left-color: var(--state-warning);
+  border-left-color: var(--pl-color-secondary);
 }
 
 .pl-list-item-difference:hover {
-  border-left-color: var(--state-warning);
+  border-left-color: var(--pl-color-accent);
+}
+
+/* ============================================
+   KEY DIFFERENCES - GROUPS LAYOUT
+   ============================================ */
+
+.pl-difference-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-3);
+}
+
+.pl-difference-group {
+  background: var(--pl-color-bg-card);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-3);
+  border: 1px solid var(--pl-color-border);
+}
+
+.pl-group-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--pl-color-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--spacing-2);
+}
+
+.pl-group-text {
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  color: var(--pl-color-primary);
+  margin-bottom: var(--spacing-2);
+}
+
+.pl-group-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-1);
 }
 
 /* ============================================
@@ -696,32 +707,46 @@
 
 .pl-footer {
   margin-top: var(--spacing-6);
-  padding-top: var(--spacing-5);
-  border-top: 1px solid var(--border-color-default);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  line-height: var(--line-height-relaxed);
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--pl-color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
 }
 
-.pl-sources-analyzed {
-  margin-bottom: var(--spacing-2);
+.pl-footer-item {
+  font-size: var(--font-size-sm);
+  color: var(--pl-color-secondary);
+  line-height: var(--line-height-normal);
 }
 
-.pl-sources-analyzed strong {
-  color: var(--color-text-title);
+.pl-footer-item strong {
+  color: var(--pl-color-primary);
   font-weight: var(--font-weight-medium);
 }
 
-.pl-source-list {
-  margin: var(--spacing-2) 0;
-  line-height: var(--line-height-relaxed);
+.pl-footer-perspectives {
+  margin-top: var(--spacing-2);
+  padding-top: var(--spacing-2);
+  border-top: 1px solid var(--pl-color-border);
 }
 
-.pl-timestamp {
-  margin-top: var(--spacing-2);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
-  font-style: italic;
+.pl-btn-link {
+  background: none;
+  border: none;
+  color: var(--pl-color-accent);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+  transition: color var(--transition-fast);
+  font-family: var(--font-family-base);
+}
+
+.pl-btn-link:hover {
+  color: var(--pl-color-accent-hover);
+  text-decoration: underline;
 }
 
 /* ============================================
@@ -820,4 +845,204 @@
 
 [data-theme='dark'] .pl-list-item:hover {
   background: var(--color-background-tertiary);
+}
+
+/* ============================================
+   PERSPECTIVES MODAL
+   ============================================ */
+
+.pl-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pl-fadeIn var(--duration-fast) var(--easing-decelerate);
+}
+
+.pl-modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.pl-modal-content {
+  position: relative;
+  background: white;
+  width: 90%;
+  max-width: 1200px;
+  max-height: 90vh;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  animation: pl-slideUp var(--duration-base) var(--easing-decelerate);
+}
+
+@keyframes pl-slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.pl-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-5);
+  border-bottom: 1px solid var(--pl-color-border);
+  flex-shrink: 0;
+}
+
+.pl-modal-header h2 {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--pl-color-primary);
+  margin: 0;
+}
+
+.pl-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-5);
+}
+
+.pl-perspectives-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: var(--spacing-4);
+}
+
+/* Perspective Card */
+.pl-perspective-card {
+  background: white;
+  border: 1px solid var(--pl-color-border);
+  border-radius: var(--radius-card);
+  padding: var(--spacing-4);
+  transition: all var(--transition-base);
+  display: flex;
+  flex-direction: column;
+}
+
+.pl-perspective-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--pl-color-accent);
+  transform: translateY(-2px);
+}
+
+.pl-perspective-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-2);
+}
+
+.pl-perspective-source {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+  color: var(--pl-color-primary);
+}
+
+.pl-perspective-country {
+  font-size: var(--font-size-xs);
+  color: var(--pl-color-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pl-perspective-title {
+  margin: 0 0 var(--spacing-2) 0;
+}
+
+.pl-perspective-title a {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  color: var(--pl-color-primary);
+  text-decoration: none;
+  line-height: var(--line-height-tight);
+  display: block;
+  transition: color var(--transition-fast);
+}
+
+.pl-perspective-title a:hover {
+  color: var(--pl-color-accent);
+}
+
+.pl-perspective-byline {
+  font-size: var(--font-size-xs);
+  color: var(--pl-color-tertiary);
+  margin-bottom: var(--spacing-2);
+  font-style: italic;
+}
+
+.pl-perspective-summary {
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  color: var(--pl-color-secondary);
+  margin-bottom: var(--spacing-3);
+  flex: 1;
+  white-space: pre-line; /* Preserve line breaks from key-points format */
+}
+
+.pl-perspective-meta {
+  display: flex;
+  gap: var(--spacing-3);
+  font-size: var(--font-size-xs);
+  color: var(--pl-color-tertiary);
+  margin-bottom: var(--spacing-2);
+  padding-top: var(--spacing-2);
+  border-top: 1px solid var(--pl-color-border);
+  flex-wrap: wrap;
+}
+
+.pl-perspective-link {
+  font-size: var(--font-size-sm);
+  color: var(--pl-color-accent);
+  text-decoration: none;
+  font-weight: var(--font-weight-medium);
+  transition: color var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+}
+
+.pl-perspective-link:hover {
+  color: var(--pl-color-accent-hover);
+  text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .pl-perspectives-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .pl-modal-content {
+    width: 95%;
+    max-height: 95vh;
+  }
+
+  .pl-perspectives-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pl-modal-header {
+    padding: var(--spacing-4);
+  }
+
+  .pl-modal-body {
+    padding: var(--spacing-4);
+  }
 }

@@ -1,82 +1,34 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Comparative News Analysis",
-  "description": "Minimalist schema for comparative analysis of news summaries optimized for lightweight LLMs",
+  "title": "News Comparative Analysis (Simplified)",
   "type": "object",
-  "required": ["consensus", "key_differences", "summary"],
+  "required": ["story_summary", "reader_guidance", "consensus", "key_differences"],
   "properties": {
+    "story_summary": {
+      "type": "string",
+      "description": "Neutral summary of what happened in the story. Stick to the basic facts. 1-2 sentences maximum."
+    },
+    "reader_guidance": {
+      "type": "string",
+      "description": "Brief guidance helping readers understand the analysis results. 1-2 sentences."
+    },
     "consensus": {
-      "type": "array",
-      "description": "Facts that 70% or more sources agree upon",
-      "items": {
-        "type": "object",
-        "required": ["fact", "sources"],
-        "properties": {
-          "fact": {
-            "type": "string",
-            "description": "The agreed-upon fact (concise, 1-2 sentences max)"
-          },
-          "sources": {
-            "type": "array",
-            "description": "Source names confirming this fact",
-            "items": { "type": "string" }
-          },
-          "confidence": {
-            "type": "string",
-            "description": "Confidence level: high, medium, or low"
-          }
-        }
+      "type": "object",
+      "description": "Key-value pairs. The key is the agreed-upon fact, and the value is the list of sources confirming it. Max 4 facts.",
+      "maxProperties": 4,
+      "additionalProperties": {
+        "type": "array",
+        "items": {"type": "string"}
       }
     },
     "key_differences": {
       "type": "array",
-      "description": "Significant differences between sources that change reader perception",
+      "description": "List of the most important differences (max 3), with each difference formatted as a single string.",
+      "maxItems": 3,
       "items": {
-        "type": "object",
-        "required": ["aspect", "pattern", "impact"],
-        "properties": {
-          "aspect": {
-            "type": "string",
-            "description": "What differs between sources"
-          },
-          "pattern": {
-            "type": "string",
-            "description": "Type of difference: tone, framing, or coverage"
-          },
-          "emphasizing": {
-            "type": "array",
-            "description": "Sources that highlight this aspect",
-            "items": { "type": "string" }
-          },
-          "minimizing": {
-            "type": "array",
-            "description": "Sources that downplay this aspect",
-            "items": { "type": "string" }
-          },
-          "neutral": {
-            "type": "array",
-            "description": "Sources with balanced treatment",
-            "items": { "type": "string" }
-          },
-          "absent": {
-            "type": "array",
-            "description": "Sources that omit this aspect",
-            "items": { "type": "string" }
-          },
-          "impact": {
-            "type": "string",
-            "description": "How this difference changes reader perception"
-          },
-          "significance": {
-            "type": "string",
-            "description": "Significance level: high, medium, or low"
-          }
-        }
+        "type": "string",
+        "description": "IMPORTANT: Use the exact format 'Aspect: [What differs] | Group A ([Source1, Source2]): [Their approach] | Group B ([Source3, Source4]): [Their approach]'"
       }
-    },
-    "summary": {
-      "type": "string",
-      "description": "Brief overview of the story and analysis (2-3 sentences max)"
     }
   }
 }

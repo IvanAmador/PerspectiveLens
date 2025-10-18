@@ -1,0 +1,21 @@
+:root {
+  /* Tipografia */
+  --color-text-title: #1F1F1F;
+  --color-text-body: #444746;
+
+  /* Fundos */
+  --color-background-primary: #FFFFFF;
+  --color-background-secondary: #F8F9FA; /* Sugestão para variações */
+
+  /* Botões */
+  --button-background: #FFFFFF;
+  --button-background-hover: #EDEDED;
+  --button-text-color: #0B57D0;
+  --button-border-color: #A8C7FA;
+  --button-border-radius: 16px; /* Sugestão para "arredondado" */
+
+  /* Destaque (Accent/Highlight) */
+  --accent-background: #E8F0FE;
+  --accent-text-color: #1967D2;
+  --accent-icon-color: #1A73E8;
+}

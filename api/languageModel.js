@@ -610,10 +610,13 @@ export async function compareArticles(articles, options = {}) {
         category: logger.CATEGORIES.ANALYZE,
         data: {
           hasConsensus: !!analysisResult.consensus,
-          consensusItems: analysisResult.consensus?.length || 0,
+          consensusItems: Array.isArray(analysisResult.consensus)
+            ? analysisResult.consensus.length
+            : Object.keys(analysisResult.consensus || {}).length,
           hasKeyDifferences: !!analysisResult.key_differences,
           keyDifferencesItems: analysisResult.key_differences?.length || 0,
-          hasSummary: !!analysisResult.summary
+          hasStorySummary: !!analysisResult.story_summary,
+          hasReaderGuidance: !!analysisResult.reader_guidance
         }
       });
     } catch (parseError) {
@@ -676,13 +679,48 @@ export async function compareArticles(articles, options = {}) {
         articlesProcessed: processedArticles.length,
         articlesInput: articles.length,
         resultKeys: Object.keys(analysisResult),
-        consensusItems: analysisResult.consensus?.length || 0,
+        consensusItems: Array.isArray(analysisResult.consensus)
+          ? analysisResult.consensus.length
+          : Object.keys(analysisResult.consensus || {}).length,
         keyDifferences: analysisResult.key_differences?.length || 0,
-        hasSummary: !!analysisResult.summary
+        hasStorySummary: !!analysisResult.story_summary,
+        hasReaderGuidance: !!analysisResult.reader_guidance
       }
     });
 
-    return analysisResult;
+    // Return both analysis result AND processed articles with summaries
+    return {
+      ...analysisResult,
+      processedArticles: processedArticles.map(article => ({
+        source: article.source,
+        title: article.title,
+        country: article.country,
+        language: article.language,
+        finalUrl: article.finalUrl,
+        link: article.link,
+        pubDate: article.pubDate,
+        // Include summary/compressed content
+        summary: article.compressedContent || article.extractedContent?.excerpt || '',
+        compressedContent: article.compressedContent,
+        originalContentLength: article.originalContentLength,
+        compressedContentLength: article.compressedContentLength,
+        compressionRatio: article.compressionRatio,
+        // Include original excerpt for fallback
+        excerpt: article.extractedContent?.excerpt,
+        // Full extracted content metadata
+        extractedContent: {
+          excerpt: article.extractedContent?.excerpt,
+          byline: article.extractedContent?.byline,
+          siteName: article.extractedContent?.siteName,
+          lang: article.extractedContent?.lang,
+          length: article.extractedContent?.length,
+          textContent: article.extractedContent?.textContent
+        },
+        extractionMethod: article.extractionMethod,
+        extractionDuration: article.extractionDuration,
+        contentExtracted: article.contentExtracted
+      }))
+    };
   } catch (error) {
     const duration = Date.now() - operationStart;
 

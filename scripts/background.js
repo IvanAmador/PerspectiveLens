@@ -335,7 +335,16 @@ async function handleNewArticle(articleData) {
     let articlesWithContent = []; // Declare outside try block
     try {
       articlesWithContent = perspectivesWithContent.filter(p => p.contentExtracted);
-      
+
+      logger.system.debug('Checking if analysis should run', {
+        category: logger.CATEGORIES.ANALYZE,
+        data: {
+          articlesWithContent: articlesWithContent.length,
+          threshold: 2,
+          shouldAnalyze: articlesWithContent.length >= 2
+        }
+      });
+
       if (articlesWithContent.length >= 2) {
         logger.system.info('Starting comparative analysis', {
           category: logger.CATEGORIES.ANALYZE,
@@ -357,13 +366,65 @@ async function handleNewArticle(articleData) {
           data: { articlesCount: articlesWithContent.length }
         });
 
-        comparativeAnalysis = await compareArticles(articlesWithContent, {
+        const analysisResult = await compareArticles(articlesWithContent, {
           useCompression: true,
           validateContent: true,
           maxArticles: 4,
           compressionLevel: 'long',
           useV2Prompt: true
         });
+
+        logger.system.debug('Raw analysis result from compareArticles', {
+          category: logger.CATEGORIES.ANALYZE,
+          data: {
+            hasStory: !!analysisResult.story_summary,
+            hasGuidance: !!analysisResult.reader_guidance,
+            hasConsensus: !!analysisResult.consensus,
+            consensusType: typeof analysisResult.consensus,
+            consensusSize: analysisResult.consensus ? (Array.isArray(analysisResult.consensus) ? analysisResult.consensus.length : Object.keys(analysisResult.consensus).length) : 0,
+            hasDifferences: !!analysisResult.key_differences,
+            differencesCount: analysisResult.key_differences?.length || 0,
+            hasProcessedArticles: !!analysisResult.processedArticles,
+            processedArticlesCount: analysisResult.processedArticles?.length || 0,
+            allKeys: Object.keys(analysisResult)
+          }
+        });
+
+        // Extract processedArticles, keep rest as analysis
+        const articlesWithSummaries = analysisResult.processedArticles;
+        comparativeAnalysis = analysisResult; // Assign to outer scope (declared on line 334)
+
+        // Update perspectivesWithContent with summaries from processed articles
+        if (articlesWithSummaries && articlesWithSummaries.length > 0) {
+          // Create a map for quick lookup
+          const summaryMap = new Map(
+            articlesWithSummaries.map(a => [a.source, a])
+          );
+
+          // Merge summaries into perspectives
+          perspectivesWithContent = perspectivesWithContent.map(perspective => {
+            const processedArticle = summaryMap.get(perspective.source);
+            if (processedArticle) {
+              return {
+                ...perspective,
+                summary: processedArticle.summary,
+                compressedContent: processedArticle.compressedContent,
+                compressionRatio: processedArticle.compressionRatio,
+                originalContentLength: processedArticle.originalContentLength,
+                compressedContentLength: processedArticle.compressedContentLength
+              };
+            }
+            return perspective;
+          });
+
+          logger.system.info('Summaries merged into perspectives', {
+            category: logger.CATEGORIES.ANALYZE,
+            data: {
+              totalPerspectives: perspectivesWithContent.length,
+              perspectivesWithSummary: perspectivesWithContent.filter(p => p.summary).length
+            }
+          });
+        }
 
         if (comparativeAnalysis.error) {
           logger.system.warn('Analysis completed with warnings', {
@@ -498,14 +559,36 @@ async function handleNewArticle(articleData) {
     // Send analysis to content script for UI display
     if (comparativeAnalysis) {
       try {
+        logger.system.debug('Attempting to send analysis to content script', {
+          category: logger.CATEGORIES.GENERAL,
+          data: {
+            hasAnalysis: !!comparativeAnalysis,
+            hasStory: !!comparativeAnalysis.story_summary,
+            hasGuidance: !!comparativeAnalysis.reader_guidance,
+            hasConsensus: !!comparativeAnalysis.consensus,
+            hasDifferences: !!comparativeAnalysis.key_differences,
+            perspectivesCount: perspectivesWithContent.length,
+            url: articleData.url
+          }
+        });
+
         const tabs = await chrome.tabs.query({ url: articleData.url });
-        
-        logger.system.debug('Sending analysis to content script', {
+
+        logger.system.debug('Tabs query result', {
           category: logger.CATEGORIES.GENERAL,
           data: { tabsFound: tabs.length, url: articleData.url }
         });
 
         if (tabs.length > 0) {
+          logger.system.debug('Sending message to tab', {
+            category: logger.CATEGORIES.GENERAL,
+            data: {
+              tabId: tabs[0].id,
+              messageType: 'SHOW_ANALYSIS',
+              dataKeys: Object.keys(comparativeAnalysis)
+            }
+          });
+
           const response = await chrome.tabs.sendMessage(tabs[0].id, {
             type: 'SHOW_ANALYSIS',
             data: {
@@ -527,10 +610,19 @@ async function handleNewArticle(articleData) {
         }
       } catch (error) {
         logger.system.error('Failed to send analysis to content script', {
-          category: logger.CATEGORIES.GENERAL,
-          error
+          category: logger.CATEGORIES.ERROR,
+          error,
+          data: {
+            errorName: error.name,
+            errorMessage: error.message,
+            hasComparativeAnalysis: !!comparativeAnalysis
+          }
         });
       }
+    } else {
+      logger.system.warn('No comparative analysis to send', {
+        category: logger.CATEGORIES.GENERAL
+      });
     }
 
     logger.both.info('Article processed successfully', {

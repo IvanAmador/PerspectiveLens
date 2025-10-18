@@ -1,0 +1,14 @@
+{
+  "story_summary": "Tech company announces new AI product with mixed reception from industry experts.",
+  "reader_guidance": "Coverage is consistent on core facts but differs significantly in tone and focus. Reading multiple sources recommended for balanced perspective.",
+  "consensus": {
+    "Company announced new AI product on Tuesday": ["TechCrunch", "The Verge", "Ars Technica"],
+    "Product will be available in Q2 2025": ["TechCrunch", "The Verge", "Reuters"],
+    "CEO gave keynote presentation": ["TechCrunch", "The Verge", "Ars Technica", "Reuters"]
+  },
+  "key_differences": [
+    "Aspect: Primary focus | Group A ([TechCrunch, The Verge]): Emphasizes innovative features and technical capabilities of the product | Group B ([Reuters, WSJ]): Focuses on business implications and stock market reaction",
+    "Aspect: Privacy concerns | Group A ([Ars Technica, EFF]): Highlights detailed privacy and security issues with critical analysis | Group B ([TechCrunch, The Verge]): Briefly mentions privacy as one of several features",
+    "Aspect: Expert opinions | Group A ([TechCrunch]): Includes exclusively positive quotes from industry supporters | Group B ([Ars Technica, Reuters]): Presents balanced mix of supportive and skeptical expert views"
+  ]
+}

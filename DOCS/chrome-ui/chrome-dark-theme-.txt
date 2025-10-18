@@ -1,0 +1,1310 @@
+/* Chrome Black Theme */
+
+box-sizing: border-box;
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+
+position: relative;
+width: 931px;
+min-width: 625px;
+height: 615px;
+
+border: 1px solid #ABABAB;
+/* Elevation
+
+Drop Shadow
+*/
+filter: drop-shadow(0px 32px 64px rgba(0, 0, 0, 0.24)) drop-shadow(0px 0px 8px rgba(0, 0, 0, 0.2));
+border-radius: 8px;
+
+
+/* Header */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+
+width: 931px;
+height: 86px;
+
+background: #2B2B2B;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 0;
+
+
+/* Header Top */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: flex-end;
+padding: 0px;
+isolation: isolate;
+
+width: 931px;
+height: 43px;
+
+background: #2B2B2B;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 1;
+
+
+/* Tabs */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: flex-start;
+padding: 0px;
+
+width: 781px;
+height: 34px;
+
+background: linear-gradient(360deg, #3A3A3A 56.96%, #2B2B2B 76.13%);
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+z-index: 0;
+
+
+/* Tab Bookend */
+
+width: 40px;
+height: 34px;
+
+background: #2B2B2B;
+border-radius: 0px 0px 11px 0px;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Button  Close  */
+
+position: absolute;
+width: 28px;
+height: 28px;
+left: 5px;
+top: 0px;
+
+background: #3A3A3A;
+border-radius: 8px;
+
+
+/* Icon Chevron */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 8px;
+gap: 8px;
+
+position: absolute;
+width: 18px;
+height: 18px;
+left: 5px;
+top: 5px;
+
+
+
+/* Vector */
+
+width: 5.25px;
+height: 5.25px;
+
+background: #C7C7C7;
+transform: rotate(45deg);
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Tab Content */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 9px 11px 9px 12px;
+gap: 8px;
+isolation: isolate;
+
+width: 233px;
+height: 34px;
+
+background: #3A3A3A;
+border-radius: 8px 8px 0px 0px;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* Icon Chrome */
+
+width: 18px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+z-index: 0;
+
+
+/* vector */
+
+position: absolute;
+width: 12px;
+height: 12px;
+left: calc(50% - 12px/2 + 0px);
+top: calc(50% - 12px/2 + 0px);
+
+background: #C7C7C7;
+
+
+/* Website Name */
+
+width: 135px;
+height: 15px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+/* identical to box height */
+display: flex;
+align-items: center;
+
+color: #C7C7C7;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+z-index: 1;
+
+
+/* Button  Close  */
+
+position: absolute;
+width: 18px;
+height: 18px;
+right: 6px;
+top: 9px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+z-index: 2;
+
+
+/* Icon X Close */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 8px;
+gap: 8px;
+
+position: absolute;
+width: 18px;
+height: 18px;
+left: 0px;
+top: 0px;
+
+
+
+/* Vector */
+
+width: 6.1px;
+height: 6.1px;
+
+background: #C7C7C7;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Tab Content */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 9px 12px;
+gap: 8px;
+isolation: isolate;
+
+width: 254px;
+height: 34px;
+
+background: #2B2B2B;
+border-radius: 8px 0px 0px 8px;
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+
+
+/* Icon Chrome */
+
+width: 18px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+z-index: 0;
+
+
+/* vector */
+
+position: absolute;
+width: 14px;
+height: 14px;
+left: calc(50% - 14px/2);
+top: calc(50% - 14px/2);
+
+background: #C7C7C7;
+
+
+/* New Tab */
+
+width: 51px;
+height: 15px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+/* identical to box height */
+display: flex;
+align-items: center;
+
+color: #C7C7C7;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+z-index: 1;
+
+
+/* Button  Close + Divider + New  */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 0px;
+gap: 9px;
+
+position: absolute;
+width: 64px;
+height: 18px;
+right: 5px;
+top: 7px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+z-index: 2;
+
+
+/* Icon X Close */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 8px;
+gap: 8px;
+
+width: 18px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Vector */
+
+width: 6.1px;
+height: 6.1px;
+
+background: #C7C7C7;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Icon Line Vertical Divider */
+
+width: 10px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* vector */
+
+position: absolute;
+width: 1px;
+height: 18px;
+left: calc(50% - 1px/2);
+top: 0px;
+
+background: #5E5E5E;
+
+
+/* Icon + Plus */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 8px;
+gap: 8px;
+
+width: 18px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+
+
+/* Vector */
+
+width: 6.1px;
+height: 6.1px;
+
+background: #C7C7C7;
+transform: rotate(45deg);
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Tab Content */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 9px 12px;
+gap: 8px;
+isolation: isolate;
+
+width: 254px;
+height: 34px;
+
+background: #2B2B2B;
+border-radius: 8px 0px 0px 8px;
+
+/* Inside auto layout */
+flex: none;
+order: 3;
+flex-grow: 0;
+
+
+/* Icon Chrome */
+
+width: 18px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+z-index: 0;
+
+
+/* vector */
+
+position: absolute;
+width: 14px;
+height: 14px;
+left: calc(50% - 14px/2);
+top: calc(50% - 14px/2);
+
+background: #C7C7C7;
+
+
+/* New Tab */
+
+width: 51px;
+height: 15px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+/* identical to box height */
+display: flex;
+align-items: center;
+
+color: #C7C7C7;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+z-index: 1;
+
+
+/* Button  Close + Divider + New  */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 0px;
+gap: 9px;
+
+position: absolute;
+width: 64px;
+height: 18px;
+right: 5px;
+top: 7px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+z-index: 2;
+
+
+/* Icon X Close */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 8px;
+gap: 8px;
+
+width: 18px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Vector */
+
+width: 6.1px;
+height: 6.1px;
+
+background: #C7C7C7;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Icon Line Vertical Divider */
+
+width: 10px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* vector */
+
+position: absolute;
+width: 1px;
+height: 18px;
+left: calc(50% - 1px/2);
+top: 0px;
+
+background: #5E5E5E;
+
+
+/* Icon + Plus */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 8px;
+gap: 8px;
+
+width: 18px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+
+
+/* Vector */
+
+width: 6.1px;
+height: 6.1px;
+
+background: #C7C7C7;
+transform: rotate(45deg);
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Add New Tab */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 9px 12px;
+gap: 8px;
+
+display: none;
+width: 40px;
+height: 34px;
+
+background: #2B2B2B;
+border-radius: 8px 8px 0px 8px;
+
+/* Inside auto layout */
+flex: none;
+order: 4;
+flex-grow: 0;
+
+
+/* Application Controller */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: flex-end;
+align-items: flex-start;
+padding: 0px;
+
+position: absolute;
+width: 137px;
+height: 43px;
+right: 0px;
+top: 0px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+z-index: 1;
+
+
+/* Minimize */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+padding: 0px;
+gap: 8px;
+
+width: 45px;
+height: 34px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Icon Minimize */
+
+width: 18px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* icon */
+
+position: absolute;
+width: 10px;
+height: 1px;
+left: calc(50% - 10px/2);
+top: calc(50% - 1px/2);
+
+background: #84888C;
+
+
+/* Maximize */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 0px;
+gap: 8px;
+
+width: 45px;
+height: 34px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* Icon Maximize */
+
+width: 18px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* icon */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 10px;
+height: 10px;
+left: calc(50% - 10px/2);
+top: calc(50% - 10px/2);
+
+border: 1px solid #84888C;
+
+
+/* Close */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+padding: 0px;
+gap: 8px;
+
+width: 48px;
+height: 34px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+
+
+/* Icon Close Window */
+
+width: 18px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* icon */
+
+position: absolute;
+width: 10.61px;
+height: 10.61px;
+left: calc(50% - 10.61px/2 + 0px);
+top: calc(50% - 10.61px/2 - 0px);
+
+background: #84888C;
+
+
+/* Header Base */
+
+box-sizing: border-box;
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 6px 12px;
+
+width: 931px;
+height: 43px;
+
+background: #3A3A3A;
+border-bottom: 1px solid #444746;
+border-radius: 11px 0px 0px 0px;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 1;
+
+
+/* Navigation */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 0px;
+gap: 12px;
+
+width: 907px;
+height: 26px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 1;
+
+
+/* Icons  */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: center;
+padding: 0px;
+gap: 8px;
+
+width: 70px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Icon Home */
+
+display: none;
+width: 18px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Icon Arrow Left */
+
+width: 18px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* Rectangle 2 */
+
+position: absolute;
+width: 7px;
+height: 1.5px;
+left: 4.01px;
+top: 7.88px;
+
+background: #C7C7C7;
+border-radius: 40px;
+transform: rotate(45deg);
+
+
+/* Rectangle 3 */
+
+position: absolute;
+width: 7px;
+height: 1.5px;
+left: 4px;
+top: 4px;
+
+background: #C7C7C7;
+border-radius: 40px;
+transform: rotate(-45deg);
+
+
+/* Rectangle 1 */
+
+position: absolute;
+width: 8.76px;
+height: 1.5px;
+left: 5.64px;
+top: 8.19px;
+
+background: #C7C7C7;
+border-radius: 40px;
+
+
+/* Icon Arrow Right */
+
+width: 18px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+
+
+/* Rectangle 2 */
+
+position: absolute;
+width: 7px;
+height: 1.5px;
+left: 8.38px;
+top: 7.88px;
+
+background: #C7C7C7;
+border-radius: 40px;
+transform: matrix(-0.71, 0.71, 0.71, 0.71, 0, 0);
+
+
+/* Rectangle 3 */
+
+position: absolute;
+width: 7px;
+height: 1.5px;
+left: 8.39px;
+top: 4px;
+
+background: #C7C7C7;
+border-radius: 40px;
+transform: matrix(-0.71, -0.71, -0.71, 0.71, 0, 0);
+
+
+/* Rectangle 1 */
+
+position: absolute;
+width: 8.76px;
+height: 1.5px;
+left: 4px;
+top: 8.19px;
+
+background: #C7C7C7;
+border-radius: 40px;
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Icon Arrow Reload */
+
+width: 18px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 3;
+flex-grow: 0;
+
+
+/* Rectangle 2 */
+
+position: absolute;
+width: 4.88px;
+height: 1.5px;
+left: 9px;
+top: 5.36px;
+
+background: #C7C7C7;
+border-radius: 40px;
+transform: matrix(-1, 0, 0, 1, 0, 0);
+
+
+/* Rectangle 3 */
+
+position: absolute;
+width: 4.88px;
+height: 1.5px;
+left: 12.38px;
+top: 2px;
+
+background: #C7C7C7;
+border-radius: 40px;
+transform: matrix(0, -1, -1, 0, 0, 0);
+
+
+/* Union */
+
+position: absolute;
+width: 11.99px;
+height: 12px;
+left: 3px;
+top: 3px;
+
+background: #C7C7C7;
+
+
+/* Search */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: flex-start;
+padding: 4px 4px 4px 15px;
+gap: 9px;
+isolation: isolate;
+
+width: 725px;
+height: 26px;
+
+background: #282828;
+border-radius: 64px;
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 1;
+
+
+/* Icon Lock */
+
+width: 18px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+z-index: 0;
+
+
+/* Union */
+
+position: absolute;
+width: 10.67px;
+height: 13.42px;
+left: 3.67px;
+top: 1.65px;
+
+background: #C7C7C7;
+
+
+/* Website address */
+
+width: 67px;
+height: 15px;
+
+font-family: 'Inter';
+font-style: normal;
+font-weight: 400;
+font-size: 12px;
+line-height: 15px;
+/* identical to box height */
+display: flex;
+align-items: center;
+
+color: #C7C7C7;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+z-index: 1;
+
+
+/* Icons */
+
+position: absolute;
+width: 82px;
+height: 19px;
+right: 8px;
+top: 2.5px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+z-index: 2;
+
+
+/* Icon Star Favorites */
+
+position: absolute;
+left: 77.44%;
+right: 0.61%;
+top: 5.26%;
+bottom: 0%;
+
+
+
+/* Star 1 */
+
+box-sizing: border-box;
+
+position: absolute;
+width: 17.72px;
+height: 17.72px;
+left: calc(50% - 17.72px/2);
+top: calc(50% - 17.72px/2);
+
+border: 1.5px solid #C7C7C7;
+border-radius: 0.95px;
+
+
+/* Icon Right Set */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+justify-content: center;
+align-items: center;
+padding: 0px;
+gap: 8px;
+
+width: 88px;
+height: 24px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+
+
+/* Icon Jigsaw Puzzle Plugin */
+
+width: 18px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+flex-grow: 0;
+
+
+/* Union */
+
+position: absolute;
+width: 12.81px;
+height: 12.81px;
+left: 3.53px;
+top: 2.27px;
+
+background: #C7C7C7;
+
+
+/* Icon Line Vertical Divider */
+
+width: 10px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+flex-grow: 0;
+
+
+/* vector */
+
+position: absolute;
+width: 1px;
+height: 18px;
+left: calc(50% - 1px/2);
+top: 0px;
+
+background: #5E5E5E;
+
+
+/* Icon Profile */
+
+width: 18px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 2;
+flex-grow: 0;
+
+
+/* Ellipse 1 */
+
+position: absolute;
+width: 18px;
+height: 18px;
+left: 0px;
+top: 0px;
+
+background: #D9D9D9;
+
+
+/* Ellipse 2 */
+
+position: absolute;
+width: 6.84px;
+height: 6.84px;
+left: 5.58px;
+top: 2.89px;
+
+background: #757575;
+transform: matrix(1, 0, 0, -1, 0, 0);
+
+
+/* Rectangle 4 */
+
+position: absolute;
+width: 12.89px;
+height: 4px;
+left: 2.55px;
+top: 10.32px;
+
+background: #757575;
+
+
+/* Icon Ellipsis Vertical */
+
+width: 18px;
+height: 18px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 3;
+flex-grow: 0;
+
+
+/* Vector */
+
+position: absolute;
+width: 2.92px;
+height: 12.92px;
+left: calc(50% - 2.92px/2 + 0px);
+top: calc(50% - 12.92px/2 - 0px);
+
+background: #C7C7C7;
+
+
+/* Body  */
+
+/* Auto layout */
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+padding: 0px;
+
+width: 931px;
+height: 529px;
+
+
+/* Inside auto layout */
+flex: none;
+order: 1;
+align-self: stretch;
+flex-grow: 1;
+
+
+/* Base */
+
+/* Auto layout */
+display: flex;
+flex-direction: row;
+align-items: flex-start;
+padding: 0px;
+
+width: 931px;
+height: 529px;
+
+background: #202124;
+
+/* Inside auto layout */
+flex: none;
+order: 0;
+align-self: stretch;
+flex-grow: 1;

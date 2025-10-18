@@ -377,6 +377,16 @@ function handleShowAnalysis(data) {
       ...data.analysis,
       perspectives: data.perspectives
     };
+    console.log('[PerspectiveLens] Sending to panel:', {
+      hasStory: !!panelData.story_summary,
+      hasGuidance: !!panelData.reader_guidance,
+      hasConsensus: !!panelData.consensus,
+      consensusType: typeof panelData.consensus,
+      consensusKeys: panelData.consensus ? Object.keys(panelData.consensus).length : 0,
+      hasDifferences: !!panelData.key_differences,
+      differencesCount: panelData.key_differences?.length || 0,
+      perspectivesCount: panelData.perspectives?.length || 0
+    });
     window.PerspectiveLensPanel.showAnalysis(panelData);
   } else {
     console.error('[PerspectiveLens] Panel not available!');
