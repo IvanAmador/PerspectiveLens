@@ -322,6 +322,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         handleShowAnalysis(message.data);
         break;
 
+      case 'ANALYSIS_STAGE_COMPLETE':  // ← NEW: Progressive analysis updates
+        handleAnalysisStageComplete(message.data);
+        break;
+
       case 'ANALYSIS_FAILED':
         handleAnalysisError(message.error);
         break;
@@ -390,6 +394,45 @@ function handleShowAnalysis(data) {
     window.PerspectiveLensPanel.showAnalysis(panelData);
   } else {
     console.error('[PerspectiveLens] Panel not available!');
+  }
+}
+
+/**
+ * Handle ANALYSIS_STAGE_COMPLETE message from background
+ * Progressive analysis - updates UI as each stage completes
+ * Background sends: { stage: number, stageData: {...}, perspectives: [...], articleData: {...} }
+ */
+function handleAnalysisStageComplete(data) {
+  console.log(`[PerspectiveLens] Stage ${data.stage} completed:`, data);
+
+  // Don't mark as not in progress until final stage
+  if (data.stage === 4) {
+    analysisInProgress = false;
+  }
+
+  // Update progress tracker if available
+  if (window.PerspectiveLensProgress && data.stage === 4) {
+    window.PerspectiveLensProgress.complete(
+      true,
+      `Analysis complete with ${data.perspectives?.length || 0} perspectives`
+    );
+  }
+
+  // Update panel progressively
+  if (window.PerspectiveLensPanel) {
+    console.log(`[PerspectiveLens] Updating panel with stage ${data.stage}:`, {
+      stage: data.stage,
+      dataKeys: Object.keys(data.stageData),
+      perspectivesCount: data.perspectives?.length || 0
+    });
+
+    window.PerspectiveLensPanel.showAnalysisProgressive(
+      data.stage,
+      data.stageData,
+      data.perspectives
+    );
+  } else {
+    console.error('[PerspectiveLens] Panel not available for progressive update!');
   }
 }
 

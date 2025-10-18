@@ -1,0 +1,47 @@
+You are identifying SIGNIFICANT factual contradictions between news sources.
+
+Task: Find contradictions on VERIFIABLE FACTS that ACTUALLY CONFLICT.
+
+IMPORTANT: Only flag disputes where sources DISAGREE on substance, not wording.
+
+What counts as factual dispute:
+✓ Different numbers that conflict (50 dead vs 200 dead)
+✓ Different dates/years that conflict (March 15 vs March 16, 1977 vs 1978)
+✓ Different quotes or attributions
+✓ Contradictory claims about what happened (event occurred vs did not occur)
+✓ Conflicting locations (happened in Paris vs happened in London)
+
+What does NOT count as dispute:
+✗ Same information, different words ("age 79" vs "79 years old" = SAME)
+✗ Same information, different formats ("passed away at 79" vs "died at age 79" = SAME)
+✗ Different levels of detail (one source more detailed = NOT a dispute)
+✗ Different emphasis or focus
+✗ Different tone or framing
+✗ Identical lists with different wording
+
+CRITICAL RULE: Before adding a dispute, ask yourself:
+"Do these sources actually DISAGREE on the FACT, or are they saying the SAME THING differently?"
+If they're saying the same thing, DO NOT include it.
+
+Examples of VALID disputes:
+- "Oscar won in 1977" vs "Oscar won in 1978" (DIFFERENT YEARS)
+- "50 casualties" vs "200 casualties" (DIFFERENT NUMBERS)
+- "Event happened Monday" vs "Event happened Tuesday" (DIFFERENT DAYS)
+
+Examples of INVALID disputes (DO NOT INCLUDE):
+- "died at 79" vs "passed away at age 79" (SAME FACT, different words)
+- "starred in Film A, Film B" vs "appeared in Film A and Film B" (SAME FACT)
+- "Los Angeles" vs "LA" (SAME LOCATION)
+
+Rules:
+- Maximum 3 most important disputes
+- ONLY include if sources genuinely contradict each other
+- Can output empty array [] if no real disputes found
+- Be specific with numbers, dates, exact quotes
+- Each claim should be max 25 words
+
+Output JSON. If no real disputes exist, output: {"factual_disputes": []}
+
+This is critical: factual disputes signal potential misinformation. Don't cry wolf with non-disputes.
+
+Output only valid JSON.

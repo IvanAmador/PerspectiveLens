@@ -159,6 +159,65 @@
     }
 
     /**
+     * Progressive rendering - updates UI as each analysis stage completes
+     * @param {number} stageNumber - Stage number (1-4)
+     * @param {Object} stageData - Stage data
+     * @param {Array} perspectives - Perspectives array
+     */
+    showAnalysisProgressive(stageNumber, stageData, perspectives) {
+      console.log(`[Panel] Stage ${stageNumber} data received:`, stageData);
+
+      this.show();
+      document.getElementById('pl-loading').style.display = 'none';
+      document.getElementById('pl-error').style.display = 'none';
+
+      const analysisContainer = document.getElementById('pl-analysis');
+      analysisContainer.style.display = 'block';
+
+      // Initialize current analysis on first stage
+      if (!this.currentAnalysis) {
+        this.currentAnalysis = { perspectives };
+        this.sourceLinks = this.buildSourceLinksMap(perspectives);
+      }
+
+      // Merge stage data into current analysis
+      Object.assign(this.currentAnalysis, stageData);
+
+      // Progressive rendering based on stage
+      // Always render from currentAnalysis (which has all accumulated data)
+      let html = '';
+
+      // Stage 1 always present
+      if (this.currentAnalysis.story_summary) {
+        html += this.renderStage1(this.currentAnalysis);
+      }
+
+      // Stage 2 if available
+      if (stageNumber >= 2 && this.currentAnalysis.consensus) {
+        html += this.renderStage2(this.currentAnalysis);
+      }
+
+      // Stage 3 if available
+      if (stageNumber >= 3 && this.currentAnalysis.factual_disputes !== undefined) {
+        html += this.renderStage3(this.currentAnalysis);
+      }
+
+      // Stage 4 if available
+      if (stageNumber >= 4 && this.currentAnalysis.perspective_differences !== undefined) {
+        html += this.renderStage4(this.currentAnalysis);
+      }
+
+      // Footer only on final stage
+      if (stageNumber === 4) {
+        html += this.renderFooter({ perspectives, analysis: this.currentAnalysis });
+      }
+
+      analysisContainer.innerHTML = html;
+
+      this.attachAnalysisEventListeners();
+    }
+
+    /**
      * Build map of source name → article URL for clickable links
      * @param {Array} perspectives - Array of perspective objects
      * @returns {Map<string, string>} Map of source → finalUrl
@@ -671,6 +730,159 @@
       `;
     }
 
+    /**
+     * Render Stage 1: Context & Trust
+     */
+    renderStage1(data) {
+      const trustSignals = {
+        'high_agreement': { icon: '✓', color: 'green', label: 'High Agreement' },
+        'some_conflicts': { icon: '⚠', color: 'yellow', label: 'Some Conflicts' },
+        'major_disputes': { icon: '⚠⚠', color: 'red', label: 'Major Disputes' }
+      };
+
+      const signal = trustSignals[data.trust_signal] || trustSignals['some_conflicts'];
+
+      return `
+        <div class="pl-card pl-card-summary">
+          <div class="pl-card-title">
+            ${PANEL_ICONS.info}
+            Story Summary
+            <span class="pl-badge pl-badge-${signal.color}">${signal.icon} ${signal.label}</span>
+          </div>
+          <div class="pl-main-story">${this.escapeHtml(data.story_summary)}</div>
+          <div class="pl-reader-action">
+            <strong>→</strong> ${this.escapeHtml(data.reader_action)}
+          </div>
+        </div>
+      `;
+    }
+
+    /**
+     * Render Stage 2: Consensus Facts
+     */
+    renderStage2(data) {
+      if (!data.consensus || data.consensus.length === 0) {
+        return '';
+      }
+
+      return `
+        <div class="pl-section">
+          <div class="pl-section-title">
+            ${PANEL_ICONS.consensus}
+            Consensus Facts
+            <span class="pl-badge pl-badge-green">${data.consensus.length}</span>
+          </div>
+          <p class="pl-section-desc">Facts that multiple sources agree on - likely accurate</p>
+          <div class="pl-list">
+            ${data.consensus.map((item, idx) => `
+              <div class="pl-list-item pl-list-item-consensus" id="pl-item-consensus-${idx}">
+                <div class="pl-list-item-title">${this.escapeHtml(item.fact)}</div>
+                <div class="pl-list-item-meta">
+                  <strong>${item.sources.length} sources:</strong>
+                  ${item.sources.map(s => this.renderSourceTag(s)).join(' ')}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    /**
+     * Render Stage 3: Factual Disputes
+     */
+    renderStage3(data) {
+      if (!data.factual_disputes || data.factual_disputes.length === 0) {
+        return `
+          <div class="pl-section">
+            <div class="pl-section-title">
+              ${PANEL_ICONS.consensus}
+              Factual Disputes
+              <span class="pl-badge pl-badge-green">✓ 0</span>
+            </div>
+            <p class="pl-section-desc pl-no-disputes">No factual contradictions found across sources</p>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="pl-section">
+          <div class="pl-section-title">
+            ${PANEL_ICONS.dispute}
+            Factual Disputes
+            <span class="pl-badge pl-badge-red">${data.factual_disputes.length}</span>
+          </div>
+          <p class="pl-section-desc">Direct contradictions on facts - verify with additional sources</p>
+          <div class="pl-list">
+            ${data.factual_disputes.map((item, idx) => `
+              <div class="pl-list-item pl-list-item-dispute" id="pl-item-dispute-${idx}">
+                <div class="pl-list-item-title">${this.escapeHtml(item.what)}</div>
+                <div class="pl-dispute-claims">
+                  <div class="pl-claim">
+                    <div class="pl-claim-label">Claim A (${item.sources_a.length})</div>
+                    <div class="pl-claim-text">${this.escapeHtml(item.claim_a)}</div>
+                    <div class="pl-claim-sources">
+                      ${item.sources_a.map(s => this.renderSourceTag(s)).join(' ')}
+                    </div>
+                  </div>
+                  <div class="pl-claim">
+                    <div class="pl-claim-label">Claim B (${item.sources_b.length})</div>
+                    <div class="pl-claim-text">${this.escapeHtml(item.claim_b)}</div>
+                    <div class="pl-claim-sources">
+                      ${item.sources_b.map(s => this.renderSourceTag(s)).join(' ')}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    /**
+     * Render Stage 4: Perspective Differences
+     */
+    renderStage4(data) {
+      if (!data.perspective_differences || data.perspective_differences.length === 0) {
+        return '';
+      }
+
+      return `
+        <div class="pl-section">
+          <div class="pl-section-title">
+            ${PANEL_ICONS.document}
+            Perspective Differences
+            <span class="pl-badge pl-badge-blue">${data.perspective_differences.length}</span>
+          </div>
+          <p class="pl-section-desc">How sources emphasize or frame the story differently</p>
+          <div class="pl-list">
+            ${data.perspective_differences.map((item, idx) => `
+              <div class="pl-list-item pl-list-item-perspective" id="pl-item-perspective-${idx}">
+                <div class="pl-list-item-title">${this.escapeHtml(item.aspect)}</div>
+                <div class="pl-perspective-groups">
+                  <div class="pl-perspective-group">
+                    <div class="pl-group-label">Approach A (${item.sources_a.length})</div>
+                    <div class="pl-group-text">${this.escapeHtml(item.approach_a)}</div>
+                    <div class="pl-group-sources">
+                      ${item.sources_a.map(s => this.renderSourceTag(s)).join(' ')}
+                    </div>
+                  </div>
+                  <div class="pl-perspective-group">
+                    <div class="pl-group-label">Approach B (${item.sources_b.length})</div>
+                    <div class="pl-group-text">${this.escapeHtml(item.approach_b)}</div>
+                    <div class="pl-group-sources">
+                      ${item.sources_b.map(s => this.renderSourceTag(s)).join(' ')}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
     retry() {
       window.dispatchEvent(new CustomEvent('perspectivelens:retry'));
       this.showLoading();
@@ -705,6 +917,8 @@
 
   window.PerspectiveLensPanel = {
     showAnalysis: (data) => getPanelInstance().showAnalysis(data),
+    showAnalysisProgressive: (stage, stageData, perspectives) =>
+      getPanelInstance().showAnalysisProgressive(stage, stageData, perspectives),
     showError: (error) => getPanelInstance().showError(error),
     showLoading: () => getPanelInstance().showLoading(),
     hide: () => getPanelInstance().hide(),

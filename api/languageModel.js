@@ -777,6 +777,338 @@ export async function compareArticles(articles, options = {}) {
 }
 
 /**
+ * Progressive multi-stage comparative analysis
+ * Performs analysis in 4 stages with UI updates between each
+ *
+ * Benefits:
+ * - UI shows results progressively (2-3s for first stage vs 15-25s total)
+ * - Better quality: Gemini Nano focuses on one task at a time
+ * - Resilient: if Stage 4 fails, Stages 1-3 still work
+ * - No string parsing: structured schemas prevent errors
+ *
+ * Stages:
+ * 1. Context & Trust (2-3s) - story summary + trust signal + reader action
+ * 2. Consensus (3-4s) - facts all sources agree on
+ * 3. Factual Disputes (3-5s) - direct contradictions on verifiable facts
+ * 4. Perspective Differences (3-5s) - how sources frame/emphasize differently
+ *
+ * @param {Array<Object>} articles - Articles with extracted content
+ * @param {Function} onStageComplete - Callback(stageNumber, stageData)
+ * @param {Object} options - Analysis options
+ * @returns {Promise<Object>} Complete analysis result
+ * @throws {AIModelError} If critical stages fail
+ */
+export async function compareArticlesProgressive(articles, onStageComplete, options = {}) {
+  const operationStart = Date.now();
+
+  const {
+    useCompression = true,
+    validateContent = true,
+    maxArticles = 4,
+    compressionLevel = 'long'
+  } = options;
+
+  logger.system.info('Starting progressive multi-stage analysis', {
+    category: logger.CATEGORIES.ANALYZE,
+    data: {
+      inputArticles: articles.length,
+      stages: 4,
+      config: { useCompression, validateContent, maxArticles, compressionLevel }
+    }
+  });
+
+  // Step 1: Validate and prepare articles
+  let validArticles = articles;
+  if (validateContent) {
+    const validationStart = Date.now();
+    validArticles = filterValidArticles(articles);
+    const validationDuration = Date.now() - validationStart;
+
+    logger.system.info('Content validation completed', {
+      category: logger.CATEGORIES.VALIDATE,
+      data: {
+        input: articles.length,
+        valid: validArticles.length,
+        invalid: articles.length - validArticles.length,
+        duration: validationDuration
+      }
+    });
+
+    if (validArticles.length === 0) {
+      throw new AIModelError('No valid articles for analysis');
+    }
+  }
+
+  const articlesToAnalyze = validArticles.slice(0, maxArticles);
+
+  // Step 2: Compress articles
+  let processedArticles = articlesToAnalyze;
+  let compressionMetadata = {};
+
+  if (useCompression) {
+    logger.system.info('Starting article compression', {
+      category: logger.CATEGORIES.COMPRESS,
+      data: { articles: articlesToAnalyze.length, level: compressionLevel }
+    });
+
+    const compressionStart = Date.now();
+    const compressionResult = await batchCompressForAnalysis(
+      articlesToAnalyze,
+      compressionLevel
+    );
+
+    processedArticles = compressionResult.articles;
+    const compressionDuration = Date.now() - compressionStart;
+    const reductionPercent = ((1 - compressionResult.compressedLength / compressionResult.originalLength) * 100).toFixed(1);
+
+    compressionMetadata = {
+      originalLength: compressionResult.originalLength,
+      compressedLength: compressionResult.compressedLength,
+      reduction: `${reductionPercent}%`,
+      duration: compressionDuration
+    };
+
+    logger.system.info('Compression completed', {
+      category: logger.CATEGORIES.COMPRESS,
+      data: compressionMetadata
+    });
+  }
+
+  // Prepare shared input for all stages
+  const sharedInput = prepareAnalysisInput(processedArticles, useCompression);
+
+  logger.system.debug('Analysis input prepared', {
+    category: logger.CATEGORIES.ANALYZE,
+    data: {
+      inputLength: sharedInput.length,
+      articles: processedArticles.length
+    }
+  });
+
+  // Results accumulator
+  const completeAnalysis = {
+    metadata: {
+      articlesAnalyzed: processedArticles.length,
+      articlesInput: articles.length,
+      compressionUsed: useCompression,
+      ...compressionMetadata,
+      stages: [],
+      totalDuration: 0
+    }
+  };
+
+  // Stage definitions
+  const stages = [
+    { name: 'stage1-context-trust', number: 1, schemaKey: 'stage1-context-trust-schema', critical: true },
+    { name: 'stage2-consensus', number: 2, schemaKey: 'stage2-consensus-schema', critical: true },
+    { name: 'stage3-disputes', number: 3, schemaKey: 'stage3-disputes-schema', critical: false },
+    { name: 'stage4-perspectives', number: 4, schemaKey: 'stage4-perspectives-schema', critical: false }
+  ];
+
+  // Execute each stage sequentially
+  for (const stage of stages) {
+    const stageStart = Date.now();
+
+    logger.system.info(`Starting Stage ${stage.number}: ${stage.name}`, {
+      category: logger.CATEGORIES.ANALYZE,
+      data: { stage: stage.number, name: stage.name, critical: stage.critical }
+    });
+
+    let session = null;
+
+    try {
+      // Load stage-specific schema and prompt
+      const schema = await loadSchema(stage.schemaKey);
+      const systemPrompt = await getPrompt(stage.name);
+
+      logger.system.debug(`Stage ${stage.number} schema and prompt loaded`, {
+        category: logger.CATEGORIES.ANALYZE,
+        data: {
+          stage: stage.number,
+          schemaFields: schema.required,
+          promptLength: systemPrompt.length
+        }
+      });
+
+      // Create fresh session for this stage (best practice)
+      session = await createSession({
+        systemPrompt,
+        temperature: 0.7, // Slightly lower for factual analysis
+        topK: 3
+      });
+
+      logger.system.debug(`Stage ${stage.number} session created`, {
+        category: logger.CATEGORIES.ANALYZE,
+        data: {
+          stage: stage.number,
+          quotaUsed: `${session.inputUsage}/${session.inputQuota}`
+        }
+      });
+
+      // Prompt model
+      const promptStart = Date.now();
+      const response = await session.prompt(sharedInput, {
+        responseConstraint: schema
+      });
+      const promptDuration = Date.now() - promptStart;
+
+      logger.system.debug(`Stage ${stage.number} model response received`, {
+        category: logger.CATEGORIES.ANALYZE,
+        data: {
+          stage: stage.number,
+          responseLength: response.length,
+          promptDuration
+        }
+      });
+
+      // Parse response
+      const stageResult = JSON.parse(response);
+      const stageDuration = Date.now() - stageStart;
+
+      // Merge into complete analysis
+      Object.assign(completeAnalysis, stageResult);
+
+      completeAnalysis.metadata.stages.push({
+        stage: stage.number,
+        name: stage.name,
+        duration: stageDuration,
+        promptDuration,
+        success: true
+      });
+
+      logger.system.info(`Stage ${stage.number} completed successfully`, {
+        category: logger.CATEGORIES.ANALYZE,
+        data: {
+          stage: stage.number,
+          duration: stageDuration,
+          resultKeys: Object.keys(stageResult)
+        }
+      });
+
+      // Notify UI of stage completion
+      if (onStageComplete) {
+        try {
+          await onStageComplete(stage.number, {
+            stage: stage.number,
+            name: stage.name,
+            data: stageResult,
+            metadata: {
+              duration: stageDuration,
+              articlesAnalyzed: processedArticles.length
+            }
+          });
+        } catch (callbackError) {
+          logger.system.warn(`Stage ${stage.number} callback failed`, {
+            category: logger.CATEGORIES.ANALYZE,
+            error: callbackError,
+            data: { stage: stage.number }
+          });
+        }
+      }
+
+    } catch (error) {
+      const stageDuration = Date.now() - stageStart;
+
+      logger.system.error(`Stage ${stage.number} failed`, {
+        category: logger.CATEGORIES.ANALYZE,
+        error,
+        data: {
+          stage: stage.number,
+          name: stage.name,
+          duration: stageDuration,
+          errorMessage: error.message,
+          critical: stage.critical
+        }
+      });
+
+      // Record failure
+      completeAnalysis.metadata.stages.push({
+        stage: stage.number,
+        name: stage.name,
+        duration: stageDuration,
+        success: false,
+        error: error.message
+      });
+
+      // For critical stages (1-2), throw error
+      if (stage.critical) {
+        throw new AIModelError(
+          `Critical stage ${stage.number} (${stage.name}) failed: ${error.message}`,
+          error
+        );
+      }
+
+      // For optional stages (3-4), continue
+      logger.system.warn(`Stage ${stage.number} failed but continuing (non-critical)`, {
+        category: logger.CATEGORIES.ANALYZE,
+        data: { stage: stage.number }
+      });
+
+    } finally {
+      // Always destroy session
+      if (session) {
+        try {
+          session.destroy();
+          logger.system.trace(`Stage ${stage.number} session destroyed`, {
+            category: logger.CATEGORIES.ANALYZE,
+            data: { stage: stage.number }
+          });
+        } catch (destroyError) {
+          logger.system.warn(`Failed to destroy stage ${stage.number} session`, {
+            category: logger.CATEGORIES.ANALYZE,
+            error: destroyError
+          });
+        }
+      }
+    }
+  }
+
+  // Finalize metadata
+  completeAnalysis.metadata.totalDuration = Date.now() - operationStart;
+  completeAnalysis.metadata.analysis_timestamp = new Date().toISOString();
+
+  // Add processed articles with summaries
+  completeAnalysis.processedArticles = processedArticles.map(article => ({
+    source: article.source,
+    title: article.title,
+    country: article.country,
+    language: article.language,
+    finalUrl: article.finalUrl,
+    summary: article.compressedContent || article.extractedContent?.excerpt || '',
+    compressedContent: article.compressedContent,
+    originalContentLength: article.originalContentLength,
+    compressedContentLength: article.compressedContentLength,
+    compressionRatio: article.compressionRatio,
+    extractedContent: {
+      excerpt: article.extractedContent?.excerpt,
+      byline: article.extractedContent?.byline,
+      siteName: article.extractedContent?.siteName
+    },
+    extractionMethod: article.extractionMethod
+  }));
+
+  const successfulStages = completeAnalysis.metadata.stages.filter(s => s.success).length;
+  const failedStages = completeAnalysis.metadata.stages.filter(s => !s.success).length;
+
+  logger.system.info('Progressive analysis completed', {
+    category: logger.CATEGORIES.ANALYZE,
+    data: {
+      totalDuration: completeAnalysis.metadata.totalDuration,
+      stagesCompleted: successfulStages,
+      stagesFailed: failedStages,
+      stages: completeAnalysis.metadata.stages.map(s => ({
+        stage: s.stage,
+        name: s.name,
+        success: s.success,
+        duration: s.duration
+      }))
+    }
+  });
+
+  return completeAnalysis;
+}
+
+/**
  * Prepare analysis input from articles
  * @param {Array<Object>} articles - Articles to analyze
  * @param {boolean} isCompressed - Whether articles are compressed
@@ -789,8 +1121,8 @@ function prepareAnalysisInput(articles, isCompressed = false) {
   });
 
   const formattedArticles = articles.map((article, index) => {
-    const content = isCompressed 
-      ? article.compressedContent 
+    const content = isCompressed
+      ? article.compressedContent
       : sanitizeContentForAI(article.extractedContent?.textContent || '');
 
     return `[Article ${index + 1}]

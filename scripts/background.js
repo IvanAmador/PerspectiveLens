@@ -10,7 +10,7 @@
  */
 
 import { logger } from '../utils/logger.js';
-import { checkAvailability, createSession, compareArticles } from '../api/languageModel.js';
+import { checkAvailability, createSession, compareArticlesProgressive } from '../api/languageModel.js';
 import { handleError } from '../utils/errors.js';
 import { normalizeLanguageCode } from '../utils/languages.js';
 import { fetchPerspectives } from '../api/newsFetcher.js';
@@ -346,35 +346,85 @@ async function handleNewArticle(articleData) {
       });
 
       if (articlesWithContent.length >= 2) {
-        logger.system.info('Starting comparative analysis', {
+        logger.system.info('Starting progressive multi-stage analysis', {
           category: logger.CATEGORIES.ANALYZE,
           data: {
             articlesCount: articlesWithContent.length,
+            stages: 4,
             optimizations: {
               compression: true,
               validation: true,
-              maxArticles: 8
+              maxArticles: 4
             }
           }
         });
 
         logger.progress(logger.CATEGORIES.ANALYZE, {
           status: 'active',
-          userMessage: `Analyzing ${articlesWithContent.length} articles...`,
-          systemMessage: `Running optimized analysis with compression and validation`,
-          progress: 30,
+          userMessage: `Starting analysis of ${articlesWithContent.length} articles...`,
+          systemMessage: `Running progressive 4-stage analysis`,
+          progress: 10,
           data: { articlesCount: articlesWithContent.length }
         });
 
-        const analysisResult = await compareArticles(articlesWithContent, {
-          useCompression: true,
-          validateContent: true,
-          maxArticles: 4,
-          compressionLevel: 'long',
-          useV2Prompt: true
-        });
+        const analysisResult = await compareArticlesProgressive(
+          articlesWithContent,
+          // Stage completion callback - updates UI progressively
+          async (stageNumber, stageData) => {
+            logger.system.info(`Stage ${stageNumber}/4 completed, updating UI`, {
+              category: logger.CATEGORIES.ANALYZE,
+              data: {
+                stage: stageNumber,
+                name: stageData.name,
+                dataKeys: Object.keys(stageData.data)
+              }
+            });
 
-        logger.system.debug('Raw analysis result from compareArticles', {
+            // Send progressive update to content script
+            try {
+              const tabs = await chrome.tabs.query({ url: articleData.url });
+              if (tabs.length > 0) {
+                await chrome.tabs.sendMessage(tabs[0].id, {
+                  type: 'ANALYSIS_STAGE_COMPLETE',
+                  data: {
+                    stage: stageNumber,
+                    stageData: stageData.data,
+                    perspectives: perspectivesWithContent,
+                    articleData
+                  }
+                });
+
+                logger.system.debug(`Stage ${stageNumber} update sent to UI`, {
+                  category: logger.CATEGORIES.ANALYZE,
+                  data: { tabId: tabs[0].id, stage: stageNumber }
+                });
+              }
+            } catch (error) {
+              logger.system.warn('Failed to send stage update to UI', {
+                category: logger.CATEGORIES.ANALYZE,
+                error,
+                data: { stage: stageNumber }
+              });
+            }
+
+            // Update progress bar
+            const progress = 10 + (stageNumber / 4) * 80; // 10-90%
+            const stageNames = ['Context & Trust', 'Consensus', 'Disputes', 'Perspectives'];
+            logger.progress(logger.CATEGORIES.ANALYZE, {
+              status: 'active',
+              userMessage: `Stage ${stageNumber}/4: ${stageNames[stageNumber - 1]} complete`,
+              progress
+            });
+          },
+          {
+            useCompression: true,
+            validateContent: true,
+            maxArticles: 4,
+            compressionLevel: 'long'
+          }
+        );
+
+        logger.system.debug('Raw analysis result from compareArticlesProgressive', {
           category: logger.CATEGORIES.ANALYZE,
           data: {
             hasStory: !!analysisResult.story_summary,

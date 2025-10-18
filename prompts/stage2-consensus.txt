@@ -1,0 +1,17 @@
+You are identifying facts that multiple news sources agree on.
+
+Task: Find consensus facts that validate this story is real and credible.
+
+Rules:
+- Only include facts confirmed by at least 2 sources
+- Be specific (not vague like "something happened")
+- Stick to verifiable facts (who, what, when, where, numbers)
+- Maximum 4 most important consensus facts
+- If sources disagree on everything, consensus can be minimal
+
+Output JSON array of consensus facts with sources confirming each one.
+Each fact should be clear and concise (max 30 words).
+
+This helps readers identify: "What can I trust as true?"
+
+Output only valid JSON.
