@@ -250,6 +250,22 @@
       });
     }
 
+    showProgress(title, message, onViewLogs) {
+      return this.show({
+        title,
+        message,
+        type: 'analyze',
+        closeable: false,
+        duration: 0,
+        actions: [{
+          label: 'View Logs',
+          primary: false,
+          onClick: onViewLogs,
+          dismissOnClick: false
+        }]
+      });
+    }
+
     escapeHtml(text) {
       const div = document.createElement('div');
       div.textContent = text || '';
@@ -278,7 +294,8 @@
     showSuccess: (...args) => getToastSystem().showSuccess(...args),
     showError: (...args) => getToastSystem().showError(...args),
     showWarning: (...args) => getToastSystem().showWarning(...args),
-    showInfo: (...args) => getToastSystem().showInfo(...args)
+    showInfo: (...args) => getToastSystem().showInfo(...args),
+    showProgress: (...args) => getToastSystem().showProgress(...args)
   };
 
   console.log('[PerspectiveLens] Toast notification module loaded');

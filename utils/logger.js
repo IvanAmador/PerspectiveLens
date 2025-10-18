@@ -254,8 +254,10 @@ function shouldLogToConsole(level) {
  */
 function shouldBroadcast(level, context) {
   if (!CONFIG.broadcastEnabled) return false;
-  if (context === LOG_CONTEXTS.SYSTEM) return false;
-  return LOG_LEVELS[level] <= CONFIG.uiLevel;
+
+  // Broadcast ALL logs to UI (filtering happens in frontend)
+  // This allows users to toggle DEBUG/TRACE visibility
+  return true;
 }
 
 /**
@@ -277,21 +279,27 @@ function formatConsoleOutput(entry) {
  * Broadcast log to UI components
  * @param {Object} entry - Log entry
  */
-function broadcastToUI(entry) {
-  if (typeof chrome !== 'undefined' && chrome.runtime) {
+async function broadcastToUI(entry) {
+  // Send to content scripts via chrome.tabs (background context)
+  if (typeof chrome !== 'undefined' && chrome.tabs) {
     try {
-      chrome.runtime.sendMessage({
-        type: 'LOG_EVENT',
-        payload: entry
-      }).catch(() => {
-        // Silently fail if no listeners
-      });
+      const tabs = await chrome.tabs.query({ active: true });
+      for (const tab of tabs) {
+        try {
+          await chrome.tabs.sendMessage(tab.id, {
+            type: 'LOG_EVENT',
+            payload: entry
+          });
+        } catch (e) {
+          // Tab might not have content script, that's ok
+        }
+      }
     } catch (e) {
-      // Extension context not available
+      // Not in background context or tabs API not available
     }
   }
-  
-  // Also dispatch custom event for content scripts
+
+  // Also dispatch custom event for content scripts (content script context)
   if (typeof window !== 'undefined') {
     try {
       window.dispatchEvent(new CustomEvent('perspectivelens:log', {
@@ -326,21 +334,23 @@ function addToHistory(entry) {
 function log(level, context, message, options = {}) {
   // Format log entry
   const entry = formatLogEntry(level, context, message, options);
-  
+
   // Add to history
   addToHistory(entry);
-  
+
   // Console output
   if (shouldLogToConsole(level)) {
     const consoleArgs = formatConsoleOutput(entry);
-    const consoleMethod = level === 'ERROR' ? 'error' : 
+    const consoleMethod = level === 'ERROR' ? 'error' :
                          level === 'WARN' ? 'warn' : 'log';
     console[consoleMethod](...consoleArgs);
   }
-  
-  // Broadcast to UI
+
+  // Broadcast to UI (async, non-blocking)
   if (shouldBroadcast(level, context)) {
-    broadcastToUI(entry);
+    broadcastToUI(entry).catch(() => {
+      // Ignore broadcast errors
+    });
   }
 }
 

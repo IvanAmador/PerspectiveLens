@@ -314,6 +314,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   try {
     switch (message.type) {
+      case 'LOG_EVENT':  // ← NEW: Log events from logger
+        handleLogEvent(message.payload);
+        break;
+
       case 'PROGRESS_UPDATE':
         handleProgressUpdate(message.data);
         break;
@@ -339,6 +343,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return true;
 });
+
+/**
+ * Handle log events from background logger
+ */
+function handleLogEvent(logEntry) {
+  console.log('[PerspectiveLens] Log event received:', logEntry);
+
+  if (window.PerspectiveLensProgress) {
+    window.PerspectiveLensProgress.addLogEntry(logEntry);
+  }
+}
 
 /**
  * Handle progress updates from background
@@ -461,6 +476,15 @@ function handleAnalysisError(error) {
 window.addEventListener('perspectivelens:retry', () => {
   console.log('[PerspectiveLens] Retry requested from panel');
   startAnalysis();
+});
+
+/**
+ * Listen for log events from content script context (via window.dispatchEvent)
+ */
+window.addEventListener('perspectivelens:log', (event) => {
+  if (window.PerspectiveLensProgress) {
+    window.PerspectiveLensProgress.addLogEntry(event.detail);
+  }
 });
 
 /**

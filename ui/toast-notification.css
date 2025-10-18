@@ -17,6 +17,14 @@
   flex-direction: column;
   gap: var(--spacing-3);
   isolation: isolate; /* Create a new stacking context */
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Reposition to left when panel is visible */
+.pl-toast-container.pl-toast-left-side {
+  right: auto;
+  left: var(--spacing-5);
 }
 
 /* Toast notification */
