@@ -11,6 +11,7 @@ const COUNTRIES = availableCountries.map(country => ({
   code: country.code,
   name: country.name,
   language: country.language,
+  continent: country.continent,
   icon: country.icon
 }));
 
@@ -22,6 +23,36 @@ function getFlagPath(countryCode) {
   }
   // Fallback for countries without icon path
   return chrome.runtime.getURL(`icons/flags/${countryCode.toLowerCase()}.svg`);
+}
+
+// Group and sort countries by continent, with selected countries at the top
+function organizeCountries(selectedCountryCodes = []) {
+  // Separate selected and unselected countries
+  const selected = COUNTRIES.filter(c => selectedCountryCodes.includes(c.code));
+  const unselected = COUNTRIES.filter(c => !selectedCountryCodes.includes(c.code));
+
+  // Sort selected countries alphabetically
+  selected.sort((a, b) => a.name.localeCompare(b.name));
+
+  // Group unselected countries by continent
+  const continents = {};
+  unselected.forEach(country => {
+    const continent = country.continent || 'Other';
+    if (!continents[continent]) {
+      continents[continent] = [];
+    }
+    continents[continent].push(country);
+  });
+
+  // Sort countries within each continent alphabetically
+  Object.keys(continents).forEach(continent => {
+    continents[continent].sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  // Sort continents alphabetically
+  const sortedContinents = Object.keys(continents).sort();
+
+  return { selected, continents, sortedContinents };
 }
 
 class OptionsPage {
@@ -253,7 +284,21 @@ class OptionsPage {
   }
 
   applyModalSelection() {
-    // Update main view
+    // Gather selections from modal
+    const perCountry = {};
+    this.elements.countryList.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
+      const countryCode = checkbox.value;
+      const articleInput = this.elements.countryList.querySelector(`input[data-country="${countryCode}"]`);
+      perCountry[countryCode] = parseInt(articleInput.value) || 2;
+    });
+
+    // Update current config
+    if (!this.currentConfig.articleSelection) {
+      this.currentConfig.articleSelection = {};
+    }
+    this.currentConfig.articleSelection.perCountry = perCountry;
+
+    // Update main view with new selections
     this.renderSelectedCountries();
 
     // Close modal
@@ -265,8 +310,13 @@ class OptionsPage {
 
   renderCountryList() {
     const selectedCountries = this.currentConfig.articleSelection?.perCountry || {};
+    const selectedCodes = Object.keys(selectedCountries);
 
-    const html = COUNTRIES.map(country => {
+    // Organize countries by continent with selected at top
+    const { selected, continents, sortedContinents } = organizeCountries(selectedCodes);
+
+    // Helper function to render a country item
+    const renderCountryItem = (country) => {
       const isSelected = country.code in selectedCountries;
       const articleCount = selectedCountries[country.code] || 2;
       const flagPath = getFlagPath(country.code);
@@ -295,7 +345,26 @@ class OptionsPage {
           </div>
         </div>
       `;
-    }).join('');
+    };
+
+    // Build HTML with sections
+    let html = '';
+
+    // Selected countries section (if any)
+    if (selected.length > 0) {
+      html += '<div class="continent-section selected-section">';
+      html += '<div class="continent-header">Selected Countries</div>';
+      html += selected.map(renderCountryItem).join('');
+      html += '</div>';
+    }
+
+    // Continent sections
+    sortedContinents.forEach(continent => {
+      html += `<div class="continent-section">`;
+      html += `<div class="continent-header">${continent}</div>`;
+      html += continents[continent].map(renderCountryItem).join('');
+      html += '</div>';
+    });
 
     this.elements.countryList.innerHTML = html;
 
@@ -307,14 +376,12 @@ class OptionsPage {
 
         articleInput.disabled = !e.target.checked;
         this.updateCountryStats();
-        this.markDirty();
       });
     });
 
     this.elements.countryList.querySelectorAll('.country-article-count').forEach(input => {
       input.addEventListener('change', () => {
         this.updateCountryStats();
-        this.markDirty();
       });
     });
 
@@ -340,6 +407,7 @@ class OptionsPage {
   filterCountries(searchTerm) {
     const term = searchTerm.toLowerCase().trim();
 
+    // Filter country items
     this.elements.countryList.querySelectorAll('.country-item').forEach(item => {
       const countryCode = item.dataset.country;
       const country = COUNTRIES.find(c => c.code === countryCode);
@@ -349,9 +417,16 @@ class OptionsPage {
       const matches =
         country.name.toLowerCase().includes(term) ||
         country.code.toLowerCase().includes(term) ||
-        country.language.toLowerCase().includes(term);
+        country.language.toLowerCase().includes(term) ||
+        (country.continent && country.continent.toLowerCase().includes(term));
 
       item.classList.toggle('hidden', !matches && term);
+    });
+
+    // Hide/show continent sections based on whether they have visible items
+    this.elements.countryList.querySelectorAll('.continent-section').forEach(section => {
+      const visibleItems = section.querySelectorAll('.country-item:not(.hidden)');
+      section.style.display = visibleItems.length > 0 ? 'flex' : 'none';
     });
   }
 
