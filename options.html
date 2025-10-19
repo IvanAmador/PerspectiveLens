@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PerspectiveLens Settings</title>
+  <link rel="stylesheet" href="ui/design-system.css">
+  <link rel="stylesheet" href="ui/options.css">
+</head>
+<body>
+  <!-- Settings Container -->
+  <div class="settings-container">
+    <!-- Header -->
+    <header class="settings-header">
+      <div class="header-content">
+        <h1 class="settings-title">PerspectiveLens Settings</h1>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="settings-body">
+      <!-- Sidebar Navigation -->
+      <aside class="settings-sidebar">
+        <nav class="sidebar-nav">
+          <button class="nav-item active" data-section="countries">
+            <span>Countries & Articles</span>
+          </button>
+          <button class="nav-item" data-section="extraction">
+            <span>Content Extraction</span>
+          </button>
+          <button class="nav-item" data-section="analysis">
+            <span>AI Analysis</span>
+          </button>
+        </nav>
+      </aside>
+
+      <!-- Main Content Area -->
+      <main class="settings-content">
+        <!-- Countries Section -->
+        <section id="section-countries" class="content-section active">
+          <div class="section-header">
+            <h2 class="section-title">Countries & Articles</h2>
+            <p class="section-description">Select which countries to fetch news from and configure article limits</p>
+          </div>
+
+          <div class="settings-card">
+            <div class="card-header">
+              <label class="card-title">Selected Countries</label>
+              <div class="country-stats" id="country-stats">
+                <span class="stat-badge"><span id="selected-count">0</span> countries</span>
+                <span class="stat-badge accent"><span id="total-articles">0</span> articles</span>
+              </div>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="search-box">
+              <input type="text" id="country-search" placeholder="Search countries..." autocomplete="off">
+            </div>
+
+            <!-- Country List -->
+            <div class="country-list" id="country-list">
+              <!-- Will be populated by JavaScript -->
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <h3 class="card-title">Advanced Options</h3>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="buffer-per-country" class="setting-label">Buffer per country</label>
+                <p class="setting-hint">Extra articles to fetch as backup in case of extraction failures</p>
+              </div>
+              <input type="number" id="buffer-per-country" class="number-input" min="0" max="10" value="2">
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="max-for-analysis" class="setting-label">Maximum articles for analysis</label>
+                <p class="setting-hint">Total limit for AI processing to avoid timeouts</p>
+              </div>
+              <input type="number" id="max-for-analysis" class="number-input" min="1" max="50" value="10">
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="allow-fallback" class="setting-label">Allow fallback to other countries</label>
+                <p class="setting-hint">Use articles from other countries if preferred ones have insufficient news</p>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="allow-fallback" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- Content Extraction Section -->
+        <section id="section-extraction" class="content-section">
+          <div class="section-header">
+            <h2 class="section-title">Content Extraction</h2>
+            <p class="section-description">Configure quality thresholds and timeouts for article extraction</p>
+          </div>
+
+          <div class="settings-card">
+            <h3 class="card-title">Quality Thresholds</h3>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="min-content-length" class="setting-label">Minimum content length</label>
+                <p class="setting-hint">Minimum characters required for a valid article</p>
+              </div>
+              <div class="input-with-unit">
+                <input type="number" id="min-content-length" class="number-input" min="100" max="10000" step="100" value="3000">
+                <span class="input-unit">chars</span>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="max-content-length" class="setting-label">Maximum content length</label>
+                <p class="setting-hint">Maximum characters to process per article</p>
+              </div>
+              <div class="input-with-unit">
+                <input type="number" id="max-content-length" class="number-input" min="1000" max="50000" step="1000" value="10000">
+                <span class="input-unit">chars</span>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="min-word-count" class="setting-label">Minimum word count</label>
+                <p class="setting-hint">Minimum words required for a valid article</p>
+              </div>
+              <div class="input-with-unit">
+                <input type="number" id="min-word-count" class="number-input" min="10" max="5000" step="10" value="500">
+                <span class="input-unit">words</span>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="timeout" class="setting-label">Extraction timeout</label>
+                <p class="setting-hint">Maximum time to wait for article extraction before giving up</p>
+              </div>
+              <div class="input-with-unit">
+                <input type="number" id="timeout" class="number-input" min="5000" max="60000" step="1000" value="20000">
+                <span class="input-unit">ms</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- AI Analysis Section -->
+        <section id="section-analysis" class="content-section">
+          <div class="section-header">
+            <h2 class="section-title">AI Analysis</h2>
+            <p class="section-description">Configure AI model parameters for news analysis and summarization</p>
+          </div>
+
+          <div class="settings-card">
+            <h3 class="card-title">Analysis Settings</h3>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label class="setting-label">Compression level</label>
+                <p class="setting-hint">Summary length for each article analysis</p>
+              </div>
+              <div class="radio-group">
+                <label class="radio-label">
+                  <input type="radio" name="compression" value="short">
+                  <span class="radio-custom"></span>
+                  <span>Short</span>
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="compression" value="medium">
+                  <span class="radio-custom"></span>
+                  <span>Medium</span>
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="compression" value="long" checked>
+                  <span class="radio-custom"></span>
+                  <span>Long</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="temperature" class="setting-label">Temperature</label>
+                <p class="setting-hint">Controls randomness: 0.0 = focused and deterministic, 1.0 = creative and varied</p>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="temperature" class="range-slider" min="0" max="1" step="0.1" value="0.7">
+                <span class="slider-value" id="temperature-value">0.7</span>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="top-k" class="setting-label">Top-K</label>
+                <p class="setting-hint">Number of top token options to consider for each step</p>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="top-k" class="range-slider" min="1" max="10" step="1" value="3">
+                <span class="slider-value" id="top-k-value">3</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Footer -->
+    <footer class="settings-footer">
+      <button class="btn-secondary" id="reset-defaults">Reset to defaults</button>
+      <div class="footer-right">
+        <div class="save-indicator" id="save-indicator">
+          <span>✓ All changes saved</span>
+        </div>
+        <button class="btn-primary" id="save-settings">Save changes</button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="settings-toast" role="alert" aria-live="polite">
+    <div class="toast-content">
+      <div class="toast-title" id="toast-title"></div>
+      <div class="toast-message" id="toast-message"></div>
+    </div>
+  </div>
+
+  <script src="ui/options.js" type="module"></script>
+</body>
+</html>

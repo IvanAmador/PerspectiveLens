@@ -163,12 +163,8 @@ async function downloadModel() {
 
 // ===== Open Settings =====
 function openSettings() {
-  // Open settings page or options page
-  if (chrome.runtime.openOptionsPage) {
-    chrome.runtime.openOptionsPage();
-  } else {
-    chrome.tabs.create({ url: 'chrome://extensions/?id=' + chrome.runtime.id });
-  }
+  // Open options page in new tab
+  chrome.tabs.create({ url: chrome.runtime.getURL('options.html') });
 }
 
 // ===== Event Listeners =====

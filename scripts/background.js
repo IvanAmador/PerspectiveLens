@@ -17,6 +17,7 @@ import { fetchPerspectives } from '../api/newsFetcher.js';
 import { extractArticlesContentWithTabs } from '../api/contentExtractor.js';
 import { getSearchConfig, getSelectionTargets, validateConfig } from '../config/pipeline.js';
 import { selectArticlesByCountry, validateCoverage } from '../api/articleSelector.js';
+import { ConfigManager } from '../config/configManager.js';
 
 // Initialize background service
 logger.system.info('Background service worker started', {
@@ -65,6 +66,19 @@ let activeAnalysis = {
   tabId: null,
   requestId: null
 };
+
+/**
+ * Listen for configuration updates
+ */
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === 'CONFIG_UPDATED') {
+    logger.system.info('Configuration updated, reloading pipeline config', {
+      category: logger.CATEGORIES.GENERAL
+    });
+    // Configuration will be loaded fresh on next analysis
+    return;
+  }
+});
 
 /**
  * Handle messages from content scripts and popup

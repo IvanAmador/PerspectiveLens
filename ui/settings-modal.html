@@ -1,0 +1,266 @@
+<!-- Settings Modal Overlay -->
+<div id="settings-modal" class="settings-modal" aria-hidden="true">
+  <div class="modal-overlay" id="modal-overlay"></div>
+
+  <div class="modal-container" role="dialog" aria-labelledby="modal-title">
+    <!-- Modal Header -->
+    <header class="modal-header">
+      <button class="back-btn" id="close-settings" aria-label="Close settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <h1 class="modal-title" id="modal-title">Settings</h1>
+      <div class="header-actions">
+        <button class="icon-btn-header" id="export-config" title="Export configuration">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15M17 8L12 3M12 3L7 8M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <button class="icon-btn-header" id="import-config" title="Import configuration">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15M17 10L12 15M12 15L7 10M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Modal Body -->
+    <div class="modal-body">
+      <!-- Sidebar Navigation -->
+      <aside class="modal-sidebar">
+        <nav class="sidebar-nav">
+          <button class="nav-item active" data-section="countries">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+              <path d="M2 12H22M12 2C14.5 4.5 16 8 16 12C16 16 14.5 19.5 12 22C9.5 19.5 8 16 8 12C8 8 9.5 4.5 12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>Countries & Articles</span>
+          </button>
+          <button class="nav-item" data-section="extraction">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M9 12H15M9 16H15M17 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3H12.5858C12.851 3 13.1054 3.10536 13.2929 3.29289L18.7071 8.70711C18.8946 8.89464 19 9.149 19 9.41421V19C19 20.1046 18.1046 21 17 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Content Extraction</span>
+          </button>
+          <button class="nav-item" data-section="analysis">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M9.663 17H4C4 13.4166 6.91625 10.5 10.5 10.5C11.0944 10.5 11.6681 10.5833 12.2119 10.7381M15 12C17.2091 12 19 10.2091 19 8C19 5.79086 17.2091 4 15 4C12.7909 4 11 5.79086 11 8C11 10.2091 12.7909 12 15 12ZM21 21L18 18L21 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>AI Analysis</span>
+          </button>
+        </nav>
+      </aside>
+
+      <!-- Main Content Area -->
+      <main class="modal-content">
+        <!-- Countries Section -->
+        <section id="section-countries" class="settings-section active">
+          <div class="section-header">
+            <h2 class="section-title">Countries & Articles</h2>
+            <p class="section-description">Select which countries to fetch news from and how many articles per country</p>
+          </div>
+
+          <div class="settings-group">
+            <div class="group-header">
+              <label class="group-label">Selected Countries</label>
+              <div class="country-stats" id="country-stats">
+                <span id="selected-count">0</span> countries selected • <span id="total-articles">0</span> total articles
+              </div>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="search-box">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+                <path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <input type="text" id="country-search" placeholder="Search countries..." autocomplete="off">
+            </div>
+
+            <!-- Country List -->
+            <div class="country-list" id="country-list">
+              <!-- Will be populated by JavaScript -->
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <label class="group-label">Advanced Options</label>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="buffer-per-country" class="setting-label">Buffer per country</label>
+                <p class="setting-hint">Extra articles to fetch as backup</p>
+              </div>
+              <input type="number" id="buffer-per-country" class="number-input" min="0" max="10" value="2">
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="max-for-analysis" class="setting-label">Maximum articles for analysis</label>
+                <p class="setting-hint">Total limit for AI processing</p>
+              </div>
+              <input type="number" id="max-for-analysis" class="number-input" min="1" max="50" value="10">
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="allow-fallback" class="setting-label">Allow fallback to other countries</label>
+                <p class="setting-hint">Use other countries if preferred ones have no news</p>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="allow-fallback" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- Content Extraction Section -->
+        <section id="section-extraction" class="settings-section">
+          <div class="section-header">
+            <h2 class="section-title">Content Extraction</h2>
+            <p class="section-description">Configure quality thresholds for article extraction</p>
+          </div>
+
+          <div class="settings-group">
+            <label class="group-label">Quality Thresholds</label>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="min-content-length" class="setting-label">Minimum content length</label>
+                <p class="setting-hint">Characters required for valid article</p>
+              </div>
+              <div class="input-with-unit">
+                <input type="number" id="min-content-length" class="number-input" min="100" max="10000" step="100" value="3000">
+                <span class="input-unit">chars</span>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="max-content-length" class="setting-label">Maximum content length</label>
+                <p class="setting-hint">Maximum characters to process</p>
+              </div>
+              <div class="input-with-unit">
+                <input type="number" id="max-content-length" class="number-input" min="1000" max="50000" step="1000" value="10000">
+                <span class="input-unit">chars</span>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="min-word-count" class="setting-label">Minimum word count</label>
+                <p class="setting-hint">Words required for valid article</p>
+              </div>
+              <div class="input-with-unit">
+                <input type="number" id="min-word-count" class="number-input" min="10" max="5000" step="10" value="500">
+                <span class="input-unit">words</span>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="timeout" class="setting-label">Extraction timeout</label>
+                <p class="setting-hint">Maximum time to wait for article extraction</p>
+              </div>
+              <div class="input-with-unit">
+                <input type="number" id="timeout" class="number-input" min="5000" max="60000" step="1000" value="20000">
+                <span class="input-unit">ms</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- AI Analysis Section -->
+        <section id="section-analysis" class="settings-section">
+          <div class="section-header">
+            <h2 class="section-title">AI Analysis</h2>
+            <p class="section-description">Configure AI model parameters for news analysis</p>
+          </div>
+
+          <div class="settings-group">
+            <label class="group-label">Analysis Settings</label>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label class="setting-label">Compression level</label>
+                <p class="setting-hint">Summary length for each article</p>
+              </div>
+              <div class="radio-group">
+                <label class="radio-label">
+                  <input type="radio" name="compression" value="short">
+                  <span class="radio-custom"></span>
+                  <span>Short</span>
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="compression" value="medium">
+                  <span class="radio-custom"></span>
+                  <span>Medium</span>
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="compression" value="long" checked>
+                  <span class="radio-custom"></span>
+                  <span>Long</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="temperature" class="setting-label">Temperature</label>
+                <p class="setting-hint">Creativity level (0.0 = factual, 1.0 = creative)</p>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="temperature" class="range-slider" min="0" max="1" step="0.1" value="0.7">
+                <span class="slider-value" id="temperature-value">0.7</span>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <label for="top-k" class="setting-label">Top-K</label>
+                <p class="setting-hint">Number of top options to consider</p>
+              </div>
+              <div class="slider-container">
+                <input type="range" id="top-k" class="range-slider" min="1" max="10" step="1" value="3">
+                <span class="slider-value" id="top-k-value">3</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Modal Footer -->
+    <footer class="modal-footer">
+      <button class="btn-secondary" id="reset-defaults">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C9.61497 21 7.46894 19.9921 5.96999 18.3897M3 12V7M3 12H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Reset to defaults
+      </button>
+      <div class="footer-actions">
+        <button class="btn-tertiary" id="cancel-settings">Cancel</button>
+        <button class="btn-primary" id="save-settings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Save changes
+        </button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="settings-toast" role="alert" aria-live="polite">
+    <div class="toast-icon" id="toast-icon"></div>
+    <div class="toast-content">
+      <div class="toast-title" id="toast-title"></div>
+      <div class="toast-message" id="toast-message"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden File Input for Import -->
+<input type="file" id="import-file-input" accept=".json" style="display: none;">
