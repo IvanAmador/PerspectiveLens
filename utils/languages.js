@@ -161,11 +161,30 @@ const DETECTOR_SUPPORTED_LANGUAGES = [
 ];
 
 /**
- * Languages supported by Chrome Translator API
- * For translation to/from English
+ * Common languages supported by Chrome Translator API (Chrome 138+)
+ * Reference: https://developer.chrome.com/docs/ai/translator-api
+ *
+ * ⚠️ IMPORTANT: This is a REFERENCE list, not authoritative!
+ * The actual supported languages are determined by Translator.availability()
+ * which checks dynamically if a language pair is supported.
+ *
+ * This list exists only for:
+ * - Documentation purposes
+ * - Backward compatibility with legacy code
+ * - Quick validation of common languages
+ *
+ * DO NOT use this to block translations! Always use Translator.availability()
  */
 const TRANSLATOR_SUPPORTED_LANGUAGES = [
-  'en', 'es', 'pt', 'fr', 'de', 'ar', 'zh', 'ja'
+  // Core European
+  'en', 'es', 'pt', 'fr', 'de', 'it', 'nl', 'pl', 'ro', 'cs', 'sk', 'bg',
+  'sv', 'da', 'no', 'fi', 'el', 'hu', 'uk',
+
+  // Asian
+  'zh', 'ja', 'ko', 'hi', 'th', 'vi', 'id', 'bn',
+
+  // Middle Eastern & Other
+  'ar', 'tr', 'ru', 'he', 'fa'
 ];
 
 /**
@@ -226,13 +245,20 @@ export function isDetectorSupported(langCode) {
 }
 
 /**
- * Check if language is supported by Translator API
+ * Check if language is LIKELY supported by Translator API
+ * NOTE: This is a heuristic check. For accurate results, use Translator.availability()
+ * The Translator API supports many more languages than this list.
+ * This function exists for backward compatibility but should not be used to block translations.
+ *
  * @param {string} langCode - Language code (will be normalized)
- * @returns {boolean}
+ * @returns {boolean} True if LIKELY supported (not authoritative)
+ * @deprecated Use Translator.availability() instead for accurate language support
  */
 export function isTranslatorSupported(langCode) {
   const normalized = normalizeLanguageCode(langCode);
-  return TRANSLATOR_SUPPORTED_LANGUAGES.includes(normalized);
+  // Return true for all common languages - let the API decide
+  // Only return false for clearly invalid codes
+  return normalized && normalized.length >= 2;
 }
 
 /**
@@ -255,9 +281,12 @@ export function getPromptAPIPreferredLanguage() {
 
 /**
  * Determine if translation is needed from source to target language
+ * NOTE: This only checks if languages are DIFFERENT, not if translation is possible.
+ * Use Translator.availability() to check if a specific language pair is supported.
+ *
  * @param {string} sourceLang - Source language code
  * @param {string} targetLang - Target language code
- * @returns {boolean}
+ * @returns {boolean} True if languages are different (translation may be needed)
  */
 export function needsTranslation(sourceLang, targetLang) {
   const normalizedSource = normalizeLanguageCode(sourceLang);
@@ -268,17 +297,8 @@ export function needsTranslation(sourceLang, targetLang) {
     return false;
   }
 
-  // Check if both languages are supported by Translator
-  if (!isTranslatorSupported(normalizedSource)) {
-    logger.warn(`Source language not supported for translation: ${sourceLang}`);
-    return false;
-  }
-
-  if (!isTranslatorSupported(normalizedTarget)) {
-    logger.warn(`Target language not supported for translation: ${targetLang}`);
-    return false;
-  }
-
+  // Different languages - translation may be needed
+  // Let the Translator API decide if the pair is supported
   return true;
 }
 
@@ -333,7 +353,7 @@ export function getSupportedLanguages(api) {
     case 'prompt':
       return [...PROMPT_API_OUTPUT_LANGUAGES];
     default:
-      logger.warn(`Unknown API: ${api}`);
+      logger.system.warn(`Unknown API: ${api}`);
       return [];
   }
 }

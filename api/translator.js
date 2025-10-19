@@ -111,31 +111,8 @@ export async function checkLanguagePairAvailability(sourceLanguage, targetLangua
     return 'unavailable';
   }
 
-  // Check if both languages are supported by Translator API
-  if (!isTranslatorSupported(normalizedSource)) {
-    logger.system.warn('Source language not supported by Translator API', {
-      category: logger.CATEGORIES.TRANSLATE,
-      data: {
-        provided: sourceLanguage,
-        normalized: normalizedSource,
-        supported: getSupportedLanguages('translator')
-      }
-    });
-    return 'unavailable';
-  }
-
-  if (!isTranslatorSupported(normalizedTarget)) {
-    logger.system.warn('Target language not supported by Translator API', {
-      category: logger.CATEGORIES.TRANSLATE,
-      data: {
-        provided: targetLanguage,
-        normalized: normalizedTarget,
-        supported: getSupportedLanguages('translator')
-      }
-    });
-    return 'unavailable';
-  }
-
+  // Let the API decide if the language pair is supported
+  // Don't use hardcoded lists - the API knows best!
   try {
     const availability = await self.Translator.availability({
       sourceLanguage: normalizedSource,

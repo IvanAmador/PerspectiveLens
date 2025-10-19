@@ -256,36 +256,36 @@ export async function fetchPerspectives(title, articleData = {}, searchConfig = 
     });
 
     const detectedLang = await detectLanguageSimple(title);
-    
+
     logger.system.debug('Title language detected', {
       category: logger.CATEGORIES.SEARCH,
       data: { language: detectedLang }
     });
 
-    // Step 2: Translate to English if needed (better global search results)
-    let searchTitle = title;
+    // Step 2: Translate to English first (pivot language for better translation quality)
+    let englishTitle = title;
     if (detectedLang !== 'en') {
-      logger.system.info('Translating title to English for better search results', {
+      logger.system.info('Translating title to English (pivot language)', {
         category: logger.CATEGORIES.SEARCH,
         data: { from: detectedLang, to: 'en' }
       });
 
       const translationStart = Date.now();
-      
+
       try {
-        searchTitle = await translate(title, detectedLang, 'en');
+        englishTitle = await translate(title, detectedLang, 'en');
         const translationDuration = Date.now() - translationStart;
-        
-        logger.system.info('Title translated successfully', {
+
+        logger.system.info('Title translated to English successfully', {
           category: logger.CATEGORIES.SEARCH,
           data: {
             originalTitle: title,
-            translatedTitle: searchTitle,
+            englishTitle: englishTitle,
             duration: translationDuration
           }
         });
       } catch (translationError) {
-        logger.system.warn('Translation failed, using original title', {
+        logger.system.warn('Translation to English failed, using original title', {
           category: logger.CATEGORIES.SEARCH,
           error: translationError,
           data: {
@@ -293,35 +293,106 @@ export async function fetchPerspectives(title, articleData = {}, searchConfig = 
           }
         });
         // Fallback to original title
-        searchTitle = title;
+        englishTitle = title;
       }
     } else {
-      logger.system.debug('Title already in English, no translation needed', {
+      logger.system.debug('Title already in English, no pivot translation needed', {
         category: logger.CATEGORIES.SEARCH
       });
     }
 
-    // Step 3: Build search query from (translated) title
-    const query = buildSearchQuery(searchTitle);
+    // Step 3: Pre-translate to all unique languages ONCE
+    // This avoids duplicate model downloads for countries with same language
+    const uniqueLanguages = [...new Set(config.countries.map(c => c.language))];
+    const translationCache = new Map();
 
-    logger.system.info('Starting multi-country search', {
+    // Add original title to cache if it matches one of the target languages
+    translationCache.set(detectedLang, title);
+    translationCache.set('en', englishTitle);
+
+    logger.system.debug('Pre-translating to unique languages', {
       category: logger.CATEGORIES.SEARCH,
       data: {
-        originalTitle: title,
-        searchTitle: searchTitle,
-        searchQuery: query,
-        titleLanguage: detectedLang,
-        wasTranslated: detectedLang !== 'en',
-        countriesCount: config.countries.length
+        uniqueLanguages: uniqueLanguages.filter(lang => lang !== 'en' && lang !== detectedLang),
+        cacheInitialized: {
+          [detectedLang]: 'original',
+          en: detectedLang === 'en' ? 'original' : 'translated'
+        }
       }
     });
 
-    // Step 4: Search across multiple countries in parallel
-    logger.system.debug('Launching parallel searches', {
+    // Translate to each unique language in parallel
+    // This will trigger model downloads if needed (models download on first use)
+    const translationPromises = uniqueLanguages
+      .filter(lang => lang !== 'en' && lang !== detectedLang)
+      .map(async (targetLang) => {
+        try {
+          logger.system.info('Starting translation (may download model)', {
+            category: logger.CATEGORIES.SEARCH,
+            data: {
+              language: targetLang,
+              from: 'en',
+              titleLength: englishTitle.length
+            }
+          });
+
+          const translationStart = Date.now();
+          const translated = await translate(englishTitle, 'en', targetLang);
+          const translationDuration = Date.now() - translationStart;
+
+          translationCache.set(targetLang, translated);
+
+          logger.system.info('Language pre-translated successfully', {
+            category: logger.CATEGORIES.SEARCH,
+            data: {
+              language: targetLang,
+              from: 'en',
+              originalTitle: translated,
+              duration: translationDuration,
+              likelyDownloaded: translationDuration > 2000 // Downloads take >2s
+            }
+          });
+        } catch (error) {
+          logger.system.warn('Pre-translation failed, will use English', {
+            category: logger.CATEGORIES.SEARCH,
+            error,
+            data: {
+              language: targetLang,
+              errorMessage: error.message,
+              errorType: error.name
+            }
+          });
+          translationCache.set(targetLang, englishTitle);
+        }
+      });
+
+    // Wait for all translations (including model downloads) to complete
+    logger.system.info('Waiting for all translations to complete', {
       category: logger.CATEGORIES.SEARCH,
       data: {
-        countries: config.countries.map(c => `${c.code}:${c.fetchTarget}`),
-        totalExpected: config.totalExpected
+        totalLanguages: translationPromises.length,
+        note: 'This includes model downloads if needed (first use)'
+      }
+    });
+
+    await Promise.allSettled(translationPromises);
+
+    logger.system.info('All translations completed', {
+      category: logger.CATEGORIES.SEARCH,
+      data: {
+        cachedLanguages: Array.from(translationCache.keys()),
+        totalTranslations: translationCache.size
+      }
+    });
+
+    // Step 4: Search across multiple countries in parallel using cached translations
+    logger.system.debug('Launching parallel searches with cached translations', {
+      category: logger.CATEGORIES.SEARCH,
+      data: {
+        countries: config.countries.map(c => `${c.code}:${c.language}:${c.fetchTarget}`),
+        totalExpected: config.totalExpected,
+        pivotLanguage: 'en',
+        cachedLanguages: Array.from(translationCache.keys())
       }
     });
 
@@ -329,6 +400,31 @@ export async function fetchPerspectives(title, articleData = {}, searchConfig = 
 
     const searchPromises = config.countries.map(async (country) => {
       try {
+        // Get pre-translated title from cache
+        const localizedTitle = translationCache.get(country.language) || englishTitle;
+
+        logger.system.debug('Using cached translation for country', {
+          category: logger.CATEGORIES.SEARCH,
+          data: {
+            country: country.name,
+            language: country.language,
+            localizedTitle: localizedTitle,
+            fromCache: translationCache.has(country.language)
+          }
+        });
+
+        // Build query with localized title
+        const query = buildSearchQuery(localizedTitle);
+
+        logger.system.debug('Searching with localized query', {
+          category: logger.CATEGORIES.SEARCH,
+          data: {
+            country: country.name,
+            language: country.language,
+            query: query
+          }
+        });
+
         const articles = await searchNews(query, {
           country: country.code,
           language: country.language,
@@ -339,7 +435,10 @@ export async function fetchPerspectives(title, articleData = {}, searchConfig = 
           ...article,
           country: country.name,
           countryCode: country.code,
-          language: country.language
+          language: country.language,
+          searchQuery: query,
+          titleTranslated: detectedLang !== country.language,
+          translatedFrom: detectedLang
         }));
       } catch (error) {
         logger.system.warn('Country search failed', {
@@ -423,7 +522,7 @@ export async function fetchPerspectives(title, articleData = {}, searchConfig = 
     // Article selection will be done by articleSelector.js
     const enrichedPerspectives = allPrioritizedArticles.map(article => ({
       ...article,
-      searchQuery: query,
+      // searchQuery already set in article from country search
       searchedAt: new Date().toISOString(),
       titleTranslated: detectedLang !== 'en',
       originalTitleLanguage: detectedLang
@@ -441,14 +540,15 @@ export async function fetchPerspectives(title, articleData = {}, searchConfig = 
       category: logger.CATEGORIES.SEARCH,
       data: {
         originalTitle: title,
-        searchQuery: query,
+        englishTitle: englishTitle,
         titleTranslated: detectedLang !== 'en',
         totalFound: allArticles.length,
         afterDedup: validPerspectives.length,
         returnedCount: enrichedPerspectives.length,
         countriesRepresented: Object.keys(countryStats).length,
         countryDistribution: countryStats,
-        duration: totalDuration
+        duration: totalDuration,
+        translationsCached: translationCache.size
       }
     });
 
