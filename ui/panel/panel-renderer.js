@@ -264,7 +264,7 @@ export class PanelRenderer {
           <span>${this.escapeHtml(perspective.language || 'unknown')}</span>
           ${perspective.extractionMethod ? `<span>${this.escapeHtml(perspective.extractionMethod)}</span>` : ''}
         </div>
-        <a href="${perspective.finalUrl}" target="_blank" rel="noopener noreferrer" class="pl-perspective-link">
+        <a href="${perspective.finalUrl || perspective.link || '#'}" target="_blank" rel="noopener noreferrer" class="pl-perspective-link">
           Read full article →
         </a>
       </article>

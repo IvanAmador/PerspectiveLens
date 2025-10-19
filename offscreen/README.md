@@ -1,60 +1,63 @@
-# Offscreen Document - Content Extractor
+# Offscreen Folder
 
-## Setup Instructions
+This folder contains the offscreen document implementation for PerspectiveLens, which enables content extraction from web pages in a hidden browser context. This approach is necessary to bypass CORS restrictions and handle complex redirect scenarios like Google News URLs that would otherwise be impossible to process from a background script.
 
-### 1. Download Readability.js
+## Files Overview
 
-Download the standalone Readability.js library:
+### `offscreen.html`
+The HTML document that runs as an offscreen context in the browser. Key features:
 
-```bash
-# Using curl
-curl -o offscreen/readability.js https://cdn.jsdelivr.net/npm/@mozilla/readability@0.5.0/Readability.js
+- Hidden document structure (display: none) that runs in the background
+- Container for dynamic iframes used for content extraction
+- Script tags to load Readability.js and offscreen.js
+- Basic styling to ensure the document remains hidden from users
+- Contains the necessary structure to host iframes for content extraction
 
-# OR using wget
-wget -O offscreen/readability.js https://cdn.jsdelivr.net/npm/@mozilla/readability@0.5.0/Readability.js
+### `offscreen.js`
+The JavaScript logic that powers the offscreen content extraction process. Key functionalities:
 
-# OR download manually from:
-# https://cdn.jsdelivr.net/npm/@mozilla/readability@0.5.0/Readability.js
-```
+- **Message handling**: Listens for messages from the background script requesting content extraction
+- **Google News redirect resolution**: Automatically resolves Google News redirect URLs to get the actual article URLs
+- **Content extraction**: Uses Readability.js in an iframe context to extract clean article content
+- **Fallback mechanisms**: Implements alternative extraction methods when Readability fails
+- **Fetch-based extraction**: Provides an alternative method using fetch API for CORS-friendly sites
+- **Timeout handling**: Implements 10-second timeouts per extraction to prevent hanging
+- **Error handling**: Comprehensive error handling with fallback strategies
+- **Resource cleanup**: Proper iframe cleanup and resource management
 
-### 2. Verify Installation
+### `readability.js`
+Mozilla's Readability.js library that powers the content extraction algorithm. This is the same algorithm used in Firefox Reader Mode, providing:
 
-Check that `readability.js` is in the `offscreen/` folder:
+- Robust content extraction using heuristics to identify main article content
+- Removal of navigation, ads, and other non-content elements
+- Preservation of the most important content elements
+- High-quality text extraction for analysis
 
-```
-offscreen/
-├── offscreen.html
-├── offscreen.js
-├── readability.js  ← Should be here
-└── README.md
-```
+### `Readability-readerable.js`
+A utility script that contains the `isProbablyReaderable` function, which determines if a document is likely suitable for readability processing. Features:
 
-## How It Works
+- Heuristic analysis of document structure to determine readability potential
+- Evaluation of content length and element types
+- Filtering of documents unlikely to provide meaningful content
+- Optimization to avoid processing documents that would yield poor results
 
-1. **Background Script** sends extraction request
-2. **Offscreen Document** creates hidden iframe
-3. **iframe** loads the article URL (handles Google News redirects)
-4. **Readability.js** extracts clean content
-5. **Result** sent back to background script
+### `README.md`
+Setup instructions and usage documentation for the offscreen content extraction system, including:
 
-## Features
+- Download instructions for the Readability.js library
+- File structure verification
+- Explanation of how the offscreen system works
+- Feature list and testing instructions
+- Troubleshooting guidance
 
-- ✅ Handles Google News redirects automatically
-- ✅ Parallel extraction of up to 10 articles
-- ✅ Mozilla's Readability algorithm (same as Firefox Reader Mode)
-- ✅ Fallback methods if Readability fails
-- ✅ 10-second timeout per article
-- ✅ Works 100% in background (no visible windows)
+## Architecture
 
-## Testing
+The offscreen system works by creating a temporary hidden document context in the browser where:
 
-You can test extraction from the browser console:
+1. The background script sends an extraction request to the offscreen document
+2. The offscreen document creates a hidden iframe and loads the target URL
+3. The content is processed with Readability.js to extract clean article content
+4. The extracted content is returned to the background script
+5. The iframe is properly cleaned up to prevent resource leaks
 
-```javascript
-// Test single URL
-chrome.runtime.sendMessage({
-  type: 'EXTRACT_CONTENT_OFFSCREEN',
-  target: 'offscreen',
-  url: 'https://news.google.com/rss/articles/...'
-}, console.log);
-```
+This approach is essential for PerspectiveLens to handle complex content extraction scenarios while respecting browser security restrictions.

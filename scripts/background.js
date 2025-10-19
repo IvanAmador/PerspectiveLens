@@ -15,11 +15,30 @@ import { handleError } from '../utils/errors.js';
 import { normalizeLanguageCode } from '../utils/languages.js';
 import { fetchPerspectives } from '../api/newsFetcher.js';
 import { extractArticlesContentWithTabs } from '../api/contentExtractor.js';
+import { getSearchConfig, getSelectionTargets, validateConfig } from '../config/pipeline.js';
+import { selectArticlesByCountry, validateCoverage } from '../api/articleSelector.js';
 
 // Initialize background service
 logger.system.info('Background service worker started', {
   category: logger.CATEGORIES.GENERAL
 });
+
+// Validate pipeline configuration on startup
+const configValidation = validateConfig();
+if (!configValidation.valid) {
+  logger.system.error('Invalid pipeline configuration', {
+    category: logger.CATEGORIES.GENERAL,
+    data: { issues: configValidation.issues }
+  });
+} else {
+  logger.system.info('Pipeline configuration validated', {
+    category: logger.CATEGORIES.GENERAL,
+    data: {
+      countries: Object.keys(getSelectionTargets().perCountry),
+      totalArticles: getSelectionTargets().total
+    }
+  });
+}
 
 /**
  * Global download state (persists while service worker is active)
@@ -187,9 +206,20 @@ async function handleNewArticle(articleData) {
 
     let perspectives = [];
     try {
-      // Simply pass the title - newsFetcher handles translation automatically
-      perspectives = await fetchPerspectives(articleData.title, articleData);
-      
+      // Get search configuration from centralized config
+      const searchConfig = getSearchConfig();
+
+      logger.system.debug('Using search configuration', {
+        category: logger.CATEGORIES.SEARCH,
+        data: {
+          countries: searchConfig.countries.map(c => `${c.code}:${c.fetchTarget}`),
+          totalExpected: searchConfig.totalExpected
+        }
+      });
+
+      // Pass search config to newsFetcher
+      perspectives = await fetchPerspectives(articleData.title, articleData, searchConfig);
+
       logger.system.info('Perspectives fetched successfully', {
         category: logger.CATEGORIES.SEARCH,
         data: {
@@ -203,7 +233,7 @@ async function handleNewArticle(articleData) {
         userMessage: `Found ${perspectives.length} articles from multiple countries`,
         systemMessage: `Found ${perspectives.length} articles from ${[...new Set(perspectives.map(p => p.country))].length} countries`,
         progress: 100,
-        data: { 
+        data: {
           total: perspectives.length,
           byCountry: perspectives.reduce((acc, p) => {
             acc[p.country] = (acc[p.country] || 0) + 1;
@@ -241,9 +271,9 @@ async function handleNewArticle(articleData) {
       if (perspectives.length > 0) {
         logger.system.debug('Starting content extraction', {
           category: logger.CATEGORIES.FETCH,
-          data: { 
+          data: {
             articlesCount: perspectives.length,
-            config: { maxArticles: 10, timeout: 20000, parallel: true, batchSize: 10 }
+            note: 'Extracting ALL articles, selection happens later'
           }
         });
 
@@ -254,12 +284,9 @@ async function handleNewArticle(articleData) {
           progress: 20
         });
 
-        perspectivesWithContent = await extractArticlesContentWithTabs(perspectives, {
-          maxArticles: 10,
-          timeout: 20000,
-          parallel: true,
-          batchSize: 10
-        });
+        // Extract content from ALL articles (no limit here)
+        // Configuration from pipeline.js is used as defaults
+        perspectivesWithContent = await extractArticlesContentWithTabs(perspectives);
 
         const extractedCount = perspectivesWithContent.filter(p => p.contentExtracted).length;
         
@@ -324,6 +351,60 @@ async function handleNewArticle(articleData) {
       perspectivesWithContent = perspectives;
     }
 
+    // Step 3.5: Intelligent Article Selection
+    logger.progress(logger.CATEGORIES.GENERAL, {
+      status: 'active',
+      userMessage: 'Selecting best articles per country...',
+      progress: 0
+    });
+
+    let selectedArticles = [];
+    try {
+      const articlesWithContent = perspectivesWithContent.filter(p => p.contentExtracted);
+
+      logger.system.info('Starting intelligent article selection', {
+        category: logger.CATEGORIES.GENERAL,
+        data: {
+          availableArticles: articlesWithContent.length,
+          selectionTargets: getSelectionTargets().perCountry
+        }
+      });
+
+      // Validate coverage before selection
+      const coverageValidation = validateCoverage(articlesWithContent);
+
+      if (!coverageValidation.valid) {
+        logger.user.warn('Insufficient articles from some countries', {
+          category: logger.CATEGORIES.SEARCH,
+          data: {
+            coverage: `${Math.round(coverageValidation.coverage)}%`,
+            issues: coverageValidation.issues
+          }
+        });
+      }
+
+      // Select best articles per country
+      const selectionResult = selectArticlesByCountry(articlesWithContent);
+      selectedArticles = selectionResult.articles;
+
+      logger.progress(logger.CATEGORIES.GENERAL, {
+        status: 'completed',
+        userMessage: `Selected ${selectedArticles.length} articles for analysis`,
+        systemMessage: `Smart selection: ${selectedArticles.length} articles from ${Object.keys(selectionResult.metadata.selectionByCountry).length} countries`,
+        progress: 100,
+        data: selectionResult.metadata
+      });
+    } catch (error) {
+      logger.system.error('Article selection failed, using all available', {
+        category: logger.CATEGORIES.GENERAL,
+        error,
+        data: { fallbackCount: perspectivesWithContent.filter(p => p.contentExtracted).length }
+      });
+
+      // Fallback: use all articles with content
+      selectedArticles = perspectivesWithContent.filter(p => p.contentExtracted);
+    }
+
     // Step 4: Compare perspectives
     logger.progress(logger.CATEGORIES.ANALYZE, {
       status: 'active',
@@ -332,43 +413,36 @@ async function handleNewArticle(articleData) {
     });
 
     let comparativeAnalysis = null;
-    let articlesWithContent = []; // Declare outside try block
     try {
-      articlesWithContent = perspectivesWithContent.filter(p => p.contentExtracted);
-
       logger.system.debug('Checking if analysis should run', {
         category: logger.CATEGORIES.ANALYZE,
         data: {
-          articlesWithContent: articlesWithContent.length,
+          selectedArticles: selectedArticles.length,
           threshold: 2,
-          shouldAnalyze: articlesWithContent.length >= 2
+          shouldAnalyze: selectedArticles.length >= 2
         }
       });
 
-      if (articlesWithContent.length >= 2) {
+      if (selectedArticles.length >= 2) {
         logger.system.info('Starting progressive multi-stage analysis', {
           category: logger.CATEGORIES.ANALYZE,
           data: {
-            articlesCount: articlesWithContent.length,
+            articlesCount: selectedArticles.length,
             stages: 4,
-            optimizations: {
-              compression: true,
-              validation: true,
-              maxArticles: 4
-            }
+            note: 'Using centralized config for analysis parameters'
           }
         });
 
         logger.progress(logger.CATEGORIES.ANALYZE, {
           status: 'active',
-          userMessage: `Starting analysis of ${articlesWithContent.length} articles...`,
+          userMessage: `Starting analysis of ${selectedArticles.length} articles...`,
           systemMessage: `Running progressive 4-stage analysis`,
           progress: 10,
-          data: { articlesCount: articlesWithContent.length }
+          data: { articlesCount: selectedArticles.length }
         });
 
         const analysisResult = await compareArticlesProgressive(
-          articlesWithContent,
+          selectedArticles,
           // Stage completion callback - updates UI progressively
           async (stageNumber, stageData) => {
             logger.system.info(`Stage ${stageNumber}/4 completed, updating UI`, {
@@ -389,7 +463,7 @@ async function handleNewArticle(articleData) {
                   data: {
                     stage: stageNumber,
                     stageData: stageData.data,
-                    perspectives: perspectivesWithContent,
+                    perspectives: selectedArticles, // Send only selected articles
                     articleData
                   }
                 });
@@ -415,13 +489,8 @@ async function handleNewArticle(articleData) {
               userMessage: `Stage ${stageNumber}/4: ${stageNames[stageNumber - 1]} complete`,
               progress
             });
-          },
-          {
-            useCompression: true,
-            validateContent: true,
-            maxArticles: 4,
-            compressionLevel: 'long'
           }
+          // Options from PIPELINE_CONFIG are used as defaults
         );
 
         logger.system.debug('Raw analysis result from compareArticlesProgressive', {
@@ -444,19 +513,19 @@ async function handleNewArticle(articleData) {
         const articlesWithSummaries = analysisResult.processedArticles;
         comparativeAnalysis = analysisResult; // Assign to outer scope (declared on line 334)
 
-        // Update perspectivesWithContent with summaries from processed articles
+        // Update selectedArticles with summaries from processed articles
         if (articlesWithSummaries && articlesWithSummaries.length > 0) {
           // Create a map for quick lookup
           const summaryMap = new Map(
             articlesWithSummaries.map(a => [a.source, a])
           );
 
-          // Merge summaries into perspectives
-          perspectivesWithContent = perspectivesWithContent.map(perspective => {
-            const processedArticle = summaryMap.get(perspective.source);
+          // Merge summaries into selected articles
+          selectedArticles = selectedArticles.map(article => {
+            const processedArticle = summaryMap.get(article.source);
             if (processedArticle) {
               return {
-                ...perspective,
+                ...article,
                 summary: processedArticle.summary,
                 compressedContent: processedArticle.compressedContent,
                 compressionRatio: processedArticle.compressionRatio,
@@ -464,14 +533,14 @@ async function handleNewArticle(articleData) {
                 compressedContentLength: processedArticle.compressedContentLength
               };
             }
-            return perspective;
+            return article;
           });
 
-          logger.system.info('Summaries merged into perspectives', {
+          logger.system.info('Summaries merged into selected articles', {
             category: logger.CATEGORIES.ANALYZE,
             data: {
-              totalPerspectives: perspectivesWithContent.length,
-              perspectivesWithSummary: perspectivesWithContent.filter(p => p.summary).length
+              totalArticles: selectedArticles.length,
+              articlesWithSummary: selectedArticles.filter(a => a.summary).length
             }
           });
         }
@@ -513,7 +582,7 @@ async function handleNewArticle(articleData) {
         logger.system.warn('Insufficient articles for analysis', {
           category: logger.CATEGORIES.ANALYZE,
           data: {
-            articlesFound: articlesWithContent.length,
+            articlesFound: selectedArticles.length,
             required: 2
           }
         });
@@ -521,13 +590,13 @@ async function handleNewArticle(articleData) {
         logger.user.warn('Not enough articles for analysis', {
           category: logger.CATEGORIES.ANALYZE,
           data: {
-            message: `Found ${articlesWithContent.length} article(s), need at least 2`
+            message: `Found ${selectedArticles.length} article(s), need at least 2`
           }
         });
 
         logger.progress(logger.CATEGORIES.ANALYZE, {
           status: 'error',
-          userMessage: `Need at least 2 articles for analysis (found ${articlesWithContent.length})`
+          userMessage: `Need at least 2 articles for analysis (found ${selectedArticles.length})`
         });
       }
     } catch (error) {
@@ -539,7 +608,7 @@ async function handleNewArticle(articleData) {
           errorMessage: error.message,
           errorStack: error.stack,
           errorCode: error.code,
-          articlesWithContent: articlesWithContent?.length || 0,
+          selectedArticles: selectedArticles?.length || 0,
           // Check for specific error types
           isNotSupportedError: error.name === 'NotSupportedError',
           isQuotaError: error.message?.includes('quota') || error.message?.includes('context'),
@@ -617,7 +686,7 @@ async function handleNewArticle(articleData) {
             hasGuidance: !!comparativeAnalysis.reader_guidance,
             hasConsensus: !!comparativeAnalysis.consensus,
             hasDifferences: !!comparativeAnalysis.key_differences,
-            perspectivesCount: perspectivesWithContent.length,
+            selectedArticlesCount: selectedArticles.length,
             url: articleData.url
           }
         });
@@ -635,7 +704,8 @@ async function handleNewArticle(articleData) {
             data: {
               tabId: tabs[0].id,
               messageType: 'SHOW_ANALYSIS',
-              dataKeys: Object.keys(comparativeAnalysis)
+              dataKeys: Object.keys(comparativeAnalysis),
+              articlesCount: selectedArticles.length
             }
           });
 
@@ -643,7 +713,7 @@ async function handleNewArticle(articleData) {
             type: 'SHOW_ANALYSIS',
             data: {
               analysis: comparativeAnalysis,
-              perspectives: perspectivesWithContent,
+              perspectives: selectedArticles, // Send only selected articles
               articleData
             }
           });
@@ -679,7 +749,7 @@ async function handleNewArticle(articleData) {
       category: logger.CATEGORIES.GENERAL,
       data: {
         status: result.status,
-        perspectivesCount: perspectivesWithContent.length,
+        selectedArticlesCount: selectedArticles.length,
         hasAnalysis: !!comparativeAnalysis
       }
     });

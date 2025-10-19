@@ -59,14 +59,12 @@ export class Stage4Renderer {
           <h4 class="pl-list-item-title">${escapeHtml(item.aspect)}</h4>
           <div class="pl-perspective-approaches">
             <div class="pl-approach">
-              <div class="pl-approach-label">Approach A (${sourcesACount} source${sourcesACount !== 1 ? 's' : ''})</div>
               <p class="pl-approach-text">${escapeHtml(item.approach_a)}</p>
               <div class="pl-sources-tags">
                 ${sourceATags}
               </div>
             </div>
             <div class="pl-approach">
-              <div class="pl-approach-label">Approach B (${sourcesBCount} source${sourcesBCount !== 1 ? 's' : ''})</div>
               <p class="pl-approach-text">${escapeHtml(item.approach_b)}</p>
               <div class="pl-sources-tags">
                 ${sourceBTags}

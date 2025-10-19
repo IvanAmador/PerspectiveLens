@@ -723,7 +723,7 @@
             ${perspective.extractionMethod ? `<span>${this.escapeHtml(perspective.extractionMethod)}</span>` : ''}
             ${compressionRatio ? `<span>${compressionRatio.toFixed(0)}% compressed</span>` : ''}
           </div>
-          <a href="${perspective.finalUrl}" target="_blank" rel="noopener" class="pl-perspective-link">
+          <a href="${perspective.finalUrl || perspective.link || '#'}" target="_blank" rel="noopener" class="pl-perspective-link">
             Read full article →
           </a>
         </article>

@@ -16,42 +16,19 @@
 import { logger } from '../utils/logger.js';
 import { detectLanguageSimple } from './languageDetector.js';
 import { translate } from './translator.js';
+import { PIPELINE_CONFIG } from '../config/pipeline.js';
 
 /**
- * Google News RSS configuration
+ * RSS parsing patterns
  */
-const NEWS_CONFIG = {
-  // Base RSS search endpoint
-  SEARCH_RSS: 'https://news.google.com/rss/search?q=',
-  
-  // Countries to search for diverse perspectives
-  SEARCH_COUNTRIES: [
-    { code: 'US', language: 'en', name: 'United States' },
-    { code: 'GB', language: 'en', name: 'United Kingdom' },
-    { code: 'BR', language: 'pt', name: 'Brazil' },
-    { code: 'FR', language: 'fr', name: 'France' },
-    { code: 'DE', language: 'de', name: 'Germany' },
-    { code: 'ES', language: 'es', name: 'Spain' },
-    { code: 'CN', language: 'zh-CN', name: 'China' },
-    { code: 'JP', language: 'ja', name: 'Japan' },
-    { code: 'IN', language: 'en', name: 'India' },
-    { code: 'AU', language: 'en', name: 'Australia' }
-  ],
-  
-  // Search configuration
-  MAX_RESULTS_PER_COUNTRY: 5,
-  FINAL_RESULTS_COUNT: 20,
-  
-  // RSS parsing patterns
-  REGEX_PATTERNS: {
-    ITEM: /<item>([\s\S]*?)<\/item>/g,
-    TITLE_CDATA: /<title><!\[CDATA\[(.*?)\]\]><\/title>/,
-    TITLE_PLAIN: /<title>(.*?)<\/title>/,
-    LINK: /<link>(.*?)<\/link>/,
-    PUBDATE: /<pubDate>(.*?)<\/pubDate>/,
-    DESC_CDATA: /<description><!\[CDATA\[(.*?)\]\]><\/description>/,
-    DESC_PLAIN: /<description>(.*?)<\/description>/
-  }
+const REGEX_PATTERNS = {
+  ITEM: /<item>([\s\S]*?)<\/item>/g,
+  TITLE_CDATA: /<title><!\[CDATA\[(.*?)\]\]><\/title>/,
+  TITLE_PLAIN: /<title>(.*?)<\/title>/,
+  LINK: /<link>(.*?)<\/link>/,
+  PUBDATE: /<pubDate>(.*?)<\/pubDate>/,
+  DESC_CDATA: /<description><!\[CDATA\[(.*?)\]\]><\/description>/,
+  DESC_PLAIN: /<description>(.*?)<\/description>/
 };
 
 /**
@@ -85,7 +62,7 @@ async function fetchAndParseRSS(url) {
 
   try {
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
@@ -100,7 +77,6 @@ async function fetchAndParseRSS(url) {
 
     // Parse RSS items using regex
     const items = [];
-    const { REGEX_PATTERNS } = NEWS_CONFIG;
     
     let itemMatch;
     while ((itemMatch = REGEX_PATTERNS.ITEM.exec(xmlText)) !== null) {
@@ -187,7 +163,7 @@ async function searchNews(query, options = {}) {
   try {
     const encodedQuery = encodeURIComponent(query);
     const params = buildRSSParams(country, language);
-    const url = `${NEWS_CONFIG.SEARCH_RSS}${encodedQuery}&${params}`;
+    const url = `${PIPELINE_CONFIG.search.rssBaseUrl}?q=${encodedQuery}&${params}`;
 
     const items = await fetchAndParseRSS(url);
     const results = items.slice(0, Math.max(0, maxResults));
@@ -239,23 +215,37 @@ function buildSearchQuery(title) {
  * Fetch diverse perspectives for an article
  * Main function for F-003: Fetch Perspectives
  * Automatically translates title to English for better global search results
- * 
+ *
  * @param {string} title - Article title
  * @param {Object} articleData - Original article data
+ * @param {Object} searchConfig - Search configuration with countries and targets
  * @returns {Promise<Array<Object>>} Perspective articles with metadata
  */
-export async function fetchPerspectives(title, articleData = {}) {
+export async function fetchPerspectives(title, articleData = {}, searchConfig = null) {
   const operationStart = Date.now();
-  
+
   if (!title || typeof title !== 'string') {
     throw new Error('Title string is required');
   }
+
+  // Use provided config or fall back to default
+  const config = searchConfig || {
+    countries: PIPELINE_CONFIG.search.availableCountries.map(c => ({
+      code: c.code,
+      name: c.name,
+      language: c.language,
+      fetchTarget: 5
+    })),
+    totalExpected: PIPELINE_CONFIG.search.availableCountries.length * 5
+  };
 
   logger.system.info('Starting perspective search with title', {
     category: logger.CATEGORIES.SEARCH,
     data: {
       originalTitle: title,
-      originalSource: articleData.source
+      originalSource: articleData.source,
+      countriesCount: config.countries.length,
+      totalExpected: config.totalExpected
     }
   });
 
@@ -322,7 +312,7 @@ export async function fetchPerspectives(title, articleData = {}) {
         searchQuery: query,
         titleLanguage: detectedLang,
         wasTranslated: detectedLang !== 'en',
-        countriesCount: NEWS_CONFIG.SEARCH_COUNTRIES.length
+        countriesCount: config.countries.length
       }
     });
 
@@ -330,19 +320,19 @@ export async function fetchPerspectives(title, articleData = {}) {
     logger.system.debug('Launching parallel searches', {
       category: logger.CATEGORIES.SEARCH,
       data: {
-        countries: NEWS_CONFIG.SEARCH_COUNTRIES.map(c => c.code),
-        maxPerCountry: NEWS_CONFIG.MAX_RESULTS_PER_COUNTRY
+        countries: config.countries.map(c => `${c.code}:${c.fetchTarget}`),
+        totalExpected: config.totalExpected
       }
     });
 
     const searchStart = Date.now();
-    
-    const searchPromises = NEWS_CONFIG.SEARCH_COUNTRIES.map(async (country) => {
+
+    const searchPromises = config.countries.map(async (country) => {
       try {
         const articles = await searchNews(query, {
           country: country.code,
           language: country.language,
-          maxResults: NEWS_CONFIG.MAX_RESULTS_PER_COUNTRY
+          maxResults: country.fetchTarget
         });
 
         return articles.map(article => ({
@@ -370,7 +360,9 @@ export async function fetchPerspectives(title, articleData = {}) {
       data: {
         totalArticles: allArticles.length,
         duration: searchDuration,
-        avgPerCountry: Math.round(allArticles.length / NEWS_CONFIG.SEARCH_COUNTRIES.length)
+        avgPerCountry: config.countries.length > 0
+          ? Math.round(allArticles.length / config.countries.length)
+          : 0
       }
     });
 
@@ -418,7 +410,7 @@ export async function fetchPerspectives(title, articleData = {}) {
     const guaranteedFromEachCountry = [];
     const remainingArticles = [];
 
-    for (const [country, countryArticles] of articlesByCountry.entries()) {
+    for (const [, countryArticles] of articlesByCountry.entries()) {
       guaranteedFromEachCountry.push(countryArticles[0]);
       if (countryArticles.length > 1) {
         remainingArticles.push(...countryArticles.slice(1));
@@ -427,7 +419,8 @@ export async function fetchPerspectives(title, articleData = {}) {
 
     const allPrioritizedArticles = [...guaranteedFromEachCountry, ...remainingArticles];
 
-    // Step 7: Add metadata and limit results
+    // Step 7: Add metadata - return ALL articles (no slicing here)
+    // Article selection will be done by articleSelector.js
     const enrichedPerspectives = allPrioritizedArticles.map(article => ({
       ...article,
       searchQuery: query,
@@ -436,12 +429,11 @@ export async function fetchPerspectives(title, articleData = {}) {
       originalTitleLanguage: detectedLang
     }));
 
-    const finalPerspectives = enrichedPerspectives.slice(0, NEWS_CONFIG.FINAL_RESULTS_COUNT);
     const totalDuration = Date.now() - operationStart;
 
     // Statistics
     const countryStats = {};
-    finalPerspectives.forEach(p => {
+    enrichedPerspectives.forEach(p => {
       countryStats[p.country] = (countryStats[p.country] || 0) + 1;
     });
 
@@ -453,14 +445,14 @@ export async function fetchPerspectives(title, articleData = {}) {
         titleTranslated: detectedLang !== 'en',
         totalFound: allArticles.length,
         afterDedup: validPerspectives.length,
-        finalCount: finalPerspectives.length,
+        returnedCount: enrichedPerspectives.length,
         countriesRepresented: Object.keys(countryStats).length,
         countryDistribution: countryStats,
         duration: totalDuration
       }
     });
 
-    return finalPerspectives;
+    return enrichedPerspectives;
   } catch (error) {
     const duration = Date.now() - operationStart;
     
@@ -479,22 +471,3 @@ export async function fetchPerspectives(title, articleData = {}) {
   }
 }
 
-/**
- * Get available search countries
- * @returns {Array<Object>} List of country configurations
- */
-export function getSearchCountries() {
-  return [...NEWS_CONFIG.SEARCH_COUNTRIES];
-}
-
-/**
- * Get search configuration
- * @returns {Object} Current configuration
- */
-export function getSearchConfig() {
-  return {
-    maxResultsPerCountry: NEWS_CONFIG.MAX_RESULTS_PER_COUNTRY,
-    finalResultsCount: NEWS_CONFIG.FINAL_RESULTS_COUNT,
-    countriesCount: NEWS_CONFIG.SEARCH_COUNTRIES.length
-  };
-}

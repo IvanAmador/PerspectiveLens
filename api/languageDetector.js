@@ -555,7 +555,12 @@ function fallbackLanguageDetection(text) {
   const lowerText = text.toLowerCase();
 
   // Portuguese patterns (must come before Spanish due to similarities)
-  if (/\b(não|são|também|então|você|artigo|notícias)\b/.test(lowerText)) {
+  if (/\b(não|são|também|então|você|artigo|notícias|recebe|corpos|mortos|prisioneiros)\b/.test(lowerText)) {
+    return 'pt';
+  }
+
+  // Portuguese verb endings (common in PT but not ES)
+  if (/\b\w+(ção|ões|ãe|õe)\b/.test(lowerText)) {
     return 'pt';
   }
 

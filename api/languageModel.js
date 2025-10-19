@@ -27,6 +27,7 @@ import {
   getContentExcerpt
 } from '../utils/contentValidator.js';
 import { batchCompressForAnalysis } from './summarizer.js';
+import { PIPELINE_CONFIG } from '../config/pipeline.js';
 
 // Supported languages for Prompt API output: en, es, ja (Chrome 140+)
 const PROMPT_OUTPUT_LANGUAGES = ['en', 'es', 'ja'];
@@ -275,10 +276,10 @@ export async function compareArticles(articles, options = {}) {
   const operationStart = Date.now();
 
   const {
-    useCompression = true,
-    validateContent = true,
-    maxArticles = 8,
-    compressionLevel = 'long',
+    useCompression = PIPELINE_CONFIG.analysis.useCompression,
+    validateContent = PIPELINE_CONFIG.analysis.validateContent,
+    maxArticles = articles.length, // Analyze ALL provided articles by default
+    compressionLevel = PIPELINE_CONFIG.analysis.compressionLevel,
     temperature,
     topK
   } = options;
@@ -446,8 +447,8 @@ export async function compareArticles(articles, options = {}) {
     const sessionConfig = {
       systemPrompt,
       // Optimize for structured JSON output (lower temperature = more consistent)
-      temperature: temperature ?? 0.8,  // Lower than default (1.0) for factual analysis
-      topK: topK ?? 3  // Keep default topK=3 (doesn't impact performance)
+      temperature: temperature ?? PIPELINE_CONFIG.analysis.model.temperature,
+      topK: topK ?? PIPELINE_CONFIG.analysis.model.topK
     };
 
     session = await createSession(sessionConfig);
@@ -802,10 +803,10 @@ export async function compareArticlesProgressive(articles, onStageComplete, opti
   const operationStart = Date.now();
 
   const {
-    useCompression = true,
-    validateContent = true,
-    maxArticles = 4,
-    compressionLevel = 'long'
+    useCompression = PIPELINE_CONFIG.analysis.useCompression,
+    validateContent = PIPELINE_CONFIG.analysis.validateContent,
+    maxArticles = articles.length, // Analyze ALL provided articles by default
+    compressionLevel = PIPELINE_CONFIG.analysis.compressionLevel
   } = options;
 
   logger.system.info('Starting progressive multi-stage analysis', {
@@ -933,8 +934,8 @@ export async function compareArticlesProgressive(articles, onStageComplete, opti
       // Create fresh session for this stage (best practice)
       session = await createSession({
         systemPrompt,
-        temperature: 0.7, // Slightly lower for factual analysis
-        topK: 3
+        temperature: PIPELINE_CONFIG.analysis.model.temperature,
+        topK: PIPELINE_CONFIG.analysis.model.topK
       });
 
       logger.system.debug(`Stage ${stage.number} session created`, {

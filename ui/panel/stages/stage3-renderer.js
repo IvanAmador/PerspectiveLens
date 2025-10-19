@@ -48,14 +48,12 @@ export class Stage3Renderer {
           <h4 class="pl-list-item-title">${escapeHtml(item.what)}</h4>
           <div class="pl-dispute-claims">
             <div class="pl-claim">
-              <div class="pl-claim-label">Claim A (${sourcesACount} source${sourcesACount !== 1 ? 's' : ''})</div>
               <p class="pl-claim-text">${escapeHtml(item.claim_a)}</p>
               <div class="pl-sources-tags">
                 ${sourceATags}
               </div>
             </div>
             <div class="pl-claim">
-              <div class="pl-claim-label">Claim B (${sourcesBCount} source${sourcesBCount !== 1 ? 's' : ''})</div>
               <p class="pl-claim-text">${escapeHtml(item.claim_b)}</p>
               <div class="pl-sources-tags">
                 ${sourceBTags}

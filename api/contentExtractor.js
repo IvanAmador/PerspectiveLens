@@ -17,33 +17,24 @@
  */
 
 import { logger } from '../utils/logger.js';
-
-/**
- * Content extraction quality thresholds
- */
-const QUALITY_THRESHOLDS = {
-  MIN_CONTENT_LENGTH: 3000,       // Minimum ~500 words for substantial content
-  MAX_CONTENT_LENGTH: 10000,      // Maximum ~1500 words to avoid overly long articles
-  MIN_WORD_COUNT: 500,            // Minimum words for substantial content
-  MAX_HTML_RATIO: 0.4             // Max HTML tags to text ratio
-};
+import { PIPELINE_CONFIG } from '../config/pipeline.js';
 
 /**
  * Extract content from multiple articles using Chrome tabs
- * 
+ *
  * @param {Array<Object>} articles - Articles with {title, link, source}
  * @param {Object} options - Extraction configuration
  * @returns {Promise<Array<Object>>} Articles with extracted content
  */
 export async function extractArticlesContentWithTabs(articles, options = {}) {
   const operationStart = Date.now();
-  
+
   const {
-    maxArticles = 4,
-    timeout = 20000,
-    parallel = true,
-    batchSize = 10,
-    retryOnLowQuality = true,
+    maxArticles = articles.length, // Extract ALL by default, let caller control quantity
+    timeout = PIPELINE_CONFIG.extraction.timeout,
+    parallel = PIPELINE_CONFIG.extraction.parallel,
+    batchSize = PIPELINE_CONFIG.extraction.batchSize,
+    retryOnLowQuality = PIPELINE_CONFIG.extraction.retryLowQuality,
     qualityThreshold = 'medium' // 'low', 'medium', 'high'
   } = options;
 
@@ -780,22 +771,23 @@ function extractContentInPage() {
 function assessContentQuality(content) {
   const issues = [];
   let score = 100;
+  const thresholds = PIPELINE_CONFIG.extraction.qualityThresholds;
 
   const textLength = content.textContent?.length || 0;
   const wordCount = countWords(content.textContent || '');
 
   // Length checks
-  if (textLength < QUALITY_THRESHOLDS.MIN_CONTENT_LENGTH) {
+  if (textLength < thresholds.minContentLength) {
     issues.push('content_too_short');
     score -= 40;
   }
-  
-  if (textLength > QUALITY_THRESHOLDS.MAX_CONTENT_LENGTH) {
+
+  if (textLength > thresholds.maxContentLength) {
     issues.push('content-too-long');
     score -= 20;
   }
 
-  if (wordCount < QUALITY_THRESHOLDS.MIN_WORD_COUNT) {
+  if (wordCount < thresholds.minWordCount) {
     issues.push('word_count_low');
     score -= 30;
   }
@@ -804,8 +796,8 @@ function assessContentQuality(content) {
   if (content.content) {
     const htmlLength = content.content.length;
     const htmlRatio = htmlLength / (textLength || 1);
-    
-    if (htmlRatio > QUALITY_THRESHOLDS.MAX_HTML_RATIO) {
+
+    if (htmlRatio > thresholds.maxHtmlRatio) {
       issues.push('high_html_ratio');
       score -= 20;
     }
