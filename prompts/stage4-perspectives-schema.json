@@ -2,39 +2,39 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Stage 4: Perspective Differences",
   "type": "object",
-  "required": ["perspective_differences"],
+  "required": ["perspective_analysis"],
   "properties": {
-    "perspective_differences": {
+    "perspective_analysis": {
       "type": "array",
-      "description": "How sources emphasize or frame the story differently (focus, tone, context). Can be empty if coverage is similar. Maximum 3 differences.",
-      "maxItems": 3,
+      "description": "Different aspects where sources show different perspectives. Can be empty if coverage is similar.",
       "items": {
         "type": "object",
-        "required": ["aspect", "approach_a", "approach_b", "sources_a", "sources_b"],
+        "required": ["aspect", "approaches"],
         "properties": {
           "aspect": {
             "type": "string",
-            "description": "What aspect differs. Examples: 'Primary focus', 'Tone toward government', 'Context provided'. Maximum 8 words."
+            "description": "What aspect differs between sources. Examples: 'Economic Impact', 'Root Causes', 'Primary Focus', 'Tone'. Keep it short and clear."
           },
-          "approach_a": {
-            "type": "string",
-            "description": "How group A approaches this aspect. Maximum 30 words."
-          },
-          "approach_b": {
-            "type": "string",
-            "description": "How group B approaches this aspect differently. Maximum 30 words."
-          },
-          "sources_a": {
+          "approaches": {
             "type": "array",
-            "description": "Sources using approach A",
-            "items": {"type": "string"},
-            "minItems": 1
-          },
-          "sources_b": {
-            "type": "array",
-            "description": "Sources using approach B",
-            "items": {"type": "string"},
-            "minItems": 1
+            "description": "Different approaches sources take on this aspect. Minimum 2 approaches to show a difference.",
+            "minItems": 2,
+            "items": {
+              "type": "object",
+              "required": ["sources", "focus"],
+              "properties": {
+                "sources": {
+                  "type": "array",
+                  "description": "Sources that share this approach",
+                  "items": {"type": "string"},
+                  "minItems": 1
+                },
+                "focus": {
+                  "type": "string",
+                  "description": "Brief description of what this group of sources focuses on. Keep it concise."
+                }
+              }
+            }
           }
         }
       }

@@ -8,27 +8,27 @@
 export class Stage4Renderer {
   /**
    * Render Stage 4: Perspective Differences
-   * @param {Object} data - { perspective_differences, perspective_differences_2, perspective_differences_3 }
+   * @param {Object} data - { perspective_analysis, perspective_analysis_2, perspective_analysis_3 }
    * @param {Function} escapeHtml - HTML escape function
    * @param {Function} renderSourceTag - Source tag renderer
    * @returns {string} HTML
    */
   static render(data, escapeHtml, renderSourceTag) {
     const {
-      perspective_differences,
-      perspective_differences_2,
-      perspective_differences_3
+      perspective_analysis,
+      perspective_analysis_2,
+      perspective_analysis_3
     } = data;
 
-    // Combine all perspective differences arrays
-    const allDifferences = [
-      ...(perspective_differences || []),
-      ...(perspective_differences_2 || []),
-      ...(perspective_differences_3 || [])
+    // Combine all perspective analysis arrays
+    const allPerspectives = [
+      ...(perspective_analysis || []),
+      ...(perspective_analysis_2 || []),
+      ...(perspective_analysis_3 || [])
     ];
 
     // Empty state
-    if (allDifferences.length === 0) {
+    if (allPerspectives.length === 0) {
       return `
         <div id="pl-stage-4" class="pl-stage" data-stage="4">
           <div class="pl-section">
@@ -48,28 +48,24 @@ export class Stage4Renderer {
     }
 
     // Render perspective items
-    const perspectiveItems = allDifferences.map((item, idx) => {
-      const sourcesACount = item.sources_a?.length || 0;
-      const sourcesBCount = item.sources_b?.length || 0;
-      const sourceATags = (item.sources_a || []).map(s => renderSourceTag(s)).join('');
-      const sourceBTags = (item.sources_b || []).map(s => renderSourceTag(s)).join('');
+    const perspectiveItems = allPerspectives.map((item, idx) => {
+      const approachesHtml = (item.approaches || []).map((approach, approachIdx) => {
+        const sourceTags = (approach.sources || []).map(s => renderSourceTag(s)).join('');
+        return `
+          <div class="pl-approach">
+            <p class="pl-approach-text">${escapeHtml(approach.focus)}</p>
+            <div class="pl-sources-tags">
+              ${sourceTags}
+            </div>
+          </div>
+        `;
+      }).join('');
 
       return `
         <div class="pl-list-item pl-list-item-perspective" data-index="${idx}">
           <h4 class="pl-list-item-title">${escapeHtml(item.aspect)}</h4>
           <div class="pl-perspective-approaches">
-            <div class="pl-approach">
-              <p class="pl-approach-text">${escapeHtml(item.approach_a)}</p>
-              <div class="pl-sources-tags">
-                ${sourceATags}
-              </div>
-            </div>
-            <div class="pl-approach">
-              <p class="pl-approach-text">${escapeHtml(item.approach_b)}</p>
-              <div class="pl-sources-tags">
-                ${sourceBTags}
-              </div>
-            </div>
+            ${approachesHtml}
           </div>
         </div>
       `;
@@ -85,7 +81,7 @@ export class Stage4Renderer {
               </svg>
               Perspective Differences
             </h3>
-            <span class="pl-badge pl-badge-info">${allDifferences.length}</span>
+            <span class="pl-badge pl-badge-info">${allPerspectives.length}</span>
           </div>
           <p class="pl-section-desc">How sources emphasize or frame the story differently</p>
           <div class="pl-list">
@@ -104,7 +100,7 @@ export class Stage4Renderer {
       stage: 4,
       name: 'Perspective Differences',
       description: 'How sources emphasize or frame the story differently',
-      requiredFields: ['perspective_differences']
+      requiredFields: ['perspective_analysis']
     };
   }
 
@@ -114,22 +110,22 @@ export class Stage4Renderer {
   static validate(data) {
     const errors = [];
 
-    // At least one perspective_differences array should exist
+    // At least one perspective_analysis array should exist
     const hasPerspectives =
-      data.perspective_differences !== undefined ||
-      data.perspective_differences_2 !== undefined ||
-      data.perspective_differences_3 !== undefined;
+      data.perspective_analysis !== undefined ||
+      data.perspective_analysis_2 !== undefined ||
+      data.perspective_analysis_3 !== undefined;
 
     if (!hasPerspectives) {
-      errors.push('Missing all perspective_differences arrays');
+      errors.push('Missing all perspective_analysis arrays');
       return { isValid: false, errors };
     }
 
     // Validate each array if present
     const arrays = [
-      { key: 'perspective_differences', data: data.perspective_differences },
-      { key: 'perspective_differences_2', data: data.perspective_differences_2 },
-      { key: 'perspective_differences_3', data: data.perspective_differences_3 }
+      { key: 'perspective_analysis', data: data.perspective_analysis },
+      { key: 'perspective_analysis_2', data: data.perspective_analysis_2 },
+      { key: 'perspective_analysis_3', data: data.perspective_analysis_3 }
     ];
 
     arrays.forEach(({ key, data: arr }) => {
@@ -137,22 +133,26 @@ export class Stage4Renderer {
         if (!Array.isArray(arr)) {
           errors.push(`${key} must be an array`);
         } else {
-          // Validate each item
+          // Validate each perspective item
           arr.forEach((item, idx) => {
             if (!item.aspect) {
               errors.push(`${key}[${idx}]: missing aspect field`);
             }
-            if (!item.approach_a) {
-              errors.push(`${key}[${idx}]: missing approach_a`);
-            }
-            if (!item.approach_b) {
-              errors.push(`${key}[${idx}]: missing approach_b`);
-            }
-            if (!item.sources_a || !Array.isArray(item.sources_a)) {
-              errors.push(`${key}[${idx}]: missing or invalid sources_a array`);
-            }
-            if (!item.sources_b || !Array.isArray(item.sources_b)) {
-              errors.push(`${key}[${idx}]: missing or invalid sources_b array`);
+            if (!item.approaches || !Array.isArray(item.approaches)) {
+              errors.push(`${key}[${idx}]: missing or invalid approaches array`);
+            } else {
+              if (item.approaches.length < 2) {
+                errors.push(`${key}[${idx}]: approaches must have at least 2 items`);
+              }
+              // Validate each approach
+              item.approaches.forEach((approach, approachIdx) => {
+                if (!approach.sources || !Array.isArray(approach.sources)) {
+                  errors.push(`${key}[${idx}].approaches[${approachIdx}]: missing or invalid sources array`);
+                }
+                if (!approach.focus) {
+                  errors.push(`${key}[${idx}].approaches[${approachIdx}]: missing focus field`);
+                }
+              });
             }
           });
         }

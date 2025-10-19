@@ -146,9 +146,9 @@ export class PanelRenderer {
 
     // Stage 4: Perspective Differences
     if (
-      this.stageData.perspective_differences !== undefined ||
-      this.stageData.perspective_differences_2 !== undefined ||
-      this.stageData.perspective_differences_3 !== undefined
+      this.stageData.perspective_analysis !== undefined ||
+      this.stageData.perspective_analysis_2 !== undefined ||
+      this.stageData.perspective_analysis_3 !== undefined
     ) {
       html += this.stageRenderers[4].render(
         this.stageData,

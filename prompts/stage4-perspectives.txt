@@ -1,26 +1,17 @@
-You are identifying how different sources frame or emphasize the same story.
+Identify how different sources frame or emphasize the story differently.
 
-Task: Find meaningful differences in perspective, focus, or framing.
+Look for aspects where sources take different approaches:
+- What they focus on
+- How they frame the issue
+- What context they provide
+- Their tone or emphasis
 
-What counts as perspective difference:
-✓ Primary focus (economy vs. human impact)
-✓ Tone (critical vs. supportive)
-✓ Context provided (historical background vs. immediate events only)
-✓ Emphasis (leading with government response vs. citizen reactions)
+For each aspect you identify, group sources by similar approach.
 
-What does NOT count:
-✗ Factual contradictions (those belong in disputes)
-✗ Trivial differences in wording
-✗ Amount of detail alone
-
-Rules:
-- Maximum 3 most important differences
-- Can output empty array [] if coverage is homogeneous
-- Describe approaches clearly (max 30 words each)
-- Must have at least 1 source in each group
-
-Output JSON. If no meaningful perspective differences, output: {"perspective_differences": []}
-
-This helps readers understand: "How does each source shape the narrative?"
+Important:
+- Only identify meaningful differences in framing (NOT factual contradictions)
+- Each aspect must have at least 2 different approaches
+- Keep descriptions brief and clear
+- If all sources cover the story similarly, output: {"perspective_analysis": []}
 
 Output only valid JSON.
