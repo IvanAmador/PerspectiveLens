@@ -52,14 +52,17 @@
               </div>
             </div>
 
-            <!-- Search Bar -->
-            <div class="search-box">
-              <input type="text" id="country-search" placeholder="Search countries..." autocomplete="off">
-            </div>
-
-            <!-- Country List -->
-            <div class="country-list" id="country-list">
-              <!-- Will be populated by JavaScript -->
+            <!-- Selected Countries Display -->
+            <div class="selected-countries-display" id="selected-countries-display">
+              <div class="selected-countries-grid" id="selected-countries-grid">
+                <!-- Will be populated by JavaScript -->
+              </div>
+              <button class="btn-add-countries" id="btn-manage-countries">
+                <svg class="icon-open" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+                </svg>
+                <span>Manage countries</span>
+              </button>
             </div>
           </div>
 
@@ -221,6 +224,47 @@
         <button class="btn-primary" id="save-settings">Save changes</button>
       </div>
     </footer>
+  </div>
+
+  <!-- Country Selection Modal -->
+  <div class="modal-overlay" id="country-modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 class="modal-title">Select Countries</h2>
+        <button class="modal-close" id="modal-close" aria-label="Close modal">
+          <svg width="20" height="20" viewBox="0 0 20 20">
+            <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Search Bar -->
+        <div class="modal-search">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16">
+            <circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M10 10l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <input type="text" id="country-search" placeholder="Search countries by name, code, or language..." autocomplete="off">
+        </div>
+
+        <!-- Country Grid -->
+        <div class="country-grid" id="country-list">
+          <!-- Will be populated by JavaScript -->
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <div class="modal-footer-info">
+          <span class="stat-badge"><span id="modal-selected-count">0</span> countries selected</span>
+          <span class="stat-badge accent"><span id="modal-total-articles">0</span> total articles</span>
+        </div>
+        <div class="modal-footer-actions">
+          <button class="btn-secondary" id="modal-cancel">Cancel</button>
+          <button class="btn-primary" id="modal-apply">Apply selection</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Toast Notification -->

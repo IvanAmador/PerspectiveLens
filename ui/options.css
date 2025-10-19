@@ -674,9 +674,6 @@ html, body {
   background: var(--color-background-primary);
   flex-shrink: 0;
   box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.04);
-  max-width: 1400px;
-  margin: 0 auto;
-  width: 100%;
 }
 
 .footer-right {
@@ -805,6 +802,289 @@ html, body {
   font-size: 13px;
   color: var(--color-text-secondary);
   line-height: 1.4;
+}
+
+/* ===== Selected Countries Display ===== */
+.selected-countries-display {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0;
+}
+
+.selected-countries-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  min-height: 100px;
+}
+
+.selected-country-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--color-background-secondary);
+  border: 1px solid var(--border-color-subtle);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.selected-country-card:hover {
+  background: var(--color-background-tertiary);
+  border-color: var(--border-color-default);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.selected-country-card .country-flag {
+  width: 28px;
+  height: 20px;
+}
+
+.selected-country-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.selected-country-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-body);
+  margin: 0 0 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selected-country-count {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.btn-add-countries {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: var(--color-background-primary);
+  border: 1px solid var(--accent-icon-color);
+  border-radius: 8px;
+  color: var(--accent-text-color);
+  font-family: var(--font-family-base);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-add-countries:hover {
+  background: var(--accent-background);
+  border-color: var(--accent-icon-color);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.2);
+}
+
+.btn-add-countries:active {
+  transform: translateY(0);
+}
+
+.btn-add-countries .icon-open {
+  color: var(--accent-icon-color);
+}
+
+/* ===== Country Selection Modal ===== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.modal-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-container {
+  background: var(--color-background-primary);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 900px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  transform: scale(0.9) translateY(20px);
+  transition: all 0.3s ease;
+}
+
+.modal-overlay.show .modal-container {
+  transform: scale(1) translateY(0);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 28px;
+  border-bottom: 1px solid var(--border-color-subtle);
+}
+
+.modal-title {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--color-text-title);
+  margin: 0;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-text-tertiary);
+  transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+  background: var(--color-background-secondary);
+  color: var(--color-text-body);
+}
+
+.modal-close:active {
+  transform: scale(0.95);
+}
+
+.modal-body {
+  padding: 24px 28px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: var(--color-background-tertiary);
+  border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: var(--border-color-default);
+}
+
+.modal-search {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.modal-search .search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+.modal-search input {
+  width: 100%;
+  padding: 12px 14px 12px 40px;
+  border: 1px solid var(--border-color-default);
+  border-radius: 10px;
+  background: var(--color-background-secondary);
+  color: var(--color-text-body);
+  font-family: var(--font-family-base);
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.modal-search input:focus {
+  border-color: var(--accent-icon-color);
+  box-shadow: 0 0 0 3px var(--accent-background);
+  background: var(--color-background-primary);
+}
+
+.modal-search input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.country-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+}
+
+.country-grid .country-item {
+  border: 1px solid var(--border-color-subtle);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--color-background-primary);
+  transition: all 0.15s ease;
+}
+
+.country-grid .country-item:hover {
+  background: var(--color-background-secondary);
+  border-color: var(--border-color-default);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.country-grid .country-item:last-child {
+  border-bottom: 1px solid var(--border-color-subtle);
+}
+
+.country-article-count {
+  width: 60px !important;
+  padding: 6px 10px !important;
+  font-size: 13px !important;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 28px;
+  border-top: 1px solid var(--border-color-subtle);
+  background: var(--color-background-secondary);
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+}
+
+.modal-footer-info {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.modal-footer-actions {
+  display: flex;
+  gap: 10px;
 }
 
 /* ===== Responsive Design ===== */

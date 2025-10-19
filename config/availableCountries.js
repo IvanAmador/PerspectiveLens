@@ -1,4 +1,9 @@
-availableCountries: [
+/**
+ * Available Countries Configuration
+ * Complete list of countries with metadata for news aggregation
+ */
+
+export const availableCountries = [
   // English-speaking countries (en)
   { code: 'US', name: 'United States', language: 'en', icon: 'icons/flags/united states.svg' },
   { code: 'GB', name: 'United Kingdom', language: 'en', icon: 'icons/flags/united kingdom.svg' },

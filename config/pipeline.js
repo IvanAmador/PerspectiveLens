@@ -3,8 +3,11 @@
  * Single source of truth for article processing behavior
  */
 
+import { availableCountries } from './availableCountries.js';
+
 /**
  * Main configuration object for the entire article processing pipeline
+ * This serves as DEFAULT configuration - user preferences override these values
  */
 export const PIPELINE_CONFIG = {
   /**
@@ -47,24 +50,10 @@ export const PIPELINE_CONFIG = {
     /**
      * All available countries with metadata
      * Used for country name lookups and language detection
+     * Imported from availableCountries.js
      */
-    availableCountries: [
-      { code: 'US', name: 'United States', language: 'en' },
-      { code: 'GB', name: 'United Kingdom', language: 'en' },
-      { code: 'BR', name: 'Brazil', language: 'pt' },
-      { code: 'FR', name: 'France', language: 'fr' },
-      { code: 'DE', name: 'Germany', language: 'de' },
-      { code: 'ES', name: 'Spain', language: 'es' },
-      { code: 'CN', name: 'China', language: 'zh-CN' },
-      { code: 'JP', name: 'Japan', language: 'ja' },
-      { code: 'IN', name: 'India', language: 'en' },
-      { code: 'AU', name: 'Australia', language: 'en' },
-      { code: 'RU', name: 'Russia', language: 'ru' },
-      { code: 'IT', name: 'Italy', language: 'it' },
-      { code: 'MX', name: 'Mexico', language: 'es' },
-      { code: 'KR', name: 'South Korea', language: 'ko' },
-      { code: 'CA', name: 'Canada', language: 'en' },
-    ],
+    availableCountries,
+
 
     /**
      * Google News RSS search configuration
@@ -274,5 +263,133 @@ export function validateConfig() {
   return {
     valid: issues.length === 0,
     issues,
+  };
+}
+
+/**
+ * Deep merge helper (same as ConfigManager)
+ * @private
+ */
+function deepMerge(target, source) {
+  const output = { ...target };
+
+  if (isObject(target) && isObject(source)) {
+    Object.keys(source).forEach(key => {
+      if (isObject(source[key])) {
+        if (!(key in target)) {
+          output[key] = source[key];
+        } else {
+          output[key] = deepMerge(target[key], source[key]);
+        }
+      } else {
+        output[key] = source[key];
+      }
+    });
+  }
+
+  return output;
+}
+
+/**
+ * Check if value is an object
+ * @private
+ */
+function isObject(item) {
+  return item && typeof item === 'object' && !Array.isArray(item);
+}
+
+/**
+ * Load runtime configuration from storage directly
+ * Bypasses ConfigManager to avoid circular dependency in Service Worker
+ * (Service Workers don't support dynamic import())
+ *
+ * @returns {Promise<Object>} Merged configuration
+ */
+export async function loadRuntimeConfig() {
+  try {
+    const STORAGE_KEY = 'perspectiveLens_config';
+
+    // Load from chrome.storage.sync directly
+    const result = await chrome.storage.sync.get(STORAGE_KEY);
+    const userConfig = result[STORAGE_KEY];
+
+    if (!userConfig) {
+      console.log('[Pipeline] No user config found, using defaults');
+      return { ...PIPELINE_CONFIG };
+    }
+
+    // Deep merge user config with defaults
+    const merged = deepMerge(PIPELINE_CONFIG, userConfig);
+
+    console.log('[Pipeline] User config loaded successfully');
+    return merged;
+  } catch (error) {
+    console.error('[Pipeline] Error loading runtime config, using defaults:', error);
+    return { ...PIPELINE_CONFIG };
+  }
+}
+
+/**
+ * Get search configuration (ASYNC version - loads user config)
+ * Use this in background.js instead of getSearchConfig()
+ *
+ * @returns {Promise<Object>} Search configuration with countries, buffers, and limits
+ */
+export async function getSearchConfigAsync() {
+  const config = await loadRuntimeConfig();
+  const { perCountry, bufferPerCountry } = config.articleSelection;
+
+  const searchConfig = {
+    countries: [],
+    totalExpected: 0,
+  };
+
+  const selectedCountries = Object.keys(perCountry);
+
+  selectedCountries.forEach(countryCode => {
+    const requested = perCountry[countryCode];
+    const fetchTarget = requested + bufferPerCountry;
+
+    // Get country metadata
+    const countryInfo = config.search.availableCountries.find(
+      c => c.code === countryCode
+    );
+
+    if (!countryInfo) {
+      console.warn(`Country ${countryCode} not found in availableCountries`);
+      return;
+    }
+
+    searchConfig.countries.push({
+      code: countryCode,
+      name: countryInfo.name,
+      language: countryInfo.language,
+      requested,
+      fetchTarget,
+    });
+
+    searchConfig.totalExpected += fetchTarget;
+  });
+
+  return searchConfig;
+}
+
+/**
+ * Get selection targets (ASYNC version - loads user config)
+ * Use this in background.js instead of getSelectionTargets()
+ *
+ * @returns {Promise<Object>} Selection targets and limits
+ */
+export async function getSelectionTargetsAsync() {
+  const config = await loadRuntimeConfig();
+  const { perCountry, maxForAnalysis, allowFallback } = config.articleSelection;
+
+  const totalRequested = Object.values(perCountry).reduce((sum, count) => sum + count, 0);
+
+  return {
+    perCountry: { ...perCountry },
+    total: totalRequested,
+    maxForAnalysis,
+    allowFallback,
   };
 }

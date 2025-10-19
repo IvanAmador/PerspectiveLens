@@ -4,69 +4,24 @@
  */
 
 import { ConfigManager } from '../config/configManager.js';
+import { availableCountries } from '../config/availableCountries.js';
 
-// Country data - flag SVG filenames match country names in lowercase
-const COUNTRIES = [
-  { code: 'AE', name: 'United Arab Emirates', language: 'ar' },
-  { code: 'AR', name: 'Argentina', language: 'es' },
-  { code: 'AT', name: 'Austria', language: 'de' },
-  { code: 'AU', name: 'Australia', language: 'en' },
-  { code: 'BD', name: 'Bangladesh', language: 'bn' },
-  { code: 'BE', name: 'Belgium', language: 'nl' },
-  { code: 'BG', name: 'Bulgaria', language: 'bg' },
-  { code: 'BR', name: 'Brazil', language: 'pt' },
-  { code: 'CA', name: 'Canada', language: 'en' },
-  { code: 'CH', name: 'Switzerland', language: 'de' },
-  { code: 'CL', name: 'Chile', language: 'es' },
-  { code: 'CN', name: 'China', language: 'zh-CN' },
-  { code: 'CO', name: 'Colombia', language: 'es' },
-  { code: 'CZ', name: 'Czech Republic', language: 'cs' },
-  { code: 'DE', name: 'Germany', language: 'de' },
-  { code: 'DK', name: 'Denmark', language: 'da' },
-  { code: 'EG', name: 'Egypt', language: 'ar' },
-  { code: 'ES', name: 'Spain', language: 'es' },
-  { code: 'FI', name: 'Finland', language: 'fi' },
-  { code: 'FR', name: 'France', language: 'fr' },
-  { code: 'GB', name: 'United Kingdom', language: 'en' },
-  { code: 'GR', name: 'Greece', language: 'el' },
-  { code: 'HK', name: 'Hong Kong', language: 'zh-HK' },
-  { code: 'HR', name: 'Croatia', language: 'hr' },
-  { code: 'HU', name: 'Hungary', language: 'hu' },
-  { code: 'ID', name: 'Indonesia', language: 'id' },
-  { code: 'IE', name: 'Ireland', language: 'en' },
-  { code: 'IL', name: 'Israel', language: 'he' },
-  { code: 'IN', name: 'India', language: 'en' },
-  { code: 'IT', name: 'Italy', language: 'it' },
-  { code: 'JP', name: 'Japan', language: 'ja' },
-  { code: 'KR', name: 'South Korea', language: 'ko' },
-  { code: 'LT', name: 'Lithuania', language: 'lt' },
-  { code: 'MX', name: 'Mexico', language: 'es' },
-  { code: 'MY', name: 'Malaysia', language: 'en' },
-  { code: 'NL', name: 'Netherlands', language: 'nl' },
-  { code: 'NO', name: 'Norway', language: 'no' },
-  { code: 'NZ', name: 'New Zealand', language: 'en' },
-  { code: 'PL', name: 'Poland', language: 'pl' },
-  { code: 'PT', name: 'Portugal', language: 'pt' },
-  { code: 'RO', name: 'Romania', language: 'ro' },
-  { code: 'RU', name: 'Russia', language: 'ru' },
-  { code: 'SA', name: 'Saudi Arabia', language: 'ar' },
-  { code: 'SE', name: 'Sweden', language: 'sv' },
-  { code: 'SG', name: 'Singapore', language: 'en' },
-  { code: 'SI', name: 'Slovenia', language: 'sl' },
-  { code: 'SK', name: 'Slovakia', language: 'sk' },
-  { code: 'TH', name: 'Thailand', language: 'th' },
-  { code: 'TR', name: 'Turkey', language: 'tr' },
-  { code: 'TW', name: 'Taiwan', language: 'zh-TW' },
-  { code: 'UA', name: 'Ukraine', language: 'uk' },
-  { code: 'US', name: 'United States', language: 'en' },
-  { code: 'VN', name: 'Vietnam', language: 'vi' },
-  { code: 'ZA', name: 'South Africa', language: 'en' }
-];
+// Use centralized country data
+const COUNTRIES = availableCountries.map(country => ({
+  code: country.code,
+  name: country.name,
+  language: country.language,
+  icon: country.icon
+}));
 
 // Get flag SVG path for a country
-function getFlagPath(countryName) {
-  const flagName = countryName.toLowerCase();
-  return chrome.runtime.getURL(`icons/flags/${flagName}.svg`);
+function getFlagPath(countryCode) {
+  const country = COUNTRIES.find(c => c.code === countryCode);
+  if (country && country.icon) {
+    return chrome.runtime.getURL(country.icon);
+  }
+  // Fallback for countries without icon path
+  return chrome.runtime.getURL(`icons/flags/${countryCode.toLowerCase()}.svg`);
 }
 
 class OptionsPage {
@@ -92,6 +47,8 @@ class OptionsPage {
       sections: document.querySelectorAll('.content-section'),
 
       // Countries
+      selectedCountriesGrid: document.getElementById('selected-countries-grid'),
+      btnManageCountries: document.getElementById('btn-manage-countries'),
       countryList: document.getElementById('country-list'),
       countrySearch: document.getElementById('country-search'),
       selectedCount: document.getElementById('selected-count'),
@@ -99,6 +56,14 @@ class OptionsPage {
       bufferPerCountry: document.getElementById('buffer-per-country'),
       maxForAnalysis: document.getElementById('max-for-analysis'),
       allowFallback: document.getElementById('allow-fallback'),
+
+      // Modal
+      modalOverlay: document.getElementById('country-modal-overlay'),
+      modalClose: document.getElementById('modal-close'),
+      modalCancel: document.getElementById('modal-cancel'),
+      modalApply: document.getElementById('modal-apply'),
+      modalSelectedCount: document.getElementById('modal-selected-count'),
+      modalTotalArticles: document.getElementById('modal-total-articles'),
 
       // Extraction
       minContentLength: document.getElementById('min-content-length'),
@@ -134,6 +99,19 @@ class OptionsPage {
       });
     });
 
+    // Modal buttons
+    this.elements.btnManageCountries?.addEventListener('click', () => this.openModal());
+    this.elements.modalClose?.addEventListener('click', () => this.closeModal());
+    this.elements.modalCancel?.addEventListener('click', () => this.closeModal());
+    this.elements.modalApply?.addEventListener('click', () => this.applyModalSelection());
+
+    // Close modal on overlay click
+    this.elements.modalOverlay?.addEventListener('click', (e) => {
+      if (e.target === this.elements.modalOverlay) {
+        this.closeModal();
+      }
+    });
+
     // Country search
     this.elements.countrySearch?.addEventListener('input', (e) => {
       this.filterCountries(e.target.value);
@@ -154,17 +132,16 @@ class OptionsPage {
     this.elements.resetBtn?.addEventListener('click', () => this.resetToDefaults());
     this.elements.saveBtn?.addEventListener('click', () => this.save());
 
-    // Mark as dirty on any change
-    const inputs = document.querySelectorAll('input, select, textarea');
-    inputs.forEach(input => {
-      input.addEventListener('change', () => this.markDirty());
-    });
-
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         this.save();
+      }
+
+      // Close modal on Escape
+      if (e.key === 'Escape' && this.elements.modalOverlay?.classList.contains('show')) {
+        this.closeModal();
       }
     });
   }
@@ -192,8 +169,8 @@ class OptionsPage {
   }
 
   populateUI() {
-    // Countries
-    this.renderCountryList();
+    // Countries - render selected countries on main page
+    this.renderSelectedCountries();
 
     // Advanced options
     this.elements.bufferPerCountry.value = this.currentConfig.articleSelection?.bufferPerCountry || 2;
@@ -221,13 +198,78 @@ class OptionsPage {
     this.elements.topKValue.textContent = topK;
   }
 
+  renderSelectedCountries() {
+    const selectedCountries = this.currentConfig.articleSelection?.perCountry || {};
+    const selectedCodes = Object.keys(selectedCountries);
+
+    if (selectedCodes.length === 0) {
+      this.elements.selectedCountriesGrid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--color-text-tertiary); padding: 32px;">No countries selected. Click "Manage countries" to get started.</div>';
+      this.updateMainStats(0, 0);
+      return;
+    }
+
+    const html = selectedCodes.map(code => {
+      const country = COUNTRIES.find(c => c.code === code);
+      if (!country) return '';
+
+      const articleCount = selectedCountries[code];
+      const flagPath = getFlagPath(code);
+
+      return `
+        <div class="selected-country-card">
+          <img src="${flagPath}" alt="${country.name} flag" class="country-flag" onerror="this.style.display='none'">
+          <div class="selected-country-info">
+            <div class="selected-country-name">${country.name}</div>
+            <div class="selected-country-count">${articleCount} article${articleCount > 1 ? 's' : ''}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    this.elements.selectedCountriesGrid.innerHTML = html;
+
+    // Update stats
+    const totalArticles = selectedCodes.reduce((sum, code) => sum + (selectedCountries[code] || 0), 0);
+    this.updateMainStats(selectedCodes.length, totalArticles);
+  }
+
+  updateMainStats(countryCount, articleCount) {
+    this.elements.selectedCount.textContent = countryCount;
+    this.elements.totalArticles.textContent = articleCount;
+  }
+
+  openModal() {
+    // Render country list in modal
+    this.renderCountryList();
+
+    // Show modal with animation
+    this.elements.modalOverlay.classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+
+  closeModal() {
+    this.elements.modalOverlay.classList.remove('show');
+    document.body.style.overflow = '';
+  }
+
+  applyModalSelection() {
+    // Update main view
+    this.renderSelectedCountries();
+
+    // Close modal
+    this.closeModal();
+
+    // Mark as dirty since selection changed
+    this.markDirty();
+  }
+
   renderCountryList() {
     const selectedCountries = this.currentConfig.articleSelection?.perCountry || {};
 
     const html = COUNTRIES.map(country => {
       const isSelected = country.code in selectedCountries;
       const articleCount = selectedCountries[country.code] || 2;
-      const flagPath = getFlagPath(country.name);
+      const flagPath = getFlagPath(country.code);
 
       return `
         <div class="country-item" data-country="${country.code}">
@@ -290,8 +332,9 @@ class OptionsPage {
       totalArticles += parseInt(articleInput.value) || 0;
     });
 
-    this.elements.selectedCount.textContent = selectedCount;
-    this.elements.totalArticles.textContent = totalArticles;
+    // Update modal stats
+    this.elements.modalSelectedCount.textContent = selectedCount;
+    this.elements.modalTotalArticles.textContent = totalArticles;
   }
 
   filterCountries(searchTerm) {

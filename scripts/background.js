@@ -15,7 +15,7 @@ import { handleError } from '../utils/errors.js';
 import { normalizeLanguageCode } from '../utils/languages.js';
 import { fetchPerspectives } from '../api/newsFetcher.js';
 import { extractArticlesContentWithTabs } from '../api/contentExtractor.js';
-import { getSearchConfig, getSelectionTargets, validateConfig } from '../config/pipeline.js';
+import { getSearchConfigAsync, getSelectionTargetsAsync } from '../config/pipeline.js';
 import { selectArticlesByCountry, validateCoverage } from '../api/articleSelector.js';
 import { ConfigManager } from '../config/configManager.js';
 
@@ -24,22 +24,24 @@ logger.system.info('Background service worker started', {
   category: logger.CATEGORIES.GENERAL
 });
 
-// Validate pipeline configuration on startup
-const configValidation = validateConfig();
-if (!configValidation.valid) {
-  logger.system.error('Invalid pipeline configuration', {
-    category: logger.CATEGORIES.GENERAL,
-    data: { issues: configValidation.issues }
-  });
-} else {
-  logger.system.info('Pipeline configuration validated', {
-    category: logger.CATEGORIES.GENERAL,
-    data: {
-      countries: Object.keys(getSelectionTargets().perCountry),
-      totalArticles: getSelectionTargets().total
-    }
-  });
-}
+// Load and validate user configuration on startup
+(async () => {
+  try {
+    const targets = await getSelectionTargetsAsync();
+    logger.system.info('User configuration loaded', {
+      category: logger.CATEGORIES.GENERAL,
+      data: {
+        countries: Object.keys(targets.perCountry),
+        totalArticles: targets.total
+      }
+    });
+  } catch (error) {
+    logger.system.error('Failed to load user configuration', {
+      category: logger.CATEGORIES.GENERAL,
+      error
+    });
+  }
+})();
 
 /**
  * Global download state (persists while service worker is active)
@@ -220,8 +222,8 @@ async function handleNewArticle(articleData) {
 
     let perspectives = [];
     try {
-      // Get search configuration from centralized config
-      const searchConfig = getSearchConfig();
+      // Get search configuration from user settings (merged with defaults)
+      const searchConfig = await getSearchConfigAsync();
 
       logger.system.debug('Using search configuration', {
         category: logger.CATEGORIES.SEARCH,
@@ -376,11 +378,14 @@ async function handleNewArticle(articleData) {
     try {
       const articlesWithContent = perspectivesWithContent.filter(p => p.contentExtracted);
 
+      // Load user selection targets
+      const selectionTargets = await getSelectionTargetsAsync();
+
       logger.system.info('Starting intelligent article selection', {
         category: logger.CATEGORIES.GENERAL,
         data: {
           availableArticles: articlesWithContent.length,
-          selectionTargets: getSelectionTargets().perCountry
+          selectionTargets: selectionTargets.perCountry
         }
       });
 
@@ -397,8 +402,8 @@ async function handleNewArticle(articleData) {
         });
       }
 
-      // Select best articles per country
-      const selectionResult = selectArticlesByCountry(articlesWithContent);
+      // Select best articles per country (pass user targets)
+      const selectionResult = selectArticlesByCountry(articlesWithContent, selectionTargets);
       selectedArticles = selectionResult.articles;
 
       logger.progress(logger.CATEGORIES.GENERAL, {
