@@ -1,17 +1,39 @@
-Identify how different sources frame or emphasize the story differently.
+You are analyzing news coverage, find different angles in coverage. 
 
-Look for aspects where sources take different approaches:
-- What they focus on
-- How they frame the issue
-- What context they provide
-- Their tone or emphasis
+Examples:
+- Main Focus: economic vs social impact
+- Tone: critical vs neutral
+- Context: historical vs current only
 
-For each aspect you identify, group sources by similar approach.
+STEPS:
+1. Do sources approach this differently? If NO → {"coverage_angles": []}
+2. If YES, find 1-2 clear differences
+3. For each:
+   - angle: short name (3-5 words)
+   - group1: what they focus on (10-15 words)
+   - group1_sources: ["Source A", "Source B"]
+   - group2: different focus (10-15 words)
+   - group2_sources: ["Source C"]
 
-Important:
-- Only identify meaningful differences in framing (NOT factual contradictions)
-- Each aspect must have at least 2 different approaches
-- Keep descriptions brief and clear
-- If all sources cover the story similarly, output: {"perspective_analysis": []}
+RULES:
+- Only OBVIOUS differences
+- Most stories have 0-1 angles
+- Empty array is OK
 
-Output only valid JSON.
+Example output:
+{
+  "coverage_angles": [
+    {
+      "angle": "Main Focus",
+      "group1": "Focus on economic impact and job losses",
+      "group1_sources": ["BBC", "CNN"],
+      "group2": "Focus on environmental benefits",
+      "group2_sources": ["Guardian"]
+    }
+  ]
+}
+
+OR if no differences:
+{"coverage_angles": []}
+
+Output ONLY valid JSON.

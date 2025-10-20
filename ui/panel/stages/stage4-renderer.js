@@ -1,71 +1,62 @@
 /**
- * Stage 4 Renderer: Perspective Differences
+ * Stage 4 Renderer: Coverage Angles
  *
- * Renders how sources emphasize or frame the story differently.
- * Not contradictions, but different angles and approaches.
+ * Renders different angles or approaches in news coverage.
+ * Helps readers understand different perspectives and framing.
  */
 
 export class Stage4Renderer {
   /**
-   * Render Stage 4: Perspective Differences
-   * @param {Object} data - { perspective_analysis, perspective_analysis_2, perspective_analysis_3 }
+   * Render Stage 4: Coverage Angles
+   * @param {Object} data - { coverage_angles: Array<{angle, group1, group1_sources, group2, group2_sources}> }
    * @param {Function} escapeHtml - HTML escape function
    * @param {Function} renderSourceTag - Source tag renderer
    * @returns {string} HTML
    */
   static render(data, escapeHtml, renderSourceTag) {
-    const {
-      perspective_analysis,
-      perspective_analysis_2,
-      perspective_analysis_3
-    } = data;
-
-    // Combine all perspective analysis arrays
-    const allPerspectives = [
-      ...(perspective_analysis || []),
-      ...(perspective_analysis_2 || []),
-      ...(perspective_analysis_3 || [])
-    ];
+    const { coverage_angles } = data;
 
     // Empty state
-    if (allPerspectives.length === 0) {
+    if (!coverage_angles || coverage_angles.length === 0) {
       return `
         <div id="pl-stage-4" class="pl-stage" data-stage="4">
           <div class="pl-section">
             <div class="pl-section-header">
               <h3 class="pl-section-title">
                 <svg class="pl-icon" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                  <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
                 </svg>
-                Perspective Differences
+                Coverage Angles
               </h3>
-              <span class="pl-badge pl-badge-info">0</span>
+              <span class="pl-badge pl-badge-success">0</span>
             </div>
-            <p class="pl-section-desc">No significant perspective differences found</p>
+            <p class="pl-section-desc">Sources cover this story with similar approaches and framing</p>
           </div>
         </div>
       `;
     }
 
-    // Render perspective items
-    const perspectiveItems = allPerspectives.map((item, idx) => {
-      const approachesHtml = (item.approaches || []).map((approach, approachIdx) => {
-        const sourceTags = (approach.sources || []).map(s => renderSourceTag(s)).join('');
-        return `
-          <div class="pl-approach">
-            <p class="pl-approach-text">${escapeHtml(approach.focus)}</p>
-            <div class="pl-sources-tags">
-              ${sourceTags}
-            </div>
-          </div>
-        `;
-      }).join('');
+    // Render coverage angle items
+    const angleItems = coverage_angles.map((item, idx) => {
+      const group1Tags = (item.group1_sources || []).map(s => renderSourceTag(s)).join('');
+      const group2Tags = (item.group2_sources || []).map(s => renderSourceTag(s)).join('');
 
       return `
         <div class="pl-list-item pl-list-item-perspective" data-index="${idx}">
-          <h4 class="pl-list-item-title">${escapeHtml(item.aspect)}</h4>
+          <h4 class="pl-list-item-title">${escapeHtml(item.angle)}</h4>
           <div class="pl-perspective-approaches">
-            ${approachesHtml}
+            <div class="pl-approach">
+              <p class="pl-approach-text">${escapeHtml(item.group1)}</p>
+              <div class="pl-sources-tags">
+                ${group1Tags}
+              </div>
+            </div>
+            <div class="pl-approach">
+              <p class="pl-approach-text">${escapeHtml(item.group2)}</p>
+              <div class="pl-sources-tags">
+                ${group2Tags}
+              </div>
+            </div>
           </div>
         </div>
       `;
@@ -77,15 +68,15 @@ export class Stage4Renderer {
           <div class="pl-section-header">
             <h3 class="pl-section-title">
               <svg class="pl-icon" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
               </svg>
-              Perspective Differences
+              Coverage Angles
             </h3>
-            <span class="pl-badge pl-badge-info">${allPerspectives.length}</span>
+            <span class="pl-badge pl-badge-info">${coverage_angles.length}</span>
           </div>
-          <p class="pl-section-desc">How sources emphasize or frame the story differently</p>
+          <p class="pl-section-desc">Different approaches in how sources frame or emphasize the story</p>
           <div class="pl-list">
-            ${perspectiveItems}
+            ${angleItems}
           </div>
         </div>
       </div>
@@ -98,9 +89,9 @@ export class Stage4Renderer {
   static getMetadata() {
     return {
       stage: 4,
-      name: 'Perspective Differences',
-      description: 'How sources emphasize or frame the story differently',
-      requiredFields: ['perspective_analysis']
+      name: 'Coverage Angles',
+      description: 'Different approaches in how sources frame or emphasize the story',
+      requiredFields: ['coverage_angles']
     };
   }
 
@@ -110,54 +101,30 @@ export class Stage4Renderer {
   static validate(data) {
     const errors = [];
 
-    // At least one perspective_analysis array should exist
-    const hasPerspectives =
-      data.perspective_analysis !== undefined ||
-      data.perspective_analysis_2 !== undefined ||
-      data.perspective_analysis_3 !== undefined;
-
-    if (!hasPerspectives) {
-      errors.push('Missing all perspective_analysis arrays');
-      return { isValid: false, errors };
-    }
-
-    // Validate each array if present
-    const arrays = [
-      { key: 'perspective_analysis', data: data.perspective_analysis },
-      { key: 'perspective_analysis_2', data: data.perspective_analysis_2 },
-      { key: 'perspective_analysis_3', data: data.perspective_analysis_3 }
-    ];
-
-    arrays.forEach(({ key, data: arr }) => {
-      if (arr !== undefined) {
-        if (!Array.isArray(arr)) {
-          errors.push(`${key} must be an array`);
-        } else {
-          // Validate each perspective item
-          arr.forEach((item, idx) => {
-            if (!item.aspect) {
-              errors.push(`${key}[${idx}]: missing aspect field`);
-            }
-            if (!item.approaches || !Array.isArray(item.approaches)) {
-              errors.push(`${key}[${idx}]: missing or invalid approaches array`);
-            } else {
-              if (item.approaches.length < 2) {
-                errors.push(`${key}[${idx}]: approaches must have at least 2 items`);
-              }
-              // Validate each approach
-              item.approaches.forEach((approach, approachIdx) => {
-                if (!approach.sources || !Array.isArray(approach.sources)) {
-                  errors.push(`${key}[${idx}].approaches[${approachIdx}]: missing or invalid sources array`);
-                }
-                if (!approach.focus) {
-                  errors.push(`${key}[${idx}].approaches[${approachIdx}]: missing focus field`);
-                }
-              });
-            }
-          });
+    if (data.coverage_angles === undefined) {
+      errors.push('Missing coverage_angles array');
+    } else if (!Array.isArray(data.coverage_angles)) {
+      errors.push('coverage_angles must be an array');
+    } else {
+      // Validate each angle item
+      data.coverage_angles.forEach((item, idx) => {
+        if (!item.angle) {
+          errors.push(`coverage_angles[${idx}]: missing angle field`);
         }
-      }
-    });
+        if (!item.group1) {
+          errors.push(`coverage_angles[${idx}]: missing group1`);
+        }
+        if (!item.group1_sources || !Array.isArray(item.group1_sources)) {
+          errors.push(`coverage_angles[${idx}]: missing or invalid group1_sources array`);
+        }
+        if (!item.group2) {
+          errors.push(`coverage_angles[${idx}]: missing group2`);
+        }
+        if (!item.group2_sources || !Array.isArray(item.group2_sources)) {
+          errors.push(`coverage_angles[${idx}]: missing or invalid group2_sources array`);
+        }
+      });
+    }
 
     return {
       isValid: errors.length === 0,

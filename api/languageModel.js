@@ -906,6 +906,20 @@ export async function compareArticlesProgressive(articles, onStageComplete, opti
     { name: 'stage4-perspectives', number: 4, schemaKey: 'stage4-perspectives-schema', critical: false }
   ];
 
+  // Retry configuration
+  const MAX_RETRIES = 2;
+  const TIMEOUT_MS = 15000; // 15 seconds
+
+  // Helper function to execute stage with timeout
+  const executeStageWithTimeout = async (session, input, schema, timeoutMs) => {
+    return Promise.race([
+      session.prompt(input, { responseConstraint: schema }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Stage timeout after 15s')), timeoutMs)
+      )
+    ]);
+  };
+
   // Execute each stage sequentially
   for (const stage of stages) {
     const stageStart = Date.now();
@@ -916,109 +930,160 @@ export async function compareArticlesProgressive(articles, onStageComplete, opti
     });
 
     let session = null;
+    let stageSuccess = false;
+    let lastError = null;
 
-    try {
-      // Load stage-specific schema and prompt
-      const schema = await loadSchema(stage.schemaKey);
-      const systemPrompt = await getPrompt(stage.name);
-
-      logger.system.debug(`Stage ${stage.number} schema and prompt loaded`, {
-        category: logger.CATEGORIES.ANALYZE,
-        data: {
-          stage: stage.number,
-          schemaFields: schema.required,
-          promptLength: systemPrompt.length
-        }
-      });
-
-      // Create fresh session for this stage (best practice)
-      session = await createSession({
-        systemPrompt,
-        temperature: PIPELINE_CONFIG.analysis.model.temperature,
-        topK: PIPELINE_CONFIG.analysis.model.topK
-      });
-
-      logger.system.debug(`Stage ${stage.number} session created`, {
-        category: logger.CATEGORIES.ANALYZE,
-        data: {
-          stage: stage.number,
-          quotaUsed: `${session.inputUsage}/${session.inputQuota}`
-        }
-      });
-
-      // Prompt model
-      const promptStart = Date.now();
-      const response = await session.prompt(sharedInput, {
-        responseConstraint: schema
-      });
-      const promptDuration = Date.now() - promptStart;
-
-      logger.system.debug(`Stage ${stage.number} model response received`, {
-        category: logger.CATEGORIES.ANALYZE,
-        data: {
-          stage: stage.number,
-          responseLength: response.length,
-          promptDuration
-        }
-      });
-
-      // Parse response
-      const stageResult = JSON.parse(response);
-      const stageDuration = Date.now() - stageStart;
-
-      // Merge into complete analysis
-      Object.assign(completeAnalysis, stageResult);
-
-      completeAnalysis.metadata.stages.push({
-        stage: stage.number,
-        name: stage.name,
-        duration: stageDuration,
-        promptDuration,
-        success: true
-      });
-
-      logger.system.info(`Stage ${stage.number} completed successfully`, {
-        category: logger.CATEGORIES.ANALYZE,
-        data: {
-          stage: stage.number,
-          duration: stageDuration,
-          resultKeys: Object.keys(stageResult)
-        }
-      });
-
-      // Notify UI of stage completion
-      if (onStageComplete) {
-        try {
-          await onStageComplete(stage.number, {
-            stage: stage.number,
-            name: stage.name,
-            data: stageResult,
-            metadata: {
-              duration: stageDuration,
-              articlesAnalyzed: processedArticles.length
-            }
-          });
-        } catch (callbackError) {
-          logger.system.warn(`Stage ${stage.number} callback failed`, {
+    // Retry loop
+    for (let attempt = 1; attempt <= MAX_RETRIES && !stageSuccess; attempt++) {
+      try {
+        if (attempt > 1) {
+          logger.system.info(`Retrying Stage ${stage.number} (attempt ${attempt}/${MAX_RETRIES})`, {
             category: logger.CATEGORIES.ANALYZE,
-            error: callbackError,
-            data: { stage: stage.number }
+            data: { stage: stage.number, attempt }
           });
+        }
+
+        // Load stage-specific schema and prompt
+        const schema = await loadSchema(stage.schemaKey);
+        const systemPrompt = await getPrompt(stage.name);
+
+        logger.system.debug(`Stage ${stage.number} schema and prompt loaded`, {
+          category: logger.CATEGORIES.ANALYZE,
+          data: {
+            stage: stage.number,
+            schemaFields: schema.required,
+            promptLength: systemPrompt.length,
+            attempt
+          }
+        });
+
+        // Create fresh session for this stage (best practice)
+        session = await createSession({
+          systemPrompt,
+          temperature: PIPELINE_CONFIG.analysis.model.temperature,
+          topK: PIPELINE_CONFIG.analysis.model.topK
+        });
+
+        logger.system.debug(`Stage ${stage.number} session created`, {
+          category: logger.CATEGORIES.ANALYZE,
+          data: {
+            stage: stage.number,
+            quotaUsed: `${session.inputUsage}/${session.inputQuota}`,
+            attempt
+          }
+        });
+
+        // Prompt model with timeout
+        const promptStart = Date.now();
+        const response = await executeStageWithTimeout(session, sharedInput, schema, TIMEOUT_MS);
+        const promptDuration = Date.now() - promptStart;
+
+        logger.system.debug(`Stage ${stage.number} model response received`, {
+          category: logger.CATEGORIES.ANALYZE,
+          data: {
+            stage: stage.number,
+            responseLength: response.length,
+            promptDuration,
+            attempt
+          }
+        });
+
+        // Parse response
+        const stageResult = JSON.parse(response);
+        const stageDuration = Date.now() - stageStart;
+
+        // Merge into complete analysis
+        Object.assign(completeAnalysis, stageResult);
+
+        completeAnalysis.metadata.stages.push({
+          stage: stage.number,
+          name: stage.name,
+          duration: stageDuration,
+          promptDuration,
+          success: true,
+          attempts: attempt
+        });
+
+        logger.system.info(`Stage ${stage.number} completed successfully`, {
+          category: logger.CATEGORIES.ANALYZE,
+          data: {
+            stage: stage.number,
+            duration: stageDuration,
+            resultKeys: Object.keys(stageResult),
+            attempts: attempt
+          }
+        });
+
+        // Notify UI of stage completion
+        if (onStageComplete) {
+          try {
+            await onStageComplete(stage.number, {
+              stage: stage.number,
+              name: stage.name,
+              data: stageResult,
+              metadata: {
+                duration: stageDuration,
+                articlesAnalyzed: processedArticles.length
+              }
+            });
+          } catch (callbackError) {
+            logger.system.warn(`Stage ${stage.number} callback failed`, {
+              category: logger.CATEGORIES.ANALYZE,
+              error: callbackError,
+              data: { stage: stage.number }
+            });
+          }
+        }
+
+        stageSuccess = true;
+
+      } catch (error) {
+        lastError = error;
+
+        logger.system.warn(`Stage ${stage.number} attempt ${attempt} failed`, {
+          category: logger.CATEGORIES.ANALYZE,
+          error,
+          data: {
+            stage: stage.number,
+            attempt,
+            errorMessage: error.message
+          }
+        });
+
+      } finally {
+        // Always destroy session after each attempt
+        if (session) {
+          try {
+            session.destroy();
+            logger.system.trace(`Stage ${stage.number} session destroyed (attempt ${attempt})`, {
+              category: logger.CATEGORIES.ANALYZE,
+              data: { stage: stage.number, attempt }
+            });
+          } catch (destroyError) {
+            logger.system.warn(`Failed to destroy stage ${stage.number} session`, {
+              category: logger.CATEGORIES.ANALYZE,
+              error: destroyError
+            });
+          }
+          session = null;
         }
       }
+    } // End retry loop
 
-    } catch (error) {
+    // Handle final failure after all retries
+    if (!stageSuccess) {
       const stageDuration = Date.now() - stageStart;
 
-      logger.system.error(`Stage ${stage.number} failed`, {
+      logger.system.error(`Stage ${stage.number} failed after ${MAX_RETRIES} attempts`, {
         category: logger.CATEGORIES.ANALYZE,
-        error,
+        error: lastError,
         data: {
           stage: stage.number,
           name: stage.name,
           duration: stageDuration,
-          errorMessage: error.message,
-          critical: stage.critical
+          errorMessage: lastError?.message,
+          critical: stage.critical,
+          attempts: MAX_RETRIES
         }
       });
 
@@ -1028,14 +1093,15 @@ export async function compareArticlesProgressive(articles, onStageComplete, opti
         name: stage.name,
         duration: stageDuration,
         success: false,
-        error: error.message
+        error: lastError?.message,
+        attempts: MAX_RETRIES
       });
 
       // For critical stages (1-2), throw error
       if (stage.critical) {
         throw new AIModelError(
-          `Critical stage ${stage.number} (${stage.name}) failed: ${error.message}`,
-          error
+          `Critical stage ${stage.number} (${stage.name}) failed after ${MAX_RETRIES} attempts: ${lastError?.message}`,
+          lastError
         );
       }
 
@@ -1044,23 +1110,6 @@ export async function compareArticlesProgressive(articles, onStageComplete, opti
         category: logger.CATEGORIES.ANALYZE,
         data: { stage: stage.number }
       });
-
-    } finally {
-      // Always destroy session
-      if (session) {
-        try {
-          session.destroy();
-          logger.system.trace(`Stage ${stage.number} session destroyed`, {
-            category: logger.CATEGORIES.ANALYZE,
-            data: { stage: stage.number }
-          });
-        } catch (destroyError) {
-          logger.system.warn(`Failed to destroy stage ${stage.number} session`, {
-            category: logger.CATEGORIES.ANALYZE,
-            error: destroyError
-          });
-        }
-      }
     }
   }
 

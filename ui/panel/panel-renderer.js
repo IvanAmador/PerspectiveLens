@@ -6,7 +6,7 @@
  * Stage 1: Context & Trust Signal
  * Stage 2: Consensus Facts
  * Stage 3: Factual Disputes
- * Stage 4: Perspective Differences
+ * Stage 4: Coverage Angles
  */
 
 import { Stage1Renderer } from './stages/stage1-renderer.js';
@@ -144,12 +144,8 @@ export class PanelRenderer {
       );
     }
 
-    // Stage 4: Perspective Differences
-    if (
-      this.stageData.perspective_analysis !== undefined ||
-      this.stageData.perspective_analysis_2 !== undefined ||
-      this.stageData.perspective_analysis_3 !== undefined
-    ) {
+    // Stage 4: Coverage Angles
+    if (this.stageData.coverage_angles !== undefined) {
       html += this.stageRenderers[4].render(
         this.stageData,
         this.escapeHtml.bind(this),
