@@ -97,6 +97,26 @@ export const PIPELINE_CONFIG = {
      * Retry extraction for low quality articles
      */
     retryLowQuality: true,
+
+    /**
+     * Window Manager Configuration
+     * Controls dedicated processing window behavior
+     */
+    windowManager: {
+      /**
+       * Window state: 'minimized', 'offscreen', 'normal'
+       * - minimized: Try to minimize window (may not work in MV3, falls back to offscreen)
+       * - offscreen: Move window off-screen (reliable fallback)
+       * - normal: Keep window visible (useful for debugging)
+       */
+      windowState: 'minimized',
+
+      /**
+       * Show informative HTML page in window explaining the process
+       * Set to false for blank window
+       */
+      showInfoPage: true,
+    },
   },
 
   /**

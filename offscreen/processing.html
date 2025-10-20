@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PerspectiveLens - Processing Articles</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .logo h1 {
+      font-size: 32px;
+      color: #667eea;
+      margin-bottom: 10px;
+    }
+
+    .logo p {
+      color: #666;
+      font-size: 16px;
+    }
+
+    .status {
+      background: #f7fafc;
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 25px;
+    }
+
+    .status h2 {
+      color: #2d3748;
+      font-size: 20px;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 3px solid #e2e8f0;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .info {
+      display: grid;
+      gap: 12px;
+    }
+
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .info-item:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      color: #718096;
+      font-size: 14px;
+    }
+
+    .info-value {
+      color: #2d3748;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .message {
+      background: #edf2f7;
+      border-left: 4px solid #667eea;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 25px;
+    }
+
+    .message p {
+      color: #4a5568;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .message strong {
+      color: #2d3748;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .footer p {
+      color: #a0aec0;
+      font-size: 12px;
+    }
+
+    .pulse {
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <h1>🔍 PerspectiveLens</h1>
+      <p>Article Content Extraction in Progress</p>
+    </div>
+
+    <div class="status">
+      <h2>
+        <div class="spinner"></div>
+        Processing Articles
+      </h2>
+
+      <div class="info">
+        <div class="info-item">
+          <span class="info-label">Status</span>
+          <span class="info-value pulse">Active</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Mode</span>
+          <span class="info-value">Background Extraction</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Window Type</span>
+          <span class="info-value">Dedicated Processing</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="message">
+      <p>
+        <strong>What's happening?</strong><br>
+        PerspectiveLens is extracting article content from multiple sources in this dedicated window.
+        Articles are being processed in background tabs to handle redirects and dynamic content loading.
+      </p>
+      <br>
+      <p>
+        <strong>Why a separate window?</strong><br>
+        This keeps your browsing clean and organized. The window will automatically close when processing is complete.
+      </p>
+      <br>
+      <p>
+        <strong>Can I close this window?</strong><br>
+        Yes, but the extraction will be interrupted. It's best to let it finish automatically.
+      </p>
+    </div>
+
+    <div class="footer">
+      <p>This window will close automatically when processing is complete</p>
+    </div>
+  </div>
+
+  <script>
+    // Listen for messages from background script to update status
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.type === 'UPDATE_PROCESSING_STATUS') {
+        // Could update UI with progress information
+        console.log('Processing update:', message.data);
+      }
+    });
+
+    // Log page load
+    console.log('[Processing Page] Loaded and ready');
+  </script>
+</body>
+</html>

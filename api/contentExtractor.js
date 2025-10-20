@@ -18,6 +18,7 @@
 
 import { logger } from '../utils/logger.js';
 import { PIPELINE_CONFIG } from '../config/pipeline.js';
+import { createWindowManager } from './windowManager.js';
 
 /**
  * Extract content from multiple articles using Chrome tabs
@@ -35,7 +36,9 @@ export async function extractArticlesContentWithTabs(articles, options = {}) {
     parallel = PIPELINE_CONFIG.extraction.parallel,
     batchSize = PIPELINE_CONFIG.extraction.batchSize,
     retryOnLowQuality = PIPELINE_CONFIG.extraction.retryLowQuality,
-    qualityThreshold = 'medium' // 'low', 'medium', 'high'
+    qualityThreshold = 'medium', // 'low', 'medium', 'high'
+    useWindowManager = true, // Use dedicated window (set to false to use current window)
+    windowManagerOptions = {} // Options for window manager
   } = options;
 
   if (!articles || articles.length === 0) {
@@ -46,7 +49,7 @@ export async function extractArticlesContentWithTabs(articles, options = {}) {
   }
 
   const articlesToProcess = articles.slice(0, maxArticles);
-  
+
   logger.system.info('Starting batch content extraction', {
     category: logger.CATEGORIES.FETCH,
     data: {
@@ -54,11 +57,25 @@ export async function extractArticlesContentWithTabs(articles, options = {}) {
       mode: parallel ? 'parallel' : 'sequential',
       batchSize: parallel ? batchSize : 1,
       timeout,
-      retryEnabled: retryOnLowQuality
+      retryEnabled: retryOnLowQuality,
+      useWindowManager
     }
   });
 
+  // Create window manager if enabled
+  const windowManager = useWindowManager ? createWindowManager(windowManagerOptions) : null;
+
   try {
+    // Create dedicated processing window if using window manager
+    if (windowManager) {
+      await windowManager.createProcessingWindow();
+
+      logger.system.info('Using dedicated processing window', {
+        category: logger.CATEGORIES.FETCH,
+        data: await windowManager.getStats()
+      });
+    }
+
     let results = [];
 
     if (parallel) {
@@ -78,7 +95,7 @@ export async function extractArticlesContentWithTabs(articles, options = {}) {
 
         const batchStart = Date.now();
         const batchResults = await Promise.allSettled(
-          batch.map(article => extractSingleArticleWithTab(article, timeout))
+          batch.map(article => extractSingleArticleWithTab(article, timeout, windowManager))
         );
 
         const processedBatch = batchResults.map((result, index) => {
@@ -127,7 +144,7 @@ export async function extractArticlesContentWithTabs(articles, options = {}) {
 
       for (const article of articlesToProcess) {
         try {
-          const extracted = await extractSingleArticleWithTab(article, timeout);
+          const extracted = await extractSingleArticleWithTab(article, timeout, windowManager);
           results.push(extracted);
         } catch (error) {
           logger.system.error('Sequential extraction failed', {
@@ -148,7 +165,7 @@ export async function extractArticlesContentWithTabs(articles, options = {}) {
 
     // Quality analysis and retry if enabled
     if (retryOnLowQuality) {
-      results = await retryLowQualityExtractions(results, timeout);
+      results = await retryLowQualityExtractions(results, timeout, windowManager);
     }
 
     // Final statistics
@@ -173,25 +190,35 @@ export async function extractArticlesContentWithTabs(articles, options = {}) {
     return results;
   } catch (error) {
     const duration = Date.now() - operationStart;
-    
+
     logger.system.error('Batch extraction failed catastrophically', {
       category: logger.CATEGORIES.ERROR,
       error,
       data: { duration, articlesAttempted: articlesToProcess.length }
     });
-    
+
     throw error;
+  } finally {
+    // Always cleanup window manager
+    if (windowManager) {
+      logger.system.debug('Cleaning up processing window', {
+        category: logger.CATEGORIES.FETCH
+      });
+
+      await windowManager.cleanup();
+    }
   }
 }
 
 /**
  * Extract content from a single article using Chrome tab
- * 
+ *
  * @param {Object} article - Article object with link
  * @param {number} timeout - Timeout in milliseconds
+ * @param {ProcessingWindowManager|null} windowManager - Optional window manager
  * @returns {Promise<Object>} Article with extracted content
  */
-async function extractSingleArticleWithTab(article, timeout) {
+async function extractSingleArticleWithTab(article, timeout, windowManager = null) {
   const extractionStart = Date.now();
   let tabId = null;
 
@@ -200,16 +227,22 @@ async function extractSingleArticleWithTab(article, timeout) {
     data: {
       title: article.title.substring(0, 60),
       source: article.source,
-      url: article.link.substring(0, 80)
+      url: article.link.substring(0, 80),
+      useWindowManager: !!windowManager
     }
   });
 
   try {
-    // Step 1: Create background tab
-    const tab = await chrome.tabs.create({
-      url: article.link,
-      active: false
-    });
+    // Step 1: Create background tab (using window manager if available)
+    let tab;
+    if (windowManager) {
+      tab = await windowManager.createTab(article.link);
+    } else {
+      tab = await chrome.tabs.create({
+        url: article.link,
+        active: false
+      });
+    }
     tabId = tab.id;
 
     logger.system.trace('Tab created', {
@@ -276,8 +309,12 @@ async function extractSingleArticleWithTab(article, timeout) {
     });
 
     // Step 7: Cleanup tab
-    await chrome.tabs.remove(tabId);
-    
+    if (windowManager) {
+      await windowManager.removeTab(tabId, true);
+    } else {
+      await chrome.tabs.remove(tabId);
+    }
+
     logger.system.trace('Tab closed', {
       category: logger.CATEGORIES.FETCH,
       data: { tabId }
@@ -319,7 +356,11 @@ async function extractSingleArticleWithTab(article, timeout) {
     // Cleanup tab on error
     if (tabId) {
       try {
-        await chrome.tabs.remove(tabId);
+        if (windowManager) {
+          await windowManager.removeTab(tabId, true);
+        } else {
+          await chrome.tabs.remove(tabId);
+        }
         logger.system.trace('Tab cleaned up after error', {
           category: logger.CATEGORIES.FETCH,
           data: { tabId }
@@ -844,12 +885,13 @@ function assessContentQuality(content) {
 
 /**
  * Retry extractions that produced low-quality results
- * 
+ *
  * @param {Array<Object>} results - Initial extraction results
  * @param {number} timeout - Timeout per retry
+ * @param {ProcessingWindowManager|null} windowManager - Optional window manager
  * @returns {Promise<Array<Object>>} Updated results
  */
-async function retryLowQualityExtractions(results, timeout) {
+async function retryLowQualityExtractions(results, timeout, windowManager = null) {
   const lowQualityResults = results.filter(r => 
     r.contentExtracted && 
     r.extractedContent?.qualityLevel === 'low'
@@ -880,7 +922,7 @@ async function retryLowQualityExtractions(results, timeout) {
         }
       });
 
-      const retried = await extractSingleArticleWithTab(result, timeout);
+      const retried = await extractSingleArticleWithTab(result, timeout, windowManager);
       
       // Only replace if quality improved
       if (retried.extractedContent.quality > result.extractedContent.quality) {
