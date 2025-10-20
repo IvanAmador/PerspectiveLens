@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PerspectiveLens - Processing Articles</title>
+  <title>PerspectiveLens is processing articles</title>
   <style>
     * {
       margin: 0;
@@ -12,127 +12,150 @@
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: 'Roboto', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #fff;
+      color: #202124;
+      line-height: 1.6;
+      padding: 0;
+      margin: 0;
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Chrome-style header */
+    .header {
+      background: #fff;
+      border-bottom: 1px solid #dadce0;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #4285f4 0%, #1967d2 100%);
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 20px;
+      font-size: 18px;
     }
 
-    .container {
-      background: white;
-      border-radius: 20px;
-      padding: 40px;
-      max-width: 600px;
-      width: 100%;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    .logo-text {
+      display: flex;
+      flex-direction: column;
     }
 
-    .logo {
-      text-align: center;
-      margin-bottom: 30px;
-    }
-
-    .logo h1 {
-      font-size: 32px;
-      color: #667eea;
-      margin-bottom: 10px;
-    }
-
-    .logo p {
-      color: #666;
-      font-size: 16px;
-    }
-
-    .status {
-      background: #f7fafc;
-      border-radius: 12px;
-      padding: 25px;
-      margin-bottom: 25px;
-    }
-
-    .status h2 {
-      color: #2d3748;
+    .logo-title {
       font-size: 20px;
-      margin-bottom: 15px;
+      font-weight: 500;
+      color: #202124;
+      letter-spacing: -0.25px;
+    }
+
+    .logo-subtitle {
+      font-size: 13px;
+      color: #5f6368;
+      font-weight: 400;
+    }
+
+    /* Content area */
+    .content {
+      flex: 1;
+      max-width: 800px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 48px 24px;
+    }
+
+    /* Status card - Chrome style */
+    .status-card {
+      background: #fff;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+    }
+
+    .status-header {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
+      margin-bottom: 20px;
     }
 
+    /* Chrome-style spinner */
     .spinner {
-      width: 20px;
-      height: 20px;
-      border: 3px solid #e2e8f0;
-      border-top-color: #667eea;
+      width: 24px;
+      height: 24px;
+      border: 3px solid #e8eaed;
+      border-top-color: #1a73e8;
       border-radius: 50%;
-      animation: spin 1s linear infinite;
+      animation: spin 0.8s linear infinite;
     }
 
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
 
-    .info {
-      display: grid;
-      gap: 12px;
+    .status-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: #202124;
     }
 
-    .info-item {
+    .status-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .status-item {
       display: flex;
       justify-content: space-between;
-      padding: 10px 0;
-      border-bottom: 1px solid #e2e8f0;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #f1f3f4;
     }
 
-    .info-item:last-child {
+    .status-item:last-child {
       border-bottom: none;
     }
 
-    .info-label {
-      color: #718096;
+    .status-label {
       font-size: 14px;
+      color: #5f6368;
+      font-weight: 400;
     }
 
-    .info-value {
-      color: #2d3748;
-      font-weight: 600;
+    .status-value {
       font-size: 14px;
+      color: #202124;
+      font-weight: 500;
     }
 
-    .message {
-      background: #edf2f7;
-      border-left: 4px solid #667eea;
-      border-radius: 8px;
-      padding: 20px;
-      margin-top: 25px;
+    .status-active {
+      color: #1e8e3e;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
-    .message p {
-      color: #4a5568;
-      font-size: 14px;
-      line-height: 1.6;
-    }
-
-    .message strong {
-      color: #2d3748;
-    }
-
-    .footer {
-      text-align: center;
-      margin-top: 30px;
-      padding-top: 20px;
-      border-top: 1px solid #e2e8f0;
-    }
-
-    .footer p {
-      color: #a0aec0;
-      font-size: 12px;
-    }
-
-    .pulse {
+    .status-active::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: #1e8e3e;
+      border-radius: 50%;
       animation: pulse 2s ease-in-out infinite;
     }
 
@@ -140,57 +163,147 @@
       0%, 100% { opacity: 1; }
       50% { opacity: 0.5; }
     }
+
+    /* Info sections - Chrome style */
+    .info-section {
+      background: #f8f9fa;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .info-section h2 {
+      font-size: 14px;
+      font-weight: 500;
+      color: #202124;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .info-section h2::before {
+      content: '';
+      width: 4px;
+      height: 4px;
+      background: #1a73e8;
+      border-radius: 50%;
+    }
+
+    .info-section p {
+      font-size: 13px;
+      color: #5f6368;
+      line-height: 20px;
+      margin: 0;
+    }
+
+    /* Footer - Chrome style */
+    .footer {
+      background: #f8f9fa;
+      border-top: 1px solid #dadce0;
+      padding: 16px 24px;
+      text-align: center;
+    }
+
+    .footer-text {
+      font-size: 12px;
+      color: #5f6368;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .footer-icon {
+      font-size: 14px;
+    }
+
+    /* Chrome-style link */
+    a {
+      color: #1a73e8;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .content {
+        padding: 24px 16px;
+      }
+
+      .header {
+        padding: 12px 16px;
+      }
+
+      .logo-title {
+        font-size: 18px;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="logo">
-      <h1>🔍 PerspectiveLens</h1>
-      <p>Article Content Extraction in Progress</p>
+  <!-- Chrome-style Header -->
+  <div class="header">
+    <div class="logo-container">
+      <div class="logo-icon">🔍</div>
+      <div class="logo-text">
+        <div class="logo-title">PerspectiveLens</div>
+        <div class="logo-subtitle">Article Content Extraction</div>
+      </div>
     </div>
+  </div>
 
-    <div class="status">
-      <h2>
+  <!-- Main Content -->
+  <div class="content">
+    <!-- Status Card -->
+    <div class="status-card">
+      <div class="status-header">
         <div class="spinner"></div>
-        Processing Articles
-      </h2>
+        <div class="status-title">Processing articles</div>
+      </div>
 
-      <div class="info">
-        <div class="info-item">
-          <span class="info-label">Status</span>
-          <span class="info-value pulse">Active</span>
+      <div class="status-grid">
+        <div class="status-item">
+          <span class="status-label">Status</span>
+          <span class="status-value status-active">Active</span>
         </div>
-        <div class="info-item">
-          <span class="info-label">Mode</span>
-          <span class="info-value">Background Extraction</span>
+        <div class="status-item">
+          <span class="status-label">Mode</span>
+          <span class="status-value">Background extraction</span>
         </div>
-        <div class="info-item">
-          <span class="info-label">Window Type</span>
-          <span class="info-value">Dedicated Processing</span>
+        <div class="status-item">
+          <span class="status-label">Window type</span>
+          <span class="status-value">Dedicated processing</span>
         </div>
       </div>
     </div>
 
-    <div class="message">
-      <p>
-        <strong>What's happening?</strong><br>
-        PerspectiveLens is extracting article content from multiple sources in this dedicated window.
-        Articles are being processed in background tabs to handle redirects and dynamic content loading.
-      </p>
-      <br>
-      <p>
-        <strong>Why a separate window?</strong><br>
-        This keeps your browsing clean and organized. The window will automatically close when processing is complete.
-      </p>
-      <br>
-      <p>
-        <strong>Can I close this window?</strong><br>
-        Yes, but the extraction will be interrupted. It's best to let it finish automatically.
-      </p>
+    <!-- Info Sections -->
+    <div class="info-section">
+      <h2>What's happening?</h2>
+      <p>PerspectiveLens is extracting article content from multiple news sources in this dedicated window. Articles are being processed in background tabs to handle redirects and dynamic content loading.</p>
     </div>
 
-    <div class="footer">
-      <p>This window will close automatically when processing is complete</p>
+    <div class="info-section">
+      <h2>Why a separate window?</h2>
+      <p>This keeps your regular browsing clean and organized. All extraction happens here, isolated from your main workspace. The window will automatically close when processing is complete.</p>
+    </div>
+
+    <div class="info-section">
+      <h2>Can I close this window?</h2>
+      <p>Yes, but the extraction will be interrupted. It's best to let the process finish automatically. You can minimize this window and continue browsing normally.</p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-text">
+      <span class="footer-icon">⏱️</span>
+      <span>This window will close automatically when processing is complete</span>
     </div>
   </div>
 
@@ -199,12 +312,11 @@
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.type === 'UPDATE_PROCESSING_STATUS') {
         // Could update UI with progress information
-        console.log('Processing update:', message.data);
+        console.log('[Processing Page] Status update:', message.data);
       }
     });
 
-    // Log page load
-    console.log('[Processing Page] Loaded and ready');
+    console.log('[Processing Page] Loaded - Chrome Material Design');
   </script>
 </body>
 </html>
