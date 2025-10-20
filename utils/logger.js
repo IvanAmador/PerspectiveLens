@@ -267,11 +267,23 @@ function shouldBroadcast(level, context) {
  */
 function formatConsoleOutput(entry) {
   const parts = [LOG_PREFIX, entry.message];
-  
+
+  // Add error details if present
+  if (entry.error) {
+    // Format error with stack trace
+    const errorInfo = {
+      message: entry.error.message || String(entry.error),
+      name: entry.error.name,
+      stack: entry.error.stack
+    };
+    parts.push(errorInfo);
+  }
+
+  // Add data if present
   if (entry.data) {
     parts.push(entry.data);
   }
-  
+
   return parts;
 }
 
