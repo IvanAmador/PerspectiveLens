@@ -6,7 +6,7 @@
   "properties": {
     "factual_disputes": {
       "type": "array",
-      "description": "Direct contradictions on verifiable facts (numbers, dates, quotes, events). Can be empty array if no disputes found. Maximum 3 most important disputes.",
+      "description": "REAL contradictions on facts (numbers, dates, quotes). Empty array [] if none. Max 3.",
       "maxItems": 3,
       "minItems": 0,
       "items": {
@@ -15,25 +15,27 @@
         "properties": {
           "what": {
             "type": "string",
-            "description": "Brief label of what is disputed. Examples: 'Casualty count', 'Event timing', 'Quote attribution'. Maximum 8 words."
+            "description": "What is disputed. Example: 'Oscar year'. Max 8 words."
           },
           "claim_a": {
             "type": "string",
-            "description": "First claim. Be specific with numbers/details. Maximum 25 words."
+            "description": "First claim with specific numbers/dates. Max 25 words."
           },
           "claim_b": {
             "type": "string",
-            "description": "Conflicting claim. Be specific with numbers/details. Maximum 25 words."
+            "description": "Conflicting claim with specific numbers/dates. Max 25 words."
           },
           "sources_a": {
             "type": "array",
-            "description": "Sources making claim A",
-            "items": {"type": "string"}
+            "description": "Exact SOURCE NAMES making claim A (e.g., 'VEJA', 'G1', 'Variety'). NOT 'Article 1'.",
+            "items": {"type": "string"},
+            "minItems": 1
           },
           "sources_b": {
             "type": "array",
-            "description": "Sources making claim B",
-            "items": {"type": "string"}
+            "description": "Exact SOURCE NAMES making claim B (e.g., 'VEJA', 'G1', 'Variety'). NOT 'Article 2'.",
+            "items": {"type": "string"},
+            "minItems": 1
           }
         }
       }
