@@ -552,7 +552,7 @@ export async function compressForAnalysis(text, options = {}) {
  * @param {AbortSignal} options.signal - AbortSignal to cancel the operation
  * @returns {Promise<Object>} Result object with articles and statistics
  */
-export async function batchCompressForAnalysis(articles, lengthOption = 'long', options = {}) {
+export async function batchCompressForAnalysis(articles, lengthOption = 'long', options = {}, onProgress = null) {
   const operationStart = Date.now();
   let summarizer = null;
 
@@ -606,6 +606,9 @@ export async function batchCompressForAnalysis(articles, lengthOption = 'long', 
     });
 
     // OPTIMIZATION 2: Process all articles with same session
+    // Track completion order for monotonic progress
+    let completedCount = 0;
+
     const results = await Promise.allSettled(
       articles.map(async (article, index) => {
         // Check for abort signal
@@ -670,47 +673,12 @@ export async function batchCompressForAnalysis(articles, lengthOption = 'long', 
             data: { source, from: sourceLanguage, to: SUMMARIZER_CONFIG.PREFERRED_LANGUAGE }
           });
 
-          // Calculate progress within compression phase (66-85% range)
-          const compressionProgress = 66 + ((index / articles.length) * 19);
-
+          // Translate without progress context to avoid conflicts in parallel processing
           textForSummarizer = await translate(
             content,
             sourceLanguage,
-            SUMMARIZER_CONFIG.PREFERRED_LANGUAGE,
-            {
-              progressContext: {
-                phase: 'compression',
-                baseProgress: Math.round(compressionProgress)
-              }
-            }
+            SUMMARIZER_CONFIG.PREFERRED_LANGUAGE
           );
-
-          // Log after translation completes
-          logger.logUserAI('summarization', {
-            phase: 'compression',
-            progress: Math.round(compressionProgress) + 1,
-            message: `AI summarizing: ${source}`,
-            metadata: {
-              source,
-              articleIndex: index + 1,
-              total: articles.length,
-              contentLength: textForSummarizer.length
-            }
-          });
-        } else {
-          // No translation needed - log before summarization
-          const summaryProgress = 66 + ((index / articles.length) * 19);
-          logger.logUserAI('summarization', {
-            phase: 'compression',
-            progress: Math.round(summaryProgress),
-            message: `AI summarizing: ${source}`,
-            metadata: {
-              source,
-              articleIndex: index + 1,
-              total: articles.length,
-              contentLength: textForSummarizer.length
-            }
-          });
         }
 
         // Use the shared summarizer session
@@ -733,7 +701,7 @@ export async function batchCompressForAnalysis(articles, lengthOption = 'long', 
           }
         });
 
-        return {
+        const result = {
           ...article,
           compressedContent: compressed,
           originalContentLength: content.length,
@@ -741,6 +709,28 @@ export async function batchCompressForAnalysis(articles, lengthOption = 'long', 
           compressionRatio: parseFloat(compressionRatio),
           compressionFailed: false
         };
+
+        // Call progress callback when this article completes
+        if (onProgress) {
+          completedCount++;
+          try {
+            await onProgress({
+              article: result,
+              source,
+              completedCount,
+              total: articles.length,
+              hadTranslation: needsTranslation(sourceLanguage, SUMMARIZER_CONFIG.PREFERRED_LANGUAGE),
+              sourceLanguage
+            });
+          } catch (callbackError) {
+            logger.system.warn('Progress callback failed', {
+              category: logger.CATEGORIES.COMPRESS,
+              error: callbackError
+            });
+          }
+        }
+
+        return result;
       })
     );
 

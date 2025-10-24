@@ -502,7 +502,8 @@ async function handleNewArticle(articleData) {
       });
 
       if (selectedArticles.length >= 2) {
-        // FASE 5: COMPRESSÃO (70-85%) - AI trabalhando
+        // FASE 5: COMPRESSÃO (66-85%) - Logs via callback em languageModel.js
+
         logger.system.info('Starting progressive multi-stage analysis', {
           category: logger.CATEGORIES.ANALYZE,
           data: {

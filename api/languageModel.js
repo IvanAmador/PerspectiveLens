@@ -856,7 +856,38 @@ export async function compareArticlesProgressive(articles, onStageComplete, opti
     const compressionStart = Date.now();
     const compressionResult = await batchCompressForAnalysis(
       articlesToAnalyze,
-      compressionLevel
+      compressionLevel,
+      {}, // options
+      async (progressData) => {
+        // Progress callback for each article that completes
+        const { source, completedCount, total, hadTranslation, sourceLanguage } = progressData;
+
+        // Calculate monotonic progress: 66% to 85% spread across completions
+        const baseProgress = 66;
+        const range = 19; // 85 - 66
+        const progress = baseProgress + ((completedCount / total) * range);
+
+        // Show what happened to this article
+        if (hadTranslation) {
+          const langName = sourceLanguage === 'pt' ? 'Portuguese' :
+                          sourceLanguage === 'ru' ? 'Russian' :
+                          sourceLanguage === 'zh' ? 'Chinese' :
+                          sourceLanguage === 'ar' ? 'Arabic' : sourceLanguage;
+          logger.logUserAI('summarization', {
+            phase: 'compression',
+            progress: Math.round(progress),
+            message: `Translated & summarized: ${source}`,
+            metadata: { source, from: langName, completedCount, total }
+          });
+        } else {
+          logger.logUserAI('summarization', {
+            phase: 'compression',
+            progress: Math.round(progress),
+            message: `Summarized: ${source}`,
+            metadata: { source, completedCount, total }
+          });
+        }
+      }
     );
 
     processedArticles = compressionResult.articles;
