@@ -290,6 +290,7 @@ export async function translate(
   options = {}
 ) {
   const operationStart = Date.now();
+  const { progressContext } = options; // Context for user progress (e.g., { phase: 'compression', baseProgress: 70 })
 
   // Validation
   if (!text || text.trim().length === 0) {
@@ -356,6 +357,23 @@ export async function translate(
         textLength: text.length
       }
     });
+
+    // User-friendly log for long translations
+    if (progressContext && text.length > 1000) {
+      const sourceName = getLanguageName(normalizedSource);
+      const targetName = getLanguageName(normalizedTarget);
+
+      logger.logUserAI('translation', {
+        phase: progressContext.phase || 'translation',
+        progress: progressContext.baseProgress || 50,
+        message: `Translating from ${sourceName} to ${targetName}...`,
+        metadata: {
+          textLength: text.length,
+          from: normalizedSource,
+          to: normalizedTarget
+        }
+      });
+    }
 
     // Execute translation
     let translated;

@@ -352,7 +352,32 @@ async function handleNewArticle(articleData) {
 
         // Extract content from ALL articles (no limit here)
         // Configuration from pipeline.js is used as defaults
-        perspectivesWithContent = await extractArticlesContentWithTabs(perspectives);
+        perspectivesWithContent = await extractArticlesContentWithTabs(
+          perspectives,
+          {}, // Use default options
+          async (article, index, total) => {
+            // Progress callback for each extracted article
+            const progressPercent = 50 + ((index + 1) / total) * 15; // 50-65% range
+            const source = article.source || `Article ${index + 1}`;
+            const success = article.contentExtracted;
+
+            if (success) {
+              logger.logUserProgress('extraction', Math.round(progressPercent), `Extracted: ${source}`, {
+                icon: 'EXTRACT',
+                articleIndex: index + 1,
+                total: total,
+                source: source
+              });
+            } else {
+              logger.logUserProgress('extraction', Math.round(progressPercent), `Failed to extract: ${source}`, {
+                icon: 'WARN',
+                articleIndex: index + 1,
+                total: total,
+                source: source
+              });
+            }
+          }
+        );
 
         const extractedCount = perspectivesWithContent.filter(p => p.contentExtracted).length;
 
@@ -532,62 +557,75 @@ async function handleNewArticle(articleData) {
           data: { articlesCount: selectedArticles.length }
         });
 
+        // Log início da análise AI (antes dos stages)
+        logger.logUserAI('analysis', {
+          phase: 'analysis',
+          progress: 85,
+          message: 'Starting AI analysis (4 stages)...',
+          metadata: { totalStages: 4, articlesCount: selectedArticles.length }
+        });
+
         const analysisResult = await compareArticlesProgressive(
           selectedArticles,
-          // Stage completion callback - updates UI progressively
+          // Stage callback - called BEFORE starting and AFTER completing each stage
           async (stageNumber, stageData) => {
-            // FASE 6: ANÁLISE (85-100%) - AI stages
-            const stageProgress = [88, 92, 96, 98];
-            const stageMessages = [
-              'AI analyzing context & trust...',
-              'AI finding consensus...',
-              'AI detecting disputes...',
-              'AI analyzing perspectives...'
-            ];
+            const { status } = stageData;
 
-            if (stageNumber >= 1 && stageNumber <= 4) {
-              logger.logUserAI('analysis', {
-                phase: 'analysis',
-                progress: stageProgress[stageNumber - 1],
-                message: stageMessages[stageNumber - 1],
-                metadata: { stage: stageNumber }
-              });
-            }
+            if (status === 'starting') {
+              // FASE 6: ANÁLISE - AI stages STARTING
+              const stageStartProgress = [86, 90, 94, 97];
+              const stageStartMessages = [
+                'AI analyzing context & trust...',
+                'AI finding consensus...',
+                'AI detecting disputes...',
+                'AI analyzing perspectives...'
+              ];
 
-            logger.system.info(`Stage ${stageNumber}/4 completed, updating UI`, {
-              category: logger.CATEGORIES.ANALYZE,
-              data: {
-                stage: stageNumber,
-                name: stageData.name,
-                dataKeys: Object.keys(stageData.data)
-              }
-            });
-
-            // Send progressive update to content script
-            try {
-              const tabs = await chrome.tabs.query({ url: articleData.url });
-              if (tabs.length > 0) {
-                await chrome.tabs.sendMessage(tabs[0].id, {
-                  type: 'ANALYSIS_STAGE_COMPLETE',
-                  data: {
-                    stage: stageNumber,
-                    stageData: stageData.data,
-                    perspectives: selectedArticles, // Send only selected articles
-                    articleData
-                  }
-                });
-
-                logger.system.debug(`Stage ${stageNumber} update sent to UI`, {
-                  category: logger.CATEGORIES.ANALYZE,
-                  data: { tabId: tabs[0].id, stage: stageNumber }
+              if (stageNumber >= 1 && stageNumber <= 4) {
+                logger.logUserAI('analysis', {
+                  phase: 'analysis',
+                  progress: stageStartProgress[stageNumber - 1],
+                  message: stageStartMessages[stageNumber - 1],
+                  metadata: { stage: stageNumber, status: 'starting' }
                 });
               }
-            } catch (error) {
-              logger.system.warn('Failed to send stage update to UI', {
+            } else if (status === 'completed') {
+              // Stage completed - update panel but don't show toast log
+              logger.system.info(`Stage ${stageNumber}/4 completed, updating UI`, {
                 category: logger.CATEGORIES.ANALYZE,
-                error,
-                data: { stage: stageNumber }
+                data: {
+                  stage: stageNumber,
+                  name: stageData.name,
+                  dataKeys: Object.keys(stageData.data || {})
+                }
               });
+
+              // Send progressive update to content script (only on completion)
+              try {
+                const tabs = await chrome.tabs.query({ url: articleData.url });
+                if (tabs.length > 0) {
+                  await chrome.tabs.sendMessage(tabs[0].id, {
+                    type: 'ANALYSIS_STAGE_COMPLETE',
+                    data: {
+                      stage: stageNumber,
+                      stageData: stageData.data,
+                      perspectives: selectedArticles,
+                      articleData
+                    }
+                  });
+
+                  logger.system.debug(`Stage ${stageNumber} update sent to UI`, {
+                    category: logger.CATEGORIES.ANALYZE,
+                    data: { tabId: tabs[0].id, stage: stageNumber }
+                  });
+                }
+              } catch (error) {
+                logger.system.warn('Failed to send stage update to UI', {
+                  category: logger.CATEGORIES.ANALYZE,
+                  error,
+                  data: { stage: stageNumber }
+                });
+              }
             }
 
             // Update progress bar

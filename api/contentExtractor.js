@@ -25,9 +25,10 @@ import { createWindowManager } from './windowManager.js';
  *
  * @param {Array<Object>} articles - Articles with {title, link, source}
  * @param {Object} options - Extraction configuration
+ * @param {Function} onProgress - Callback for progress updates (article, index, total)
  * @returns {Promise<Array<Object>>} Articles with extracted content
  */
-export async function extractArticlesContentWithTabs(articles, options = {}) {
+export async function extractArticlesContentWithTabs(articles, options = {}, onProgress = null) {
   const operationStart = Date.now();
 
   const {
@@ -135,6 +136,22 @@ export async function extractArticlesContentWithTabs(articles, options = {}) {
         });
 
         results.push(...processedBatch);
+
+        // Call progress callback for each processed article in batch
+        if (onProgress) {
+          for (let j = 0; j < processedBatch.length; j++) {
+            const article = processedBatch[j];
+            const globalIndex = i + j;
+            try {
+              await onProgress(article, globalIndex, articlesToProcess.length);
+            } catch (callbackError) {
+              logger.system.warn('Progress callback failed', {
+                category: logger.CATEGORIES.FETCH,
+                error: callbackError
+              });
+            }
+          }
+        }
       }
     } else {
       // Sequential processing (fallback)
@@ -142,10 +159,23 @@ export async function extractArticlesContentWithTabs(articles, options = {}) {
         category: logger.CATEGORIES.FETCH
       });
 
-      for (const article of articlesToProcess) {
+      for (let i = 0; i < articlesToProcess.length; i++) {
+        const article = articlesToProcess[i];
         try {
           const extracted = await extractSingleArticleWithTab(article, timeout, windowManager);
           results.push(extracted);
+
+          // Call progress callback
+          if (onProgress) {
+            try {
+              await onProgress(extracted, i, articlesToProcess.length);
+            } catch (callbackError) {
+              logger.system.warn('Progress callback failed', {
+                category: logger.CATEGORIES.FETCH,
+                error: callbackError
+              });
+            }
+          }
         } catch (error) {
           logger.system.error('Sequential extraction failed', {
             category: logger.CATEGORIES.FETCH,
@@ -153,12 +183,25 @@ export async function extractArticlesContentWithTabs(articles, options = {}) {
             data: { article: article.title.substring(0, 60) }
           });
 
-          results.push({
+          const failedArticle = {
             ...article,
             contentExtracted: false,
             extractionError: error.message,
             extractionMethod: 'failed'
-          });
+          };
+          results.push(failedArticle);
+
+          // Call progress callback even for failed articles
+          if (onProgress) {
+            try {
+              await onProgress(failedArticle, i, articlesToProcess.length);
+            } catch (callbackError) {
+              logger.system.warn('Progress callback failed', {
+                category: logger.CATEGORIES.FETCH,
+                error: callbackError
+              });
+            }
+          }
         }
       }
     }

@@ -266,6 +266,24 @@ class SingleToast {
   getProgress() {
     return this.currentProgress;
   }
+
+  /**
+   * Move toast to the left when panel opens
+   */
+  moveToPanelMode() {
+    if (this.container) {
+      this.container.classList.add('panel-open');
+    }
+  }
+
+  /**
+   * Move toast back to right when panel closes
+   */
+  moveToNormalMode() {
+    if (this.container) {
+      this.container.classList.remove('panel-open');
+    }
+  }
 }
 
 // Create singleton instance and expose globally

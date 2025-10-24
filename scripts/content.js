@@ -427,6 +427,11 @@ function handleShowAnalysis(data) {
       perspectivesCount: panelData.perspectives?.length || 0
     });
     window.PerspectiveLensPanel.showAnalysis(panelData);
+
+    // Move toast to the left when panel opens
+    if (singleToast) {
+      singleToast.moveToPanelMode();
+    }
   } else {
     console.error('[PerspectiveLens] Panel not available!');
   }
@@ -458,6 +463,11 @@ function handleAnalysisStageComplete(data) {
       data.stageData,
       data.perspectives
     );
+
+    // Move toast to the left when panel opens (first stage)
+    if (data.stage === 1 && singleToast) {
+      singleToast.moveToPanelMode();
+    }
   } else {
     console.error('[PerspectiveLens] Panel not available for progressive update!');
   }

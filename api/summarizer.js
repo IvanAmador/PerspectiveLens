@@ -670,10 +670,19 @@ export async function batchCompressForAnalysis(articles, lengthOption = 'long', 
             data: { source, from: sourceLanguage, to: SUMMARIZER_CONFIG.PREFERRED_LANGUAGE }
           });
 
+          // Calculate progress within compression phase (70-83% range)
+          const compressionProgress = 70 + ((index / articles.length) * 13);
+
           textForSummarizer = await translate(
             content,
             sourceLanguage,
-            SUMMARIZER_CONFIG.PREFERRED_LANGUAGE
+            SUMMARIZER_CONFIG.PREFERRED_LANGUAGE,
+            {
+              progressContext: {
+                phase: 'compression',
+                baseProgress: Math.round(compressionProgress)
+              }
+            }
           );
         }
 

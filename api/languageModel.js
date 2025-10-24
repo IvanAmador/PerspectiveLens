@@ -800,6 +800,7 @@ export async function compareArticles(articles, options = {}) {
  * @throws {AIModelError} If critical stages fail
  */
 export async function compareArticlesProgressive(articles, onStageComplete, options = {}) {
+  // onStageComplete is now called BEFORE each stage starts (via onStageStart) AND after it completes
   const operationStart = Date.now();
 
   const {
@@ -929,6 +930,23 @@ export async function compareArticlesProgressive(articles, onStageComplete, opti
       data: { stage: stage.number, name: stage.name, critical: stage.critical }
     });
 
+    // Notify UI that stage is STARTING (not completing)
+    if (onStageComplete) {
+      try {
+        await onStageComplete(stage.number, {
+          name: stage.name,
+          status: 'starting',
+          data: {}
+        });
+      } catch (callbackError) {
+        logger.system.warn('Stage start callback failed', {
+          category: logger.CATEGORIES.ANALYZE,
+          error: callbackError,
+          data: { stage: stage.number }
+        });
+      }
+    }
+
     let session = null;
     let stageSuccess = false;
     let lastError = null;
@@ -1020,6 +1038,7 @@ export async function compareArticlesProgressive(articles, onStageComplete, opti
             await onStageComplete(stage.number, {
               stage: stage.number,
               name: stage.name,
+              status: 'completed',
               data: stageResult,
               metadata: {
                 duration: stageDuration,
