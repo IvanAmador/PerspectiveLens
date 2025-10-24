@@ -557,14 +557,6 @@ async function handleNewArticle(articleData) {
           data: { articlesCount: selectedArticles.length }
         });
 
-        // Log início da análise AI (antes dos stages)
-        logger.logUserAI('analysis', {
-          phase: 'analysis',
-          progress: 85,
-          message: 'Starting AI analysis (4 stages)...',
-          metadata: { totalStages: 4, articlesCount: selectedArticles.length }
-        });
-
         const analysisResult = await compareArticlesProgressive(
           selectedArticles,
           // Stage callback - called BEFORE starting and AFTER completing each stage

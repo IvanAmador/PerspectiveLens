@@ -686,6 +686,20 @@ export async function batchCompressForAnalysis(articles, lengthOption = 'long', 
           );
         }
 
+        // Log summarization progress for user
+        const summaryProgress = 70 + ((index / articles.length) * 13);
+        logger.logUserAI('summarization', {
+          phase: 'compression',
+          progress: Math.round(summaryProgress),
+          message: `AI summarizing: ${source}`,
+          metadata: {
+            source,
+            articleIndex: index + 1,
+            total: articles.length,
+            contentLength: textForSummarizer.length
+          }
+        });
+
         // Use the shared summarizer session
         const compressed = await summarizer.summarize(textForSummarizer, {
           context: '',
