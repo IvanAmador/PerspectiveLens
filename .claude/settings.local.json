@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p ui/notifications)",
+      "Bash(mkdir -p DOCS/deprecated)",
+      "Bash(cp ui/toast-notification.js DOCS/deprecated/)",
+      "Bash(cp ui/toast-notification.css DOCS/deprecated/)",
+      "Bash(cp ui/progress-tracker.js DOCS/deprecated/)",
+      "Bash(cp ui/progress-tracker.css DOCS/deprecated/)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,322 @@
+/**
+ * AnalysisToast Styles - Chrome Design System
+ * Single persistent toast for analysis progress
+ * Compatible with existing Chrome UI patterns
+ */
+
+/* Main Container */
+.analysis-toast-container {
+  position: fixed;
+  top: var(--spacing-5);
+  right: var(--spacing-5);
+  min-width: 320px;
+  max-width: 420px;
+  width: auto;
+  background: var(--color-background-elevated);
+  color: var(--color-text-body);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-03);
+  padding: var(--spacing-4);
+  z-index: 2147483646 !important; /* Just below toast notifications */
+  font-family: var(--font-family-base);
+  animation: slideInRight 300ms var(--easing-emphasized);
+  border: 1px solid var(--border-color-default);
+  isolation: isolate;
+  pointer-events: auto;
+}
+
+.analysis-toast-container.analysis-toast-hiding {
+  animation: slideOutRight 300ms var(--easing-emphasized);
+}
+
+/* Header */
+.analysis-toast-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-3);
+}
+
+.analysis-toast-icon {
+  color: var(--accent-icon-color);
+  font-size: 20px;
+  animation: rotate 2s linear infinite;
+}
+
+.analysis-toast-title {
+  flex: 1;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-title);
+  letter-spacing: var(--letter-spacing-normal);
+}
+
+.analysis-toast-toggle {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-1);
+  border-radius: var(--radius-full);
+  color: var(--color-text-secondary);
+  transition: background-color var(--duration-base) var(--easing-standard);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.analysis-toast-toggle:hover {
+  background: var(--button-background-hover);
+}
+
+.analysis-toast-toggle:active {
+  background: var(--button-background-active);
+}
+
+.analysis-toast-toggle .material-icons {
+  font-size: 18px;
+}
+
+/* Progress Bar - Chrome Style */
+.analysis-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--surface-03);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin: var(--spacing-2) 0;
+  position: relative;
+}
+
+.analysis-progress-fill {
+  height: 100%;
+  background: var(--accent-icon-color);
+  border-radius: var(--radius-full);
+  transition: width 400ms var(--easing-emphasized);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: var(--spacing-2);
+  min-width: 30px;
+}
+
+.analysis-progress-text {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--button-primary-text);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Current Message */
+.analysis-current-message {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-body);
+  margin: var(--spacing-3) 0;
+  min-height: 20px;
+  animation: fadeIn 200ms ease-in;
+  padding: var(--spacing-2);
+  background: var(--color-background-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.analysis-message-icon {
+  font-size: 16px;
+  color: var(--accent-icon-color);
+  flex-shrink: 0;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.analysis-message-text {
+  flex: 1;
+  line-height: var(--line-height-normal);
+}
+
+/* Expanded Logs Section */
+.analysis-logs-expanded {
+  margin-top: var(--spacing-3);
+  padding-top: var(--spacing-3);
+  border-top: 1px solid var(--divider-color);
+  max-height: 240px;
+  overflow-y: auto;
+  animation: expandDown 200ms var(--easing-emphasized);
+}
+
+/* Custom scrollbar */
+.analysis-logs-expanded::-webkit-scrollbar {
+  width: 6px;
+}
+
+.analysis-logs-expanded::-webkit-scrollbar-track {
+  background: var(--color-background-secondary);
+  border-radius: var(--radius-full);
+}
+
+.analysis-logs-expanded::-webkit-scrollbar-thumb {
+  background: var(--border-color-default);
+  border-radius: var(--radius-full);
+}
+
+.analysis-logs-expanded::-webkit-scrollbar-thumb:hover {
+  background: var(--border-color-hover);
+}
+
+/* Log Entry */
+.analysis-log-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-body);
+  border-radius: var(--radius-xs);
+  transition: background-color var(--duration-fast) var(--easing-standard);
+  animation: fadeInSlide 200ms ease-out;
+}
+
+.analysis-log-entry:hover {
+  background: var(--color-background-secondary);
+}
+
+.analysis-log-icon {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.analysis-log-text {
+  flex: 1;
+  line-height: var(--line-height-normal);
+  word-break: break-word;
+}
+
+/* Animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(calc(100% + var(--spacing-6)));
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(calc(100% + var(--spacing-6)));
+    opacity: 0;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes expandDown {
+  from {
+    max-height: 0;
+    opacity: 0;
+  }
+  to {
+    max-height: 240px;
+    opacity: 1;
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Completion States */
+.analysis-toast-container.completed .analysis-toast-icon {
+  animation: none;
+  color: var(--state-success);
+}
+
+.analysis-toast-container.failed .analysis-toast-icon {
+  animation: none;
+  color: var(--state-error);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .analysis-toast-container {
+    top: var(--spacing-4);
+    right: var(--spacing-4);
+    left: var(--spacing-4);
+    width: auto;
+  }
+}
+
+/* Dark Mode Support */
+[data-theme='dark'] .analysis-toast-container {
+  box-shadow: var(--shadow-04);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .analysis-toast-container {
+    border: 2px solid var(--border-color-default);
+  }
+
+  .analysis-progress-bar {
+    border: 1px solid var(--border-color-default);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .analysis-toast-container,
+  .analysis-toast-container.analysis-toast-hiding,
+  .analysis-progress-fill,
+  .analysis-current-message,
+  .analysis-logs-expanded,
+  .analysis-log-entry {
+    animation: none;
+    transition: none;
+  }
+
+  .analysis-toast-icon,
+  .analysis-message-icon {
+    animation: none;
+  }
+}

@@ -1,0 +1,454 @@
+logger.js:358 [PerspectiveLens] Background service worker started
+logger.js:358 [PerspectiveLens] Background service worker initialized
+pipeline.js:344 [Pipeline] User config loaded successfully
+logger.js:358 [PerspectiveLens] User configuration loaded Object
+logger.js:358 [PerspectiveLens] Extension installed/updated Object
+logger.js:358 [PerspectiveLens] Message received {type: 'START_ANALYSIS', tabId: 2128331651}
+logger.js:358 [PerspectiveLens] Processing new article {url: 'https://noticias.uol.com.br/ultimas-noticias/afp/2…de-150-amostras-de-dna-diz-promotora-de-paris.htm', title: 'Louvre: criminosos deixam mais de 150 amostras de DNA e impressões digitais', source: 'noticias.uol.com.br', language: 'pt-br', contentLength: 1905}
+logger.js:358 [PerspectiveLens] Content extracted successfully {status: 'completed'}
+logger.js:358 [PerspectiveLens] Searching for related articles globally... {status: 'active'}
+pipeline.js:344 [Pipeline] User config loaded successfully
+logger.js:358 [PerspectiveLens] Using search configuration {countries: Array(5), totalExpected: 20}
+logger.js:358 [PerspectiveLens] Starting perspective search with title {originalTitle: 'Louvre: criminosos deixam mais de 150 amostras de DNA e impressões digitais', originalSource: 'noticias.uol.com.br', countriesCount: 5, totalExpected: 20}
+logger.js:358 [PerspectiveLens] Detecting title language
+logger.js:358 [PerspectiveLens] Starting language detection {textLength: 75, textPreview: 'Louvre: criminosos deixam mais de 150 amostras de DNA e impr...'}
+logger.js:358 [PerspectiveLens] Creating Language Detector instance
+logger.js:358 [PerspectiveLens] Checking Language Detector API availability
+logger.js:358 [PerspectiveLens] Language Detector API availability checked {availability: 'available'}
+logger.js:358 [PerspectiveLens] Requesting Language Detector from API
+logger.js:358 [PerspectiveLens] Language Detector created successfully {duration: 142}
+logger.js:358 [PerspectiveLens] Detector ready, executing detection {detectorCreationTime: 143}
+logger.js:358 [PerspectiveLens] High confidence language detection {language: 'pt', languageName: 'Portuguese', confidence: '0.9961', confidencePercent: '99.6%', alternativesCount: 1, …}
+logger.js:358 [PerspectiveLens] Confident detection, returning normalized language {detected: 'pt', normalized: 'pt', confidence: '99.6%'}
+logger.js:358 [PerspectiveLens] Title language detected {language: 'pt'}
+logger.js:358 [PerspectiveLens] Translating title to English (pivot language) {from: 'pt', to: 'en'}
+logger.js:358 [PerspectiveLens] Starting translation {textLength: 75, sourceLang: 'Portuguese', targetLang: 'English', pair: 'pt → en'}
+logger.js:358 [PerspectiveLens] Creating translator {sourceLang: 'Portuguese', targetLang: 'English', pair: 'pt → en'}
+logger.js:358 [PerspectiveLens] Checking language pair availability {source: 'pt → pt', target: 'en → en'}
+logger.js:358 [PerspectiveLens] Language pair availability checked {pair: 'pt → en', availability: 'available'}
+logger.js:358 [PerspectiveLens] Requesting translator from API {sourceLanguage: 'pt', targetLanguage: 'en'}
+logger.js:358 [PerspectiveLens] Translator created successfully {pair: 'pt → en', duration: 179}
+logger.js:358 [PerspectiveLens] Translator ready, starting translation {translatorCreationTime: 180, textLength: 75}
+logger.js:358 [PerspectiveLens] Executing standard translation
+logger.js:358 [PerspectiveLens] Translation completed successfully {pair: 'pt → en', originalLength: 75, translatedLength: 66, totalDuration: 575, breakdown: {…}}
+logger.js:358 [PerspectiveLens] Title translated to English successfully {originalTitle: 'Louvre: criminosos deixam mais de 150 amostras de DNA e impressões digitais', englishTitle: 'Louvre: Criminals leave more than 150 DNA samples and fingerprints', duration: 577}
+logger.js:358 [PerspectiveLens] Pre-translating to unique languages {uniqueLanguages: Array(3), cacheInitialized: {…}}
+logger.js:358 [PerspectiveLens] Starting translation (may download model) {language: 'zh', from: 'en', titleLength: 66}
+logger.js:358 [PerspectiveLens] Starting translation {textLength: 66, sourceLang: 'English', targetLang: 'Chinese', pair: 'en → zh'}
+logger.js:358 [PerspectiveLens] Creating translator {sourceLang: 'English', targetLang: 'Chinese', pair: 'en → zh'}
+logger.js:358 [PerspectiveLens] Checking language pair availability {source: 'en → en', target: 'zh → zh'}
+logger.js:358 [PerspectiveLens] Starting translation (may download model) {language: 'ar', from: 'en', titleLength: 66}
+logger.js:358 [PerspectiveLens] Starting translation {textLength: 66, sourceLang: 'English', targetLang: 'Arabic', pair: 'en → ar'}
+logger.js:358 [PerspectiveLens] Creating translator {sourceLang: 'English', targetLang: 'Arabic', pair: 'en → ar'}
+logger.js:358 [PerspectiveLens] Checking language pair availability {source: 'en → en', target: 'ar → ar'}
+logger.js:358 [PerspectiveLens] Starting translation (may download model) {language: 'ru', from: 'en', titleLength: 66}
+logger.js:358 [PerspectiveLens] Starting translation {textLength: 66, sourceLang: 'English', targetLang: 'Russian', pair: 'en → ru'}
+logger.js:358 [PerspectiveLens] Creating translator {sourceLang: 'English', targetLang: 'Russian', pair: 'en → ru'}
+logger.js:358 [PerspectiveLens] Checking language pair availability {source: 'en → en', target: 'ru → ru'}
+logger.js:358 [PerspectiveLens] Waiting for all translations to complete {totalLanguages: 3, note: 'This includes model downloads if needed (first use)'}
+logger.js:358 [PerspectiveLens] Language pair availability checked {pair: 'en → zh', availability: 'available'}
+logger.js:358 [PerspectiveLens] Requesting translator from API {sourceLanguage: 'en', targetLanguage: 'zh'}
+logger.js:358 [PerspectiveLens] Language pair availability checked {pair: 'en → ar', availability: 'available'}
+logger.js:358 [PerspectiveLens] Requesting translator from API {sourceLanguage: 'en', targetLanguage: 'ar'}
+logger.js:358 [PerspectiveLens] Language pair availability checked {pair: 'en → ru', availability: 'available'}
+logger.js:358 [PerspectiveLens] Requesting translator from API {sourceLanguage: 'en', targetLanguage: 'ru'}
+logger.js:358 [PerspectiveLens] Translator created successfully {pair: 'en → zh', duration: 105}
+logger.js:358 [PerspectiveLens] Translator ready, starting translation {translatorCreationTime: 106, textLength: 66}
+logger.js:358 [PerspectiveLens] Executing standard translation
+logger.js:358 [PerspectiveLens] Translator created successfully {pair: 'en → ar', duration: 171}
+logger.js:358 [PerspectiveLens] Translator ready, starting translation {translatorCreationTime: 173, textLength: 66}
+logger.js:358 [PerspectiveLens] Executing standard translation
+logger.js:358 [PerspectiveLens] Translator created successfully {pair: 'en → ru', duration: 225}
+logger.js:358 [PerspectiveLens] Translator ready, starting translation {translatorCreationTime: 228, textLength: 66}
+logger.js:358 [PerspectiveLens] Executing standard translation
+logger.js:358 [PerspectiveLens] Translation completed successfully {pair: 'en → zh', originalLength: 66, translatedLength: 23, totalDuration: 543, breakdown: {…}}
+logger.js:358 [PerspectiveLens] Language pre-translated successfully {language: 'zh', from: 'en', originalTitle: '卢浮宫：犯罪分子留下150多个DNA样本和指纹', duration: 544, likelyDownloaded: false}
+logger.js:358 [PerspectiveLens] Translation completed successfully {pair: 'en → ar', originalLength: 66, translatedLength: 71, totalDuration: 1035, breakdown: {…}}
+logger.js:358 [PerspectiveLens] Language pre-translated successfully {language: 'ar', from: 'en', originalTitle: 'اللوفر: المجرمون يتركون أكثر من 150 عينة من الحمض النووي وبصمات الأصابع', duration: 1036, likelyDownloaded: false}
+logger.js:358 [PerspectiveLens] Translation completed successfully {pair: 'en → ru', originalLength: 66, translatedLength: 70, totalDuration: 1343, breakdown: {…}}
+logger.js:358 [PerspectiveLens] Language pre-translated successfully {language: 'ru', from: 'en', originalTitle: 'Лувр: преступники оставили более 150 образцов ДНК и отпечатков пальцев', duration: 1344, likelyDownloaded: false}
+logger.js:358 [PerspectiveLens] All translations completed {cachedLanguages: Array(5), totalTranslations: 5}
+logger.js:358 [PerspectiveLens] Launching parallel searches with cached translations {countries: Array(5), totalExpected: 20, pivotLanguage: 'en', cachedLanguages: Array(5)}
+logger.js:358 [PerspectiveLens] Using cached translation for country {country: 'Brazil', language: 'pt', localizedTitle: 'Louvre: criminosos deixam mais de 150 amostras de DNA e impressões digitais', fromCache: true}
+logger.js:358 [PerspectiveLens] Building search query from title {title: 'Louvre: criminosos deixam mais de 150 amostras de DNA e impressões digitais'}
+logger.js:358 [PerspectiveLens] Search query built {originalTitle: 'Louvre: criminosos deixam mais de 150 amostras de DNA e impressões digitais', query: 'Louvre: criminosos deixam mais de 150 amostras de DNA e impressões digitais'}
+logger.js:358 [PerspectiveLens] Searching with localized query {country: 'Brazil', language: 'pt', query: 'Louvre: criminosos deixam mais de 150 amostras de DNA e impressões digitais'}
+logger.js:358 [PerspectiveLens] Searching Google News {query: 'Louvre: criminosos deixam mais de 150 amostras de DNA e impressões digitais', country: 'BR', language: 'pt'}
+logger.js:358 [PerspectiveLens] Fetching RSS feed {url: 'https://news.google.com/rss/search?q=Louvre%3A%20criminosos%20deixam%20mais%20de%20150%20amostras%20'}
+logger.js:358 [PerspectiveLens] Using cached translation for country {country: 'China', language: 'zh', localizedTitle: '卢浮宫：犯罪分子留下150多个DNA样本和指纹', fromCache: true}
+logger.js:358 [PerspectiveLens] Building search query from title {title: '卢浮宫：犯罪分子留下150多个DNA样本和指纹'}
+logger.js:358 [PerspectiveLens] Search query built {originalTitle: '卢浮宫：犯罪分子留下150多个DNA样本和指纹', query: '卢浮宫：犯罪分子留下150多个DNA样本和指纹'}
+logger.js:358 [PerspectiveLens] Searching with localized query {country: 'China', language: 'zh', query: '卢浮宫：犯罪分子留下150多个DNA样本和指纹'}
+logger.js:358 [PerspectiveLens] Searching Google News {query: '卢浮宫：犯罪分子留下150多个DNA样本和指纹', country: 'CN', language: 'zh'}
+logger.js:358 [PerspectiveLens] Fetching RSS feed {url: 'https://news.google.com/rss/search?q=%E5%8D%A2%E6%B5%AE%E5%AE%AB%EF%BC%9A%E7%8A%AF%E7%BD%AA%E5%88%86'}
+logger.js:358 [PerspectiveLens] Using cached translation for country {country: 'Palestine', language: 'ar', localizedTitle: 'اللوفر: المجرمون يتركون أكثر من 150 عينة من الحمض النووي وبصمات الأصابع', fromCache: true}
+logger.js:358 [PerspectiveLens] Building search query from title {title: 'اللوفر: المجرمون يتركون أكثر من 150 عينة من الحمض النووي وبصمات الأصابع'}
+logger.js:358 [PerspectiveLens] Search query built {originalTitle: 'اللوفر: المجرمون يتركون أكثر من 150 عينة من الحمض النووي وبصمات الأصابع', query: 'اللوفر: المجرمون يتركون أكثر من 150 عينة من الحمض النووي وبصمات الأصابع'}
+logger.js:358 [PerspectiveLens] Searching with localized query {country: 'Palestine', language: 'ar', query: 'اللوفر: المجرمون يتركون أكثر من 150 عينة من الحمض النووي وبصمات الأصابع'}
+logger.js:358 [PerspectiveLens] Searching Google News {query: 'اللوفر: المجرمون يتركون أكثر من 150 عينة من الحمض النووي وبصمات الأصابع', country: 'PS', language: 'ar'}
+logger.js:358 [PerspectiveLens] Fetching RSS feed {url: 'https://news.google.com/rss/search?q=%D8%A7%D9%84%D9%84%D9%88%D9%81%D8%B1%3A%20%D8%A7%D9%84%D9%85%D8'}
+logger.js:358 [PerspectiveLens] Using cached translation for country {country: 'Russia', language: 'ru', localizedTitle: 'Лувр: преступники оставили более 150 образцов ДНК и отпечатков пальцев', fromCache: true}
+logger.js:358 [PerspectiveLens] Building search query from title {title: 'Лувр: преступники оставили более 150 образцов ДНК и отпечатков пальцев'}
+logger.js:358 [PerspectiveLens] Search query built {originalTitle: 'Лувр: преступники оставили более 150 образцов ДНК и отпечатков пальцев', query: 'Лувр: преступники оставили более 150 образцов ДНК и отпечатков пальцев'}
+logger.js:358 [PerspectiveLens] Searching with localized query {country: 'Russia', language: 'ru', query: 'Лувр: преступники оставили более 150 образцов ДНК и отпечатков пальцев'}
+logger.js:358 [PerspectiveLens] Searching Google News {query: 'Лувр: преступники оставили более 150 образцов ДНК и отпечатков пальцев', country: 'RU', language: 'ru'}
+logger.js:358 [PerspectiveLens] Fetching RSS feed {url: 'https://news.google.com/rss/search?q=%D0%9B%D1%83%D0%B2%D1%80%3A%20%D0%BF%D1%80%D0%B5%D1%81%D1%82%D1'}
+logger.js:358 [PerspectiveLens] Using cached translation for country {country: 'United States', language: 'en', localizedTitle: 'Louvre: Criminals leave more than 150 DNA samples and fingerprints', fromCache: true}
+logger.js:358 [PerspectiveLens] Building search query from title {title: 'Louvre: Criminals leave more than 150 DNA samples and fingerprints'}
+logger.js:358 [PerspectiveLens] Search query built {originalTitle: 'Louvre: Criminals leave more than 150 DNA samples and fingerprints', query: 'Louvre: Criminals leave more than 150 DNA samples and fingerprints'}
+logger.js:358 [PerspectiveLens] Searching with localized query {country: 'United States', language: 'en', query: 'Louvre: Criminals leave more than 150 DNA samples and fingerprints'}
+logger.js:358 [PerspectiveLens] Searching Google News {query: 'Louvre: Criminals leave more than 150 DNA samples and fingerprints', country: 'US', language: 'en'}
+logger.js:358 [PerspectiveLens] Fetching RSS feed {url: 'https://news.google.com/rss/search?q=Louvre%3A%20Criminals%20leave%20more%20than%20150%20DNA%20sampl'}
+logger.js:358 [PerspectiveLens] RSS XML fetched {xmlLength: 2503, duration: 851}
+logger.js:358 [PerspectiveLens] RSS feed parsed {articlesFound: 1}
+logger.js:358 [PerspectiveLens] RSS XML fetched {xmlLength: 1275, duration: 868}
+logger.js:358 [PerspectiveLens] RSS feed parsed {articlesFound: 0}
+logger.js:358 [PerspectiveLens] RSS XML fetched {xmlLength: 2314, duration: 861}
+logger.js:358 [PerspectiveLens] RSS feed parsed {articlesFound: 1}
+logger.js:358 [PerspectiveLens] RSS XML fetched {xmlLength: 1513, duration: 999}
+logger.js:358 [PerspectiveLens] RSS feed parsed {articlesFound: 0}
+logger.js:358 [PerspectiveLens] RSS XML fetched {xmlLength: 3595, duration: 1221}
+logger.js:358 [PerspectiveLens] RSS feed parsed {articlesFound: 1}
+logger.js:358 [PerspectiveLens] Parallel searches completed {totalArticles: 3, duration: 1226, avgPerCountry: 1}
+logger.js:358 [PerspectiveLens] Deduplicating results {beforeDedup: 3}
+logger.js:358 [PerspectiveLens] Deduplication completed {beforeDedup: 3, afterDedup: 3, removed: 0}
+logger.js:358 [PerspectiveLens] Perspective search completed {originalTitle: 'Louvre: criminosos deixam mais de 150 amostras de DNA e impressões digitais', englishTitle: 'Louvre: Criminals leave more than 150 DNA samples and fingerprints', titleTranslated: true, totalFound: 3, afterDedup: 3, …}
+logger.js:358 [PerspectiveLens] Perspectives fetched successfully {total: 3, countries: 3}
+logger.js:358 [PerspectiveLens] Found 3 articles from multiple countries {status: 'completed', total: 3, byCountry: {…}}
+logger.js:358 [PerspectiveLens] Found 3 articles from 3 countries {total: 3, byCountry: {…}}
+logger.js:358 [PerspectiveLens] Fetching article content... {status: 'active'}
+logger.js:358 [PerspectiveLens] Starting content extraction {articlesCount: 3, note: 'Extracting ALL articles, selection happens later'}
+logger.js:358 [PerspectiveLens] Processing 3 articles... {status: 'active'}
+logger.js:358 [PerspectiveLens] Starting batch extraction with parallel processing
+logger.js:358 [PerspectiveLens] Starting batch content extraction {total: 3, mode: 'parallel', batchSize: 10, timeout: 20000, retryEnabled: true, …}
+logger.js:358 [PerspectiveLens] WindowManager initialized {options: {…}}
+logger.js:358 [PerspectiveLens] Creating dedicated processing window {state: 'minimized'}
+logger.js:358 [PerspectiveLens] Info page tab created {tabId: 2128331687}
+logger.js:358 [PerspectiveLens] Window created {windowId: 2128331686, infoTabId: 2128331687}
+logger.js:358 [PerspectiveLens] Window minimized successfully {windowId: 2128331686}
+logger.js:358 [PerspectiveLens] Processing window ready {windowId: 2128331686, state: 'minimized'}
+logger.js:358 [PerspectiveLens] Using dedicated processing window {windowId: 2128331686, alive: true, totalTabs: 0, activeTabs: Array(0), infoTabId: 2128331687, …}
+logger.js:358 [PerspectiveLens] Processing batch 1/1 {batchSize: 3, articlesInBatch: Array(3)}
+logger.js:358 [PerspectiveLens] Starting single article extraction {title: "'Mais de 150' amostras de DNA foram coletadas no Louvre após", source: 'O Globo', url: 'https://news.google.com/rss/articles/CBMi0AFBVV95cUxNYVBta1pNbHZGZkJvS3hjem80YzI', useWindowManager: true}
+logger.js:358 [PerspectiveLens] Starting single article extraction {title: 'МД-2021, день 1. ДНК-анализ в криминалистике', source: 'PCR News', url: 'https://news.google.com/rss/articles/CBMidkFVX3lxTFBZSXVtX2xNZGllSkNSWXFFTGtvNzB', useWindowManager: true}
+logger.js:358 [PerspectiveLens] Starting single article extraction {title: 'France examining DNA samples after Louvre heist', source: 'Yahoo', url: 'https://news.google.com/rss/articles/CBMijwFBVV95cUxOdURGWXlycnB5NXV0Slo3cjVJMGN', useWindowManager: true}
+logger.js:358 [PerspectiveLens] Creating tab in processing window {url: 'https://news.google.com/rss/articles/CBMi0AFBVV95cUxNYVBta1pNbHZGZkJvS3hjem80YzI', windowId: 2128331686}
+logger.js:358 [PerspectiveLens] Creating tab in processing window {url: 'https://news.google.com/rss/articles/CBMidkFVX3lxTFBZSXVtX2xNZGllSkNSWXFFTGtvNzB', windowId: 2128331686}
+logger.js:358 [PerspectiveLens] Creating tab in processing window {url: 'https://news.google.com/rss/articles/CBMijwFBVV95cUxOdURGWXlycnB5NXV0Slo3cjVJMGN', windowId: 2128331686}
+logger.js:358 [PerspectiveLens] Tab created successfully {tabId: 2128331691, windowId: 2128331686, totalTabs: 1}
+logger.js:358 [PerspectiveLens] Tab created {tabId: 2128331691, source: 'O Globo'}
+logger.js:358 [PerspectiveLens] Tab created successfully {tabId: 2128331692, windowId: 2128331686, totalTabs: 2}
+logger.js:358 [PerspectiveLens] Tab created {tabId: 2128331692, source: 'PCR News'}
+logger.js:358 [PerspectiveLens] Tab created successfully {tabId: 2128331693, windowId: 2128331686, totalTabs: 3}
+logger.js:358 [PerspectiveLens] Tab created {tabId: 2128331693, source: 'Yahoo'}
+logger.js:358 [PerspectiveLens] Tab loaded, checking for redirects {tabId: 2128331692}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331692}
+logger.js:358 [PerspectiveLens] Tab loaded, checking for redirects {tabId: 2128331693}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331693}
+logger.js:358 [PerspectiveLens] Tab loaded, checking for redirects {tabId: 2128331691}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331691}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331692}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331693}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331691}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331692}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331693}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331691}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331692}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331693}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331692}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331692}
+logger.js:358 [PerspectiveLens] URL stabilized {tabId: 2128331691, url: 'https://oglobo.globo.com/cultura/noticia/2025/10/23/mais-de-', checks: 3}
+logger.js:358 [PerspectiveLens] Redirects resolved {tabId: 2128331691, redirectDuration: 2754}
+logger.js:358 [PerspectiveLens] Redirect wait timeout reached {tabId: 2128331692, maxWait: 3000}
+logger.js:358 [PerspectiveLens] Redirects resolved {tabId: 2128331692, redirectDuration: 3160}
+logger.js:358 [PerspectiveLens] Final URL obtained {tabId: 2128331691, originalUrl: 'https://news.google.com/rss/articles/CBMi0AFBVV95cUxNYVBta1pNbHZGZkJvS3hjem80YzI', finalUrl: 'https://oglobo.globo.com/cultura/noticia/2025/10/23/mais-de-150-amostras-de-dna-', wasRedirected: true}
+logger.js:358 [PerspectiveLens] Injecting Readability and extracting content {tabId: 2128331691}
+logger.js:358 [PerspectiveLens] Redirect wait timeout reached {tabId: 2128331693, maxWait: 3000}
+logger.js:358 [PerspectiveLens] Redirects resolved {tabId: 2128331693, redirectDuration: 3174}
+logger.js:358 [PerspectiveLens] Final URL obtained {tabId: 2128331692, originalUrl: 'https://news.google.com/rss/articles/CBMidkFVX3lxTFBZSXVtX2xNZGllSkNSWXFFTGtvNzB', finalUrl: 'https://pcr.news/novosti/md-2021-den-1-dnk-analiz-v-kriminalistike/', wasRedirected: true}
+logger.js:358 [PerspectiveLens] Injecting Readability and extracting content {tabId: 2128331692}
+logger.js:358 [PerspectiveLens] Readability.js injected {tabId: 2128331691}
+logger.js:358 [PerspectiveLens] Final URL obtained {tabId: 2128331693, originalUrl: 'https://news.google.com/rss/articles/CBMijwFBVV95cUxOdURGWXlycnB5NXV0Slo3cjVJMGN', finalUrl: 'https://www.yahoo.com/news/articles/france-examining-dna-samples-louvre-17531356', wasRedirected: true}
+logger.js:358 [PerspectiveLens] Injecting Readability and extracting content {tabId: 2128331693}
+logger.js:358 [PerspectiveLens] Content extraction completed in tab {tabId: 2128331691, method: 'readability', contentLength: 4293, hasTitle: true, hasExcerpt: true}
+logger.js:358 [PerspectiveLens] Readability.js injected {tabId: 2128331693}
+logger.js:358 [PerspectiveLens] Content extracted and validated {tabId: 2128331691, method: 'readability', contentLength: 4293, wordCount: 675, quality: '80.00', …}
+logger.js:358 [PerspectiveLens] Tab removed {tabId: 2128331691, remainingTabs: 2}
+logger.js:358 [PerspectiveLens] Tab closed {tabId: 2128331691}
+logger.js:358 [PerspectiveLens] Article extraction successful {source: 'O Globo', method: 'readability', quality: '80.00', totalDuration: 5247, breakdown: {…}}
+logger.js:358 [PerspectiveLens] Content extraction completed in tab {tabId: 2128331693, method: 'readability', contentLength: 1980, hasTitle: true, hasExcerpt: true}
+logger.js:358 [PerspectiveLens] Content extracted and validated {tabId: 2128331693, method: 'readability', contentLength: 1980, wordCount: 304, quality: '10.00', …}
+logger.js:358 [PerspectiveLens] Tab removed {tabId: 2128331693, remainingTabs: 1}
+logger.js:358 [PerspectiveLens] Tab closed {tabId: 2128331693}
+logger.js:358 [PerspectiveLens] Article extraction successful {source: 'Yahoo', method: 'readability', quality: '10.00', totalDuration: 5471, breakdown: {…}}
+logger.js:358 [PerspectiveLens] Readability.js injected {tabId: 2128331692}
+logger.js:358 [PerspectiveLens] Content extraction completed in tab {tabId: 2128331692, method: 'readability', contentLength: 11487, hasTitle: true, hasExcerpt: true}
+logger.js:358 [PerspectiveLens] Content extracted and validated {tabId: 2128331692, method: 'readability', contentLength: 11487, wordCount: 1477, quality: '50.00', …}
+logger.js:358 [PerspectiveLens] Tab removed {tabId: 2128331692, remainingTabs: 0}
+logger.js:358 [PerspectiveLens] Tab closed {tabId: 2128331692}
+logger.js:358 [PerspectiveLens] Article extraction successful {source: 'PCR News', method: 'readability', quality: '50.00', totalDuration: 5603, breakdown: {…}}
+logger.js:358 [PerspectiveLens] Batch completed {batch: 1, successful: 3, failed: 0, duration: 5614, avgPerArticle: 1871}
+logger.js:358 [PerspectiveLens] Retrying low-quality extractions {toRetry: 2, sources: Array(2)}
+logger.js:358 [PerspectiveLens] Retrying extraction {source: 'PCR News', previousQuality: 50}
+logger.js:358 [PerspectiveLens] Starting single article extraction {title: 'МД-2021, день 1. ДНК-анализ в криминалистике', source: 'PCR News', url: 'https://news.google.com/rss/articles/CBMidkFVX3lxTFBZSXVtX2xNZGllSkNSWXFFTGtvNzB', useWindowManager: true}
+logger.js:358 [PerspectiveLens] Retrying extraction {source: 'Yahoo', previousQuality: 10}
+logger.js:358 [PerspectiveLens] Starting single article extraction {title: 'France examining DNA samples after Louvre heist', source: 'Yahoo', url: 'https://news.google.com/rss/articles/CBMijwFBVV95cUxOdURGWXlycnB5NXV0Slo3cjVJMGN', useWindowManager: true}
+logger.js:358 [PerspectiveLens] Creating tab in processing window {url: 'https://news.google.com/rss/articles/CBMidkFVX3lxTFBZSXVtX2xNZGllSkNSWXFFTGtvNzB', windowId: 2128331686}
+logger.js:358 [PerspectiveLens] Creating tab in processing window {url: 'https://news.google.com/rss/articles/CBMijwFBVV95cUxOdURGWXlycnB5NXV0Slo3cjVJMGN', windowId: 2128331686}
+logger.js:358 [PerspectiveLens] Tab created successfully {tabId: 2128331703, windowId: 2128331686, totalTabs: 1}
+logger.js:358 [PerspectiveLens] Tab created {tabId: 2128331703, source: 'PCR News'}
+logger.js:358 [PerspectiveLens] Tab created successfully {tabId: 2128331704, windowId: 2128331686, totalTabs: 2}
+logger.js:358 [PerspectiveLens] Tab created {tabId: 2128331704, source: 'Yahoo'}
+logger.js:358 [PerspectiveLens] Tab loaded, checking for redirects {tabId: 2128331703}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331703}
+logger.js:358 [PerspectiveLens] Tab loaded, checking for redirects {tabId: 2128331704}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331704}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331703}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331704}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331703}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331704}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331703}
+logger.js:358 [PerspectiveLens] Tab on redirect page, waiting {tabId: 2128331703}
+logger.js:358 [PerspectiveLens] URL stabilized {tabId: 2128331704, url: 'https://www.yahoo.com/news/articles/france-examining-dna-sam', checks: 3}
+logger.js:358 [PerspectiveLens] Redirects resolved {tabId: 2128331704, redirectDuration: 2484}
+logger.js:358 [PerspectiveLens] Final URL obtained {tabId: 2128331704, originalUrl: 'https://news.google.com/rss/articles/CBMijwFBVV95cUxOdURGWXlycnB5NXV0Slo3cjVJMGN', finalUrl: 'https://www.yahoo.com/news/articles/france-examining-dna-samples-louvre-17531356', wasRedirected: true}
+logger.js:358 [PerspectiveLens] Injecting Readability and extracting content {tabId: 2128331704}
+logger.js:358 [PerspectiveLens] Readability.js injected {tabId: 2128331704}
+logger.js:358 [PerspectiveLens] Content extraction completed in tab {tabId: 2128331704, method: 'readability', contentLength: 1980, hasTitle: true, hasExcerpt: true}
+logger.js:358 [PerspectiveLens] Content extracted and validated {tabId: 2128331704, method: 'readability', contentLength: 1980, wordCount: 304, quality: '10.00', …}
+logger.js:358 [PerspectiveLens] Tab removed {tabId: 2128331704, remainingTabs: 1}
+logger.js:358 [PerspectiveLens] Tab closed {tabId: 2128331704}
+logger.js:358 [PerspectiveLens] Article extraction successful {source: 'Yahoo', method: 'readability', quality: '10.00', totalDuration: 3770, breakdown: {…}}
+logger.js:358 [PerspectiveLens] Retry did not improve quality {source: 'Yahoo'}
+logger.js:358 [PerspectiveLens] Redirect wait timeout reached {tabId: 2128331703, maxWait: 3000}
+logger.js:358 [PerspectiveLens] Redirects resolved {tabId: 2128331703, redirectDuration: 3158}
+logger.js:358 [PerspectiveLens] Final URL obtained {tabId: 2128331703, originalUrl: 'https://news.google.com/rss/articles/CBMidkFVX3lxTFBZSXVtX2xNZGllSkNSWXFFTGtvNzB', finalUrl: 'https://pcr.news/novosti/md-2021-den-1-dnk-analiz-v-kriminalistike/', wasRedirected: true}
+logger.js:358 [PerspectiveLens] Injecting Readability and extracting content {tabId: 2128331703}
+logger.js:358 [PerspectiveLens] Readability.js injected {tabId: 2128331703}
+logger.js:358 [PerspectiveLens] Content extraction completed in tab {tabId: 2128331703, method: 'readability', contentLength: 11487, hasTitle: true, hasExcerpt: true}
+logger.js:358 [PerspectiveLens] Content extracted and validated {tabId: 2128331703, method: 'readability', contentLength: 11487, wordCount: 1477, quality: '50.00', …}
+logger.js:358 [PerspectiveLens] Tab removed {tabId: 2128331703, remainingTabs: 0}
+logger.js:358 [PerspectiveLens] Tab closed {tabId: 2128331703}
+logger.js:358 [PerspectiveLens] Article extraction successful {source: 'PCR News', method: 'readability', quality: '50.00', totalDuration: 4669, breakdown: {…}}
+logger.js:358 [PerspectiveLens] Retry did not improve quality {source: 'PCR News'}
+logger.js:358 [PerspectiveLens] Batch extraction completed {total: 3, successful: 3, failed: 0, successRate: '100.0%', avgQuality: '46.67', …}
+logger.js:358 [PerspectiveLens] Cleaning up processing window
+logger.js:358 [PerspectiveLens] Cleaning up processing window {windowId: 2128331686, tabCount: 0}
+logger.js:358 [PerspectiveLens] Processing window closed {windowId: 2128331686}
+logger.js:358 [PerspectiveLens] Content extraction completed {successful: 3, total: 3, successRate: '100.0%'}
+logger.js:358 [PerspectiveLens] Extracted content from 3 articles {status: 'completed', successful: 3, total: 3}
+logger.js:358 [PerspectiveLens] Successfully extracted 3/3 articles {successful: 3, total: 3}
+logger.js:358 [PerspectiveLens] Sample extraction result {source: 'O Globo', title: "'Mais de 150' amostras de DNA foram coletadas no Louvre após", finalUrl: 'https://oglobo.globo.com/cultura/noticia/2025/10/2…coletadas-no-louvre-apos-roubo-diz-promotor.ghtml', method: 'readability', contentLength: 4293, …}
+logger.js:358 [PerspectiveLens] Sample extraction result {source: 'PCR News', title: 'МД-2021, день 1. ДНК-анализ в криминалистике', finalUrl: 'https://pcr.news/novosti/md-2021-den-1-dnk-analiz-v-kriminalistike/', method: 'readability', contentLength: 11487, …}
+logger.js:358 [PerspectiveLens] Sample extraction result {source: 'Yahoo', title: 'France examining DNA samples after Louvre heist', finalUrl: 'https://www.yahoo.com/news/articles/france-examining-dna-samples-louvre-175313561.html', method: 'readability', contentLength: 1980, …}
+logger.js:358 [PerspectiveLens] Selecting best articles per country... {status: 'active'}
+pipeline.js:344 [Pipeline] User config loaded successfully
+logger.js:358 [PerspectiveLens] Starting intelligent article selection {availableArticles: 3, selectionTargets: {…}}
+logger.js:358 [PerspectiveLens] Insufficient articles from some countries {issues: Array(2)}
+log @ logger.js:358
+warn @ logger.js:425
+validateCoverage @ articleSelector.js:283
+handleNewArticle @ background.js:393
+await in handleNewArticle
+(anonymous) @ background.js:100
+logger.js:358 [PerspectiveLens] Insufficient articles from some countries {coverage: '0%', issues: Array(2)}
+log @ logger.js:358
+warn @ logger.js:425
+handleNewArticle @ background.js:396
+await in handleNewArticle
+(anonymous) @ background.js:100
+logger.js:358 [PerspectiveLens] Starting intelligent article selection {totalArticles: 3, targets: {…}, maxForAnalysis: 8}
+logger.js:358 [PerspectiveLens] Processing country: BR {available: 1, requested: 2}
+logger.js:358 [PerspectiveLens] Processing country: CN {available: 0, requested: 2}
+logger.js:358 [PerspectiveLens] Processing country: PS {available: 0, requested: 2}
+logger.js:358 [PerspectiveLens] Processing country: RU {available: 1, requested: 2}
+logger.js:358 [PerspectiveLens] Processing country: US {available: 1, requested: 2}
+logger.js:358 [PerspectiveLens] Article selection complete {selectionByCountry: {…}, finalCount: 3, countriesProcessed: 5, trimmed: false}
+logger.js:358 [PerspectiveLens] Selected 3 articles for analysis {status: 'completed', selectionByCountry: {…}, totalSelected: 3, totalAvailable: 3, trimmed: false}
+logger.js:358 [PerspectiveLens] Smart selection: 3 articles from 5 countries {selectionByCountry: {…}, totalSelected: 3, totalAvailable: 3, trimmed: false}
+logger.js:358 [PerspectiveLens] Performing comparative analysis with AI... {status: 'active'}
+logger.js:358 [PerspectiveLens] Checking if analysis should run {selectedArticles: 3, threshold: 2, shouldAnalyze: true}
+logger.js:358 [PerspectiveLens] Starting progressive multi-stage analysis {articlesCount: 3, stages: 4, note: 'Using centralized config for analysis parameters'}
+logger.js:358 [PerspectiveLens] Starting analysis of 3 articles... {status: 'active', articlesCount: 3}
+logger.js:358 [PerspectiveLens] Running progressive 4-stage analysis {articlesCount: 3}
+logger.js:358 [PerspectiveLens] Starting progressive multi-stage analysis {inputArticles: 3, stages: 4, config: {…}}
+logger.js:358 [PerspectiveLens] Starting article validation {totalArticles: 3}
+logger.js:358 [PerspectiveLens] Content quality score calculated {source: 'O Globo', score: 88, factors: {…}}
+logger.js:358 [PerspectiveLens] Content quality score calculated {source: 'PCR News', score: 90, factors: {…}}
+logger.js:358 [PerspectiveLens] Content quality score calculated {source: 'Yahoo', score: 78, factors: {…}}
+logger.js:358 [PerspectiveLens] Article validation completed {input: 3, valid: 3, invalid: 0, duration: 9}
+logger.js:358 [PerspectiveLens] Content validation completed {input: 3, valid: 3, invalid: 0, duration: 10}
+logger.js:358 [PerspectiveLens] Starting article compression {articles: 3, level: 'long'}
+logger.js:358 [PerspectiveLens] Starting OPTIMIZED batch compression with session reuse {articlesCount: 3, length: 'long', optimization: 'single-session-reuse'}
+logger.js:358 [PerspectiveLens] Creating reusable summarizer session {type: 'key-points', length: 'long', format: 'plain-text', sharedContext: 'News article for comparative analysis'}
+logger.js:358 [PerspectiveLens] Creating Summarizer instance {type: 'key-points', length: 'long', format: 'plain-text', hasSharedContext: true}
+logger.js:358 [PerspectiveLens] Checking Summarizer API availability
+logger.js:358 [PerspectiveLens] Summarizer API availability checked {availability: 'available'}
+logger.js:358 [PerspectiveLens] Summarizer configuration validated {type: 'key-points', length: 'long', format: 'plain-text', sharedContext: 'News article for comparative analysis', expectedOutput: '7 bullet points'}
+logger.js:358 [PerspectiveLens] Summarizer created successfully {type: 'key-points', length: 'long', format: 'plain-text', duration: 6256}
+logger.js:358 [PerspectiveLens] Summarizer session created {duration: 6257, willProcessArticles: 3}
+logger.js:358 [PerspectiveLens] Compressing article with reused session {index: 1, total: 3, source: 'O Globo', contentLength: 4293}
+logger.js:358 [PerspectiveLens] Starting language detection {textLength: 500, textPreview: ' Mais de "150 amostras de DNA, papilares e outras, foram col...'}
+logger.js:358 [PerspectiveLens] Creating Language Detector instance
+logger.js:358 [PerspectiveLens] Checking Language Detector API availability
+logger.js:358 [PerspectiveLens] Compressing article with reused session {index: 2, total: 3, source: 'PCR News', contentLength: 11487}
+logger.js:358 [PerspectiveLens] Starting language detection {textLength: 500, textPreview: ' \t Обсуждение технологий «быстрой ДНК» (rapid DNA) в кримина...'}
+logger.js:358 [PerspectiveLens] Creating Language Detector instance
+logger.js:358 [PerspectiveLens] Checking Language Detector API availability
+logger.js:358 [PerspectiveLens] Compressing article with reused session {index: 3, total: 3, source: 'Yahoo', contentLength: 1980}
+logger.js:358 [PerspectiveLens] Starting language detection {textLength: 500, textPreview: 'French investigators are analysing dozens of DNA samples and...'}
+logger.js:358 [PerspectiveLens] Creating Language Detector instance
+logger.js:358 [PerspectiveLens] Checking Language Detector API availability
+logger.js:358 [PerspectiveLens] Language Detector API availability checked {availability: 'available'}
+logger.js:358 [PerspectiveLens] Requesting Language Detector from API
+logger.js:358 [PerspectiveLens] Language Detector API availability checked {availability: 'available'}
+logger.js:358 [PerspectiveLens] Requesting Language Detector from API
+logger.js:358 [PerspectiveLens] Language Detector API availability checked {availability: 'available'}
+logger.js:358 [PerspectiveLens] Requesting Language Detector from API
+logger.js:358 [PerspectiveLens] Language Detector created successfully {duration: 207}
+logger.js:358 [PerspectiveLens] Detector ready, executing detection {detectorCreationTime: 208}
+logger.js:358 [PerspectiveLens] High confidence language detection {language: 'pt', languageName: 'Portuguese', confidence: '0.9747', confidencePercent: '97.5%', alternativesCount: 2, …}
+logger.js:358 [PerspectiveLens] Confident detection, returning normalized language {detected: 'pt', normalized: 'pt', confidence: '97.5%'}
+logger.js:358 [PerspectiveLens] Translating for summarization {source: 'O Globo', from: 'pt', to: 'en'}
+logger.js:358 [PerspectiveLens] Starting translation {textLength: 4293, sourceLang: 'Portuguese', targetLang: 'English', pair: 'pt → en'}
+logger.js:358 [PerspectiveLens] Creating translator {sourceLang: 'Portuguese', targetLang: 'English', pair: 'pt → en'}
+logger.js:358 [PerspectiveLens] Checking language pair availability {source: 'pt → pt', target: 'en → en'}
+logger.js:358 [PerspectiveLens] Language pair availability checked {pair: 'pt → en', availability: 'available'}
+logger.js:358 [PerspectiveLens] Requesting translator from API {sourceLanguage: 'pt', targetLanguage: 'en'}
+logger.js:358 [PerspectiveLens] Translator created successfully {pair: 'pt → en', duration: 13}
+logger.js:358 [PerspectiveLens] Translator ready, starting translation {translatorCreationTime: 19, textLength: 4293}
+logger.js:358 [PerspectiveLens] Executing standard translation
+logger.js:358 [PerspectiveLens] Language Detector created successfully {duration: 481}
+logger.js:358 [PerspectiveLens] Detector ready, executing detection {detectorCreationTime: 482}
+logger.js:358 [PerspectiveLens] High confidence language detection {language: 'ru', languageName: 'Russian', confidence: '0.9075', confidencePercent: '90.8%', alternativesCount: 3, …}
+logger.js:358 [PerspectiveLens] Confident detection, returning normalized language {detected: 'ru', normalized: 'ru', confidence: '90.8%'}
+logger.js:358 [PerspectiveLens] Translating for summarization {source: 'PCR News', from: 'ru', to: 'en'}
+logger.js:358 [PerspectiveLens] Starting translation {textLength: 11487, sourceLang: 'Russian', targetLang: 'English', pair: 'ru → en'}
+logger.js:358 [PerspectiveLens] Creating translator {sourceLang: 'Russian', targetLang: 'English', pair: 'ru → en'}
+logger.js:358 [PerspectiveLens] Checking language pair availability {source: 'ru → ru', target: 'en → en'}
+logger.js:358 [PerspectiveLens] Language pair availability checked {pair: 'ru → en', availability: 'available'}
+logger.js:358 [PerspectiveLens] Requesting translator from API {sourceLanguage: 'ru', targetLanguage: 'en'}
+logger.js:358 [PerspectiveLens] Language Detector created successfully {duration: 653}
+logger.js:358 [PerspectiveLens] Detector ready, executing detection {detectorCreationTime: 654}
+logger.js:358 [PerspectiveLens] High confidence language detection {language: 'en', languageName: 'English', confidence: '0.9965', confidencePercent: '99.7%', alternativesCount: 1, …}
+logger.js:358 [PerspectiveLens] Confident detection, returning normalized language {detected: 'en', normalized: 'en', confidence: '99.7%'}
+logger.js:358 [PerspectiveLens] Article compressed successfully {source: 'Yahoo', duration: 18748, reduction: '68.6%'}
+logger.js:358 [PerspectiveLens] Translation completed successfully {pair: 'pt → en', originalLength: 4293, translatedLength: 4105, totalDuration: 21612, breakdown: {…}}
+logger.js:358 [PerspectiveLens] Translator created successfully {pair: 'ru → en', duration: 21455}
+logger.js:358 [PerspectiveLens] Translator ready, starting translation {translatorCreationTime: 21456, textLength: 11487}
+logger.js:358 [PerspectiveLens] Using streaming translation {textLength: 11487, threshold: 10000}
+logger.js:358 [PerspectiveLens] Starting streaming translation {textLength: 11487}
+logger.js:358 [PerspectiveLens] Article compressed successfully {source: 'O Globo', duration: 30776, reduction: '77.5%'}
+logger.js:358 [PerspectiveLens] Streaming translation completed {totalChunks: 1, finalLength: 11712}
+logger.js:358 [PerspectiveLens] Translation completed successfully {pair: 'ru → en', originalLength: 11487, translatedLength: 11712, totalDuration: 75224, breakdown: {…}}
+logger.js:358 [PerspectiveLens] Article compressed successfully {source: 'PCR News', duration: 91506, reduction: '88.0%'}
+logger.js:358 [PerspectiveLens] OPTIMIZED batch compression completed {total: 3, successful: 3, failed: 0, originalLength: 17760, compressedLength: 2968, …}
+logger.js:358 [PerspectiveLens] Batch summarizer session destroyed
+logger.js:358 [PerspectiveLens] Compression completed {originalLength: 17760, compressedLength: 2968, reduction: '83.3%', duration: 97772}
+logger.js:358 [PerspectiveLens] Formatting articles for analysis {articles: 3, compressed: true}
+logger.js:358 [PerspectiveLens] Analysis input prepared {inputLength: 3343, articles: 3}
+logger.js:358 [PerspectiveLens] Starting Stage 1: stage1-context-trust {stage: 1, name: 'stage1-context-trust', critical: true}
+logger.js:358 [PerspectiveLens] Loading schema from file {name: 'stage1-context-trust-schema', url: 'chrome-extension://dimpankjoapnhchogidkbkifgfnmapom/prompts/stage1-context-trust-schema.json'}
+logger.js:358 [PerspectiveLens] Loaded schema successfully {name: 'stage1-context-trust-schema', schemaType: 'object', hasRequired: true}
+logger.js:358 [PerspectiveLens] Getting prompt {name: 'stage1-context-trust', hasVariables: false, variableCount: 0}
+logger.js:358 [PerspectiveLens] Loading prompt from file {name: 'stage1-context-trust', url: 'chrome-extension://dimpankjoapnhchogidkbkifgfnmapom/prompts/stage1-context-trust.txt'}
+logger.js:358 [PerspectiveLens] Loaded prompt successfully {name: 'stage1-context-trust', contentLength: 853, cached: true}
+logger.js:358 [PerspectiveLens] Processing prompt template {templateLength: 853, variablesCount: 0, variableNames: Array(0)}
+logger.js:358 [PerspectiveLens] Prompt template processed {originalLength: 853, processedLength: 853, hadMissing: false}
+logger.js:358 [PerspectiveLens] Prompt ready for use {name: 'stage1-context-trust', originalLength: 853, finalLength: 853, variablesApplied: 0}
+logger.js:358 [PerspectiveLens] Stage 1 schema and prompt loaded {stage: 1, schemaFields: Array(3), promptLength: 853, attempt: 1}
+logger.js:358 [PerspectiveLens] Creating Language Model session {hasSystemPrompt: true, temperature: 0.7, topK: 3}
+logger.js:358 [PerspectiveLens] Fetching model parameters
+logger.js:358 [PerspectiveLens] Model parameters retrieved {}
+logger.js:358 [PerspectiveLens] System prompt configured {systemPromptLength: 853}
+logger.js:358 [PerspectiveLens] Requesting session from LanguageModel API {temperature: 0.7, topK: 3, hasSystemPrompt: true}
+logger.js:358 [PerspectiveLens] Language Model session created successfully {duration: 13, inputUsage: 225, inputQuota: 9216, quotaUsed: '225/9216'}
+logger.js:358 [PerspectiveLens] Stage 1 session created {stage: 1, quotaUsed: '225/9216', attempt: 1}
+logger.js:358 [PerspectiveLens] Stage 1 model response received {stage: 1, responseLength: 317, promptDuration: 4351, attempt: 1}
+logger.js:358 [PerspectiveLens] Stage 1 completed successfully {stage: 1, duration: 4418, resultKeys: Array(3), attempts: 1}
+logger.js:358 [PerspectiveLens] Stage 1/4 completed, updating UI {stage: 1, name: 'stage1-context-trust', dataKeys: Array(3)}
+logger.js:358 [PerspectiveLens] Stage 1 update sent to UI {tabId: 2128331651, stage: 1}
+logger.js:358 [PerspectiveLens] Stage 1/4: Context & Trust complete {status: 'active'}
+logger.js:358 [PerspectiveLens] Stage 1 session destroyed (attempt 1) {stage: 1, attempt: 1}
+logger.js:358 [PerspectiveLens] Starting Stage 2: stage2-consensus {stage: 2, name: 'stage2-consensus', critical: true}
+logger.js:358 [PerspectiveLens] Loading schema from file {name: 'stage2-consensus-schema', url: 'chrome-extension://dimpankjoapnhchogidkbkifgfnmapom/prompts/stage2-consensus-schema.json'}
+logger.js:358 [PerspectiveLens] Loaded schema successfully {name: 'stage2-consensus-schema', schemaType: 'object', hasRequired: true}
+logger.js:358 [PerspectiveLens] Getting prompt {name: 'stage2-consensus', hasVariables: false, variableCount: 0}
+logger.js:358 [PerspectiveLens] Loading prompt from file {name: 'stage2-consensus', url: 'chrome-extension://dimpankjoapnhchogidkbkifgfnmapom/prompts/stage2-consensus.txt'}
+logger.js:358 [PerspectiveLens] Loaded prompt successfully {name: 'stage2-consensus', contentLength: 644, cached: true}
+logger.js:358 [PerspectiveLens] Processing prompt template {templateLength: 644, variablesCount: 0, variableNames: Array(0)}
+logger.js:358 [PerspectiveLens] Prompt template processed {originalLength: 644, processedLength: 644, hadMissing: false}
+logger.js:358 [PerspectiveLens] Prompt ready for use {name: 'stage2-consensus', originalLength: 644, finalLength: 644, variablesApplied: 0}
+logger.js:358 [PerspectiveLens] Stage 2 schema and prompt loaded {stage: 2, schemaFields: Array(1), promptLength: 644, attempt: 1}
+logger.js:358 [PerspectiveLens] Creating Language Model session {hasSystemPrompt: true, temperature: 0.7, topK: 3}
+logger.js:358 [PerspectiveLens] Fetching model parameters
+logger.js:358 [PerspectiveLens] Model parameters retrieved {}
+logger.js:358 [PerspectiveLens] System prompt configured {systemPromptLength: 644}
+logger.js:358 [PerspectiveLens] Requesting session from LanguageModel API {temperature: 0.7, topK: 3, hasSystemPrompt: true}
+logger.js:358 [PerspectiveLens] Language Model session created successfully {duration: 19, inputUsage: 167, inputQuota: 9216, quotaUsed: '167/9216'}
+logger.js:358 [PerspectiveLens] Stage 2 session created {stage: 2, quotaUsed: '167/9216', attempt: 1}
+logger.js:358 [PerspectiveLens] Stage 2 model response received {stage: 2, responseLength: 651, promptDuration: 7679, attempt: 1}
+logger.js:358 [PerspectiveLens] Stage 2 completed successfully {stage: 2, duration: 7814, resultKeys: Array(2), attempts: 1}
+logger.js:358 [PerspectiveLens] Stage 2/4 completed, updating UI {stage: 2, name: 'stage2-consensus', dataKeys: Array(2)}
+logger.js:358 [PerspectiveLens] Stage 2 update sent to UI {tabId: 2128331651, stage: 2}
+logger.js:358 [PerspectiveLens] Stage 2/4: Consensus complete {status: 'active'}
+logger.js:358 [PerspectiveLens] Stage 2 session destroyed (attempt 1) {stage: 2, attempt: 1}
+logger.js:358 [PerspectiveLens] Starting Stage 3: stage3-disputes {stage: 3, name: 'stage3-disputes', critical: false}
+logger.js:358 [PerspectiveLens] Loading schema from file {name: 'stage3-disputes-schema', url: 'chrome-extension://dimpankjoapnhchogidkbkifgfnmapom/prompts/stage3-disputes-schema.json'}
+logger.js:358 [PerspectiveLens] Loaded schema successfully {name: 'stage3-disputes-schema', schemaType: 'object', hasRequired: true}
+logger.js:358 [PerspectiveLens] Getting prompt {name: 'stage3-disputes', hasVariables: false, variableCount: 0}
+logger.js:358 [PerspectiveLens] Loading prompt from file {name: 'stage3-disputes', url: 'chrome-extension://dimpankjoapnhchogidkbkifgfnmapom/prompts/stage3-disputes.txt'}
+logger.js:358 [PerspectiveLens] Loaded prompt successfully {name: 'stage3-disputes', contentLength: 1238, cached: true}
+logger.js:358 [PerspectiveLens] Processing prompt template {templateLength: 1238, variablesCount: 0, variableNames: Array(0)}
+logger.js:358 [PerspectiveLens] Prompt template processed {originalLength: 1238, processedLength: 1238, hadMissing: false}
+logger.js:358 [PerspectiveLens] Prompt ready for use {name: 'stage3-disputes', originalLength: 1238, finalLength: 1238, variablesApplied: 0}
+logger.js:358 [PerspectiveLens] Stage 3 schema and prompt loaded {stage: 3, schemaFields: Array(1), promptLength: 1238, attempt: 1}
+logger.js:358 [PerspectiveLens] Creating Language Model session {hasSystemPrompt: true, temperature: 0.7, topK: 3}
+logger.js:358 [PerspectiveLens] Fetching model parameters
+logger.js:358 [PerspectiveLens] Model parameters retrieved {}
+logger.js:358 [PerspectiveLens] System prompt configured {systemPromptLength: 1238}
+logger.js:358 [PerspectiveLens] Requesting session from LanguageModel API {temperature: 0.7, topK: 3, hasSystemPrompt: true}
+logger.js:358 [PerspectiveLens] Language Model session created successfully {duration: 40, inputUsage: 417, inputQuota: 9216, quotaUsed: '417/9216'}
+logger.js:358 [PerspectiveLens] Stage 3 session created {stage: 3, quotaUsed: '417/9216', attempt: 1}
+logger.js:358 [PerspectiveLens] Stage 3 model response received {stage: 3, responseLength: 246, promptDuration: 4864, attempt: 1}
+logger.js:358 [PerspectiveLens] Stage 3 completed successfully {stage: 3, duration: 4978, resultKeys: Array(1), attempts: 1}
+logger.js:358 [PerspectiveLens] Stage 3/4 completed, updating UI {stage: 3, name: 'stage3-disputes', dataKeys: Array(1)}
+logger.js:358 [PerspectiveLens] Stage 3 update sent to UI {tabId: 2128331651, stage: 3}
+logger.js:358 [PerspectiveLens] Stage 3/4: Disputes complete {status: 'active'}
+logger.js:358 [PerspectiveLens] Stage 3 session destroyed (attempt 1) {stage: 3, attempt: 1}
+logger.js:358 [PerspectiveLens] Starting Stage 4: stage4-perspectives {stage: 4, name: 'stage4-perspectives', critical: false}
+logger.js:358 [PerspectiveLens] Loading schema from file {name: 'stage4-perspectives-schema', url: 'chrome-extension://dimpankjoapnhchogidkbkifgfnmapom/prompts/stage4-perspectives-schema.json'}
+logger.js:358 [PerspectiveLens] Loaded schema successfully {name: 'stage4-perspectives-schema', schemaType: 'object', hasRequired: true}
+logger.js:358 [PerspectiveLens] Getting prompt {name: 'stage4-perspectives', hasVariables: false, variableCount: 0}
+logger.js:358 [PerspectiveLens] Loading prompt from file {name: 'stage4-perspectives', url: 'chrome-extension://dimpankjoapnhchogidkbkifgfnmapom/prompts/stage4-perspectives.txt'}
+logger.js:358 [PerspectiveLens] Loaded prompt successfully {name: 'stage4-perspectives', contentLength: 995, cached: true}
+logger.js:358 [PerspectiveLens] Processing prompt template {templateLength: 995, variablesCount: 0, variableNames: Array(0)}
+logger.js:358 [PerspectiveLens] Prompt template processed {originalLength: 995, processedLength: 995, hadMissing: false}
+logger.js:358 [PerspectiveLens] Prompt ready for use {name: 'stage4-perspectives', originalLength: 995, finalLength: 995, variablesApplied: 0}
+logger.js:358 [PerspectiveLens] Stage 4 schema and prompt loaded {stage: 4, schemaFields: Array(1), promptLength: 995, attempt: 1}
+logger.js:358 [PerspectiveLens] Creating Language Model session {hasSystemPrompt: true, temperature: 0.7, topK: 3}
+logger.js:358 [PerspectiveLens] Fetching model parameters
+logger.js:358 [PerspectiveLens] Model parameters retrieved {}
+logger.js:358 [PerspectiveLens] System prompt configured {systemPromptLength: 995}
+logger.js:358 [PerspectiveLens] Requesting session from LanguageModel API {temperature: 0.7, topK: 3, hasSystemPrompt: true}
+logger.js:358 [PerspectiveLens] Language Model session created successfully {duration: 25, inputUsage: 339, inputQuota: 9216, quotaUsed: '339/9216'}
+logger.js:358 [PerspectiveLens] Stage 4 session created {stage: 4, quotaUsed: '339/9216', attempt: 1}
+logger.js:358 [PerspectiveLens] Stage 4 model response received {stage: 4, responseLength: 285, promptDuration: 5470, attempt: 1}
+logger.js:358 [PerspectiveLens] Stage 4 completed successfully {stage: 4, duration: 5565, resultKeys: Array(1), attempts: 1}
+logger.js:358 [PerspectiveLens] Stage 4/4 completed, updating UI {stage: 4, name: 'stage4-perspectives', dataKeys: Array(1)}
+logger.js:358 [PerspectiveLens] Stage 4 update sent to UI {tabId: 2128331651, stage: 4}
+logger.js:358 [PerspectiveLens] Stage 4/4: Perspectives complete {status: 'active'}
+logger.js:358 [PerspectiveLens] Stage 4 session destroyed (attempt 1) {stage: 4, attempt: 1}
+logger.js:358 [PerspectiveLens] Progressive analysis completed {totalDuration: 120807, stagesCompleted: 4, stagesFailed: 0, stages: Array(4)}
+logger.js:358 [PerspectiveLens] Raw analysis result from compareArticlesProgressive {hasStory: true, hasGuidance: false, hasConsensus: true, consensusType: 'object', consensusSize: 4, …}
+logger.js:358 [PerspectiveLens] Summaries merged into selected articles {totalArticles: 3, articlesWithSummary: 3}
+logger.js:358 [PerspectiveLens] Analysis completed successfully {articlesAnalyzed: 3, compressionUsed: true, inputLength: 0}
+logger.js:358 [PerspectiveLens] Analysis complete {status: 'completed'}
+logger.js:358 [PerspectiveLens] Comparative analysis completed successfully
+logger.js:358 [PerspectiveLens] Statistics updated {articlesAnalyzed: 303, keywordsExtracted: 409, perspectivesFound: 3037}
+logger.js:358 [PerspectiveLens] Attempting to send analysis to content script {hasAnalysis: true, hasStory: true, hasGuidance: false, hasConsensus: true, hasDifferences: false, …}
+logger.js:358 [PerspectiveLens] Tabs query result {tabsFound: 1, url: 'https://noticias.uol.com.br/ultimas-noticias/afp/2…de-150-amostras-de-dna-diz-promotora-de-paris.htm'}
+logger.js:358 [PerspectiveLens] Sending message to tab {tabId: 2128331651, messageType: 'SHOW_ANALYSIS', dataKeys: Array(9), articlesCount: 3}
+logger.js:358 [PerspectiveLens] Analysis sent to UI successfully {tabId: 2128331651, response: {…}}
+logger.js:358 [PerspectiveLens] Article processed successfully {status: 'analysis_complete', selectedArticlesCount: 3, hasAnalysis: true}
+logger.js:358 [PerspectiveLens] Analysis completed successfully {duration: 135771, articlesAnalyzed: 3, perspectivesFound: 3}

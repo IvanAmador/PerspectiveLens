@@ -213,6 +213,21 @@ async function handleNewArticle(articleData) {
       progress: 100
     });
 
+    // FASE 1: DETECÇÃO (5-15%)
+    // Detect language with AI
+    logger.logUserAI('language-detection', {
+      phase: 'detection',
+      progress: 10,
+      message: 'Detecting article language with AI...',
+      metadata: {}
+    });
+
+    // Language detected (assuming we have the language from articleData)
+    logger.logUserProgress('detection', 15, `Language detected: ${articleData.language || 'Unknown'}`, {
+      icon: 'SUCCESS',
+      detectedLanguage: articleData.language
+    });
+
     // Step 2: Fetch perspectives (with automatic translation)
     logger.progress(logger.CATEGORIES.SEARCH, {
       status: 'active',
@@ -222,6 +237,21 @@ async function handleNewArticle(articleData) {
 
     let perspectives = [];
     try {
+      // FASE 2: TRADUÇÃO (15-25%)
+      // Translate title to English
+      logger.logUserAI('translation', {
+        phase: 'translation',
+        progress: 18,
+        message: 'Translating title to English...',
+        metadata: { from: articleData.language || 'unknown', to: 'en' }
+      });
+
+      // Pre-translate for multiple languages
+      logger.logUserProgress('translation', 22, 'Pre-translating for global search...', {
+        icon: 'TRANSLATE',
+        targetLanguages: ['zh', 'ar', 'ru', 'en']
+      });
+
       // Get search configuration from user settings (merged with defaults)
       const searchConfig = await getSearchConfigAsync();
 
@@ -233,6 +263,12 @@ async function handleNewArticle(articleData) {
         }
       });
 
+      // FASE 3: BUSCA (25-45%)
+      logger.logUserProgress('search', 30, 'Searching articles globally...', {
+        icon: 'SEARCH',
+        countries: searchConfig.countries.map(c => c.code)
+      });
+
       // Pass search config to newsFetcher
       perspectives = await fetchPerspectives(articleData.title, articleData, searchConfig);
 
@@ -242,6 +278,14 @@ async function handleNewArticle(articleData) {
           total: perspectives.length,
           countries: [...new Set(perspectives.map(p => p.country))].length
         }
+      });
+
+      // FASE 3: BUSCA COMPLETADA (45%)
+      const countriesFound = [...new Set(perspectives.map(p => p.country))];
+      logger.logUserProgress('search', 45, `Found ${perspectives.length} articles from ${countriesFound.length} countries`, {
+        icon: 'SUCCESS',
+        articlesCount: perspectives.length,
+        countries: countriesFound
       });
 
       logger.progress(logger.CATEGORIES.SEARCH, {
@@ -285,6 +329,12 @@ async function handleNewArticle(articleData) {
     let perspectivesWithContent = perspectives;
     try {
       if (perspectives.length > 0) {
+        // FASE 4: EXTRAÇÃO (45-65%)
+        logger.logUserProgress('extraction', 50, `Extracting content from ${perspectives.length} articles...`, {
+          icon: 'EXTRACT',
+          articlesCount: perspectives.length
+        });
+
         logger.system.debug('Starting content extraction', {
           category: logger.CATEGORIES.FETCH,
           data: {
@@ -305,7 +355,14 @@ async function handleNewArticle(articleData) {
         perspectivesWithContent = await extractArticlesContentWithTabs(perspectives);
 
         const extractedCount = perspectivesWithContent.filter(p => p.contentExtracted).length;
-        
+
+        // FASE 4: EXTRAÇÃO COMPLETADA (65%)
+        logger.logUserProgress('extraction', 65, `Extracted ${extractedCount}/${perspectives.length} articles successfully`, {
+          icon: 'SUCCESS',
+          successful: extractedCount,
+          total: perspectives.length
+        });
+
         logger.system.info('Content extraction completed', {
           category: logger.CATEGORIES.FETCH,
           data: {
@@ -443,6 +500,14 @@ async function handleNewArticle(articleData) {
       });
 
       if (selectedArticles.length >= 2) {
+        // FASE 5: COMPRESSÃO (65-85%) - AI trabalhando
+        logger.logUserAI('summarization', {
+          phase: 'compression',
+          progress: 70,
+          message: 'Creating AI summarizer...',
+          metadata: {}
+        });
+
         logger.system.info('Starting progressive multi-stage analysis', {
           category: logger.CATEGORIES.ANALYZE,
           data: {
@@ -450,6 +515,13 @@ async function handleNewArticle(articleData) {
             stages: 4,
             note: 'Using centralized config for analysis parameters'
           }
+        });
+
+        logger.logUserAI('summarization', {
+          phase: 'compression',
+          progress: 75,
+          message: `AI summarizing ${selectedArticles.length} articles...`,
+          metadata: { articlesCount: selectedArticles.length }
         });
 
         logger.progress(logger.CATEGORIES.ANALYZE, {
@@ -464,6 +536,24 @@ async function handleNewArticle(articleData) {
           selectedArticles,
           // Stage completion callback - updates UI progressively
           async (stageNumber, stageData) => {
+            // FASE 6: ANÁLISE (85-100%) - AI stages
+            const stageProgress = [88, 92, 96, 98];
+            const stageMessages = [
+              'AI analyzing context & trust...',
+              'AI finding consensus...',
+              'AI detecting disputes...',
+              'AI analyzing perspectives...'
+            ];
+
+            if (stageNumber >= 1 && stageNumber <= 4) {
+              logger.logUserAI('analysis', {
+                phase: 'analysis',
+                progress: stageProgress[stageNumber - 1],
+                message: stageMessages[stageNumber - 1],
+                metadata: { stage: stageNumber }
+              });
+            }
+
             logger.system.info(`Stage ${stageNumber}/4 completed, updating UI`, {
               category: logger.CATEGORIES.ANALYZE,
               data: {
@@ -581,6 +671,12 @@ async function handleNewArticle(articleData) {
             progress: 100
           });
         } else {
+          // FASE 6: ANÁLISE COMPLETA (100%)
+          logger.logUserProgress('complete', 100, 'Analysis complete!', {
+            icon: 'SUCCESS',
+            articlesAnalyzed: comparativeAnalysis.metadata?.articlesAnalyzed || 0
+          });
+
           logger.system.info('Analysis completed successfully', {
             category: logger.CATEGORIES.ANALYZE,
             data: {

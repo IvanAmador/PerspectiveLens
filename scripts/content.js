@@ -5,14 +5,18 @@
 
 console.log('[PerspectiveLens] Content script loaded');
 
+// Single toast will be available globally after injection
+let singleToast = null;
+
 /**
  * Wait for dependencies to load with optimized timeout
  */
 function waitForDependencies() {
   return new Promise((resolve) => {
     // Verificação inicial imediata
-    if (window.PerspectiveLensToast && window.PerspectiveLensProgress && window.PerspectiveLensPanel) {
+    if (window.PerspectiveLensToast && window.PerspectiveLensPanel && window.PerspectiveLensSingleToast) {
       console.log('[PerspectiveLens] All dependencies already loaded');
+      singleToast = window.PerspectiveLensSingleToast;
       resolve(true);
       return;
     }
@@ -24,18 +28,23 @@ function waitForDependencies() {
     const intervalId = setInterval(() => {
       attempts++;
 
-      if (window.PerspectiveLensToast && window.PerspectiveLensProgress && window.PerspectiveLensPanel) {
+      if (window.PerspectiveLensToast && window.PerspectiveLensPanel && window.PerspectiveLensSingleToast) {
         clearInterval(intervalId);
         console.log(`[PerspectiveLens] Dependencies loaded after ${attempts * checkInterval}ms`);
+        singleToast = window.PerspectiveLensSingleToast;
         resolve(true);
       } else if (attempts >= maxAttempts) {
         clearInterval(intervalId);
         console.warn('[PerspectiveLens] Some dependencies not loaded after 1s');
         console.log('[PerspectiveLens] Available:', {
           toast: !!window.PerspectiveLensToast,
-          progress: !!window.PerspectiveLensProgress,
-          panel: !!window.PerspectiveLensPanel
+          panel: !!window.PerspectiveLensPanel,
+          singleToast: !!window.PerspectiveLensSingleToast
         });
+        // Mesmo sem todas as dependências, pega o singleToast se disponível
+        if (window.PerspectiveLensSingleToast) {
+          singleToast = window.PerspectiveLensSingleToast;
+        }
         resolve(false);
       }
     }, checkInterval);
@@ -238,9 +247,9 @@ function startAnalysis() {
 
   analysisInProgress = true;
 
-  // Start progress tracking
-  if (window.PerspectiveLensProgress) {
-    window.PerspectiveLensProgress.start();
+  // Show single toast
+  if (singleToast) {
+    singleToast.show('Analyzing article...');
   }
 
   // NÃO mostrar painel aqui - apenas quando tiver dados
@@ -266,10 +275,6 @@ function startAnalysis() {
           );
         }
 
-        if (window.PerspectiveLensProgress) {
-          window.PerspectiveLensProgress.complete(false, 'Communication error');
-        }
-
         if (window.PerspectiveLensPanel) {
           window.PerspectiveLensPanel.showError({
             message: 'Could not communicate with background service'
@@ -292,10 +297,6 @@ function startAnalysis() {
           );
         }
 
-        if (window.PerspectiveLensProgress) {
-          window.PerspectiveLensProgress.complete(false, response?.error || 'Unknown error');
-        }
-
         if (window.PerspectiveLensPanel) {
           window.PerspectiveLensPanel.showError({
             message: response?.error || 'Unknown error occurred'
@@ -309,11 +310,15 @@ function startAnalysis() {
 /**
  * Listen for messages from background (SHOW_ANALYSIS from background.js)
  */
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   console.log('[PerspectiveLens] Content script received message:', message.type);
 
   try {
     switch (message.type) {
+      case 'USER_PROGRESS':  // ← NEW: User-friendly progress updates for toast
+        handleUserProgress(message.payload);
+        break;
+
       case 'LOG_EVENT':  // ← NEW: Log events from logger
         handleLogEvent(message.payload);
         break;
@@ -345,14 +350,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 /**
+ * Handle user-friendly progress updates
+ */
+function handleUserProgress(data) {
+  if (!singleToast) {
+    console.warn('[PerspectiveLens] SingleToast not available');
+    return;
+  }
+
+  const { phase, progress, message, icon, metadata } = data;
+
+  console.log('[PerspectiveLens] User progress update:', { phase, progress, message });
+
+  // Update toast
+  singleToast.updateProgress(progress);
+  singleToast.updateMessage(message, icon);
+
+  // Add flags if present
+  if (metadata && metadata.countries) {
+    metadata.countries.forEach(code => {
+      singleToast.addFlag(code);
+    });
+  }
+
+  // Auto-dismiss when complete
+  if (progress >= 100) {
+    setTimeout(() => singleToast.dismiss(), 2000);
+  }
+}
+
+/**
  * Handle log events from background logger
  */
 function handleLogEvent(logEntry) {
   console.log('[PerspectiveLens] Log event received:', logEntry);
-
-  if (window.PerspectiveLensProgress) {
-    window.PerspectiveLensProgress.addLogEntry(logEntry);
-  }
+  // Progress tracker removed - using single toast now
 }
 
 /**
@@ -360,12 +392,8 @@ function handleLogEvent(logEntry) {
  */
 function handleProgressUpdate(data) {
   const { step, status, message, progress } = data;
-
   console.log('[PerspectiveLens] Progress update:', { step, status, message, progress });
-
-  if (window.PerspectiveLensProgress) {
-    window.PerspectiveLensProgress.updateStep(step, status, progress, message);
-  }
+  // Progress tracker removed - using single toast now
 }
 
 /**
@@ -381,14 +409,6 @@ function handleShowAnalysis(data) {
     console.error('[PerspectiveLens] No analysis data in response');
     handleAnalysisError({ message: 'No analysis data received' });
     return;
-  }
-
-  // Complete progress tracker
-  if (window.PerspectiveLensProgress) {
-    window.PerspectiveLensProgress.complete(
-      true,
-      `Found ${data.perspectives?.length || 0} perspectives`
-    );
   }
 
   if (window.PerspectiveLensPanel) {
@@ -425,14 +445,6 @@ function handleAnalysisStageComplete(data) {
     analysisInProgress = false;
   }
 
-  // Update progress tracker if available
-  if (window.PerspectiveLensProgress && data.stage === 4) {
-    window.PerspectiveLensProgress.complete(
-      true,
-      `Analysis complete with ${data.perspectives?.length || 0} perspectives`
-    );
-  }
-
   // Update panel progressively
   if (window.PerspectiveLensPanel) {
     console.log(`[PerspectiveLens] Updating panel with stage ${data.stage}:`, {
@@ -458,13 +470,6 @@ function handleAnalysisError(error) {
   console.error('[PerspectiveLens] Analysis failed:', error);
   analysisInProgress = false;
 
-  if (window.PerspectiveLensProgress) {
-    window.PerspectiveLensProgress.complete(
-      false,
-      error.message || 'Analysis failed'
-    );
-  }
-
   if (window.PerspectiveLensPanel) {
     window.PerspectiveLensPanel.showError(error);
   }
@@ -482,9 +487,8 @@ window.addEventListener('perspectivelens:retry', () => {
  * Listen for log events from content script context (via window.dispatchEvent)
  */
 window.addEventListener('perspectivelens:log', (event) => {
-  if (window.PerspectiveLensProgress) {
-    window.PerspectiveLensProgress.addLogEntry(event.detail);
-  }
+  console.log('[PerspectiveLens] Log event:', event.detail);
+  // Progress tracker removed - using single toast now
 });
 
 /**

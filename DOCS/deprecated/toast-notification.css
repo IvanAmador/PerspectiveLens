@@ -1,0 +1,254 @@
+/**
+ * PerspectiveLens Toast Notification Styles
+ * Chrome Material 3 design using design system
+ */
+
+@import url('./design-system.css');
+
+/* Toast container */
+.pl-toast-container {
+  position: fixed;
+  top: var(--spacing-5);
+  right: var(--spacing-5);
+  z-index: 2147483647 !important; /* Maximum possible z-index */
+  font-family: var(--font-family-base);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  isolation: isolate; /* Create a new stacking context */
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Reposition to left when panel is visible */
+.pl-toast-container.pl-toast-left-side {
+  right: auto;
+  left: var(--spacing-5);
+}
+
+/* Toast notification */
+.pl-toast {
+  background: var(--color-background-elevated);
+  border: 1px solid var(--border-color-default);
+  color: var(--color-text-body);
+  padding: var(--spacing-4);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-03);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  min-width: 320px;
+  max-width: 420px;
+  pointer-events: auto;
+  animation: pl-toast-slide-in var(--duration-slow) var(--easing-decelerate);
+  position: relative;
+  z-index: 2147483647 !important; /* Ensure each toast is also at maximum */
+  backdrop-filter: blur(var(--blur-base));
+}
+
+.pl-toast.pl-toast-hiding {
+  animation: pl-toast-slide-out var(--duration-base) var(--easing-accelerate) forwards;
+}
+
+/* Toast icon */
+.pl-toast-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--accent-icon-color);
+}
+
+.pl-toast-icon svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+/* Toast type colors */
+.pl-toast.pl-toast-success .pl-toast-icon {
+  color: var(--state-success);
+}
+
+.pl-toast.pl-toast-error .pl-toast-icon {
+  color: var(--state-error);
+}
+
+.pl-toast.pl-toast-warning .pl-toast-icon {
+  color: var(--state-warning);
+}
+
+.pl-toast.pl-toast-info .pl-toast-icon {
+  color: var(--state-info);
+}
+
+/* Toast content */
+.pl-toast-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  min-width: 0;
+}
+
+.pl-toast-title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-tight);
+  color: var(--color-text-title);
+}
+
+.pl-toast-message {
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-secondary);
+}
+
+/* Toast actions */
+.pl-toast-actions {
+  display: flex;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-2);
+}
+
+.pl-toast-btn {
+  background: transparent;
+  border: 1px solid var(--border-color-default);
+  color: var(--button-text-color);
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-button);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  font-family: var(--font-family-base);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.pl-toast-btn:hover {
+  background: var(--button-background-hover);
+  border-color: var(--button-border-color-hover);
+}
+
+.pl-toast-btn:active {
+  background: var(--button-background-active);
+}
+
+.pl-toast-btn-primary {
+  background: var(--button-primary-background);
+  color: var(--button-primary-text);
+  border-color: var(--button-primary-background);
+}
+
+.pl-toast-btn-primary:hover {
+  background: var(--button-primary-background-hover);
+  border-color: var(--button-primary-background-hover);
+}
+
+.pl-toast-btn-primary:active {
+  background: var(--button-primary-background-active);
+  border-color: var(--button-primary-background-active);
+}
+
+/* Close button */
+.pl-toast-close {
+  background: transparent;
+  border: none;
+  color: var(--color-text-tertiary);
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.pl-toast-close:hover {
+  background: var(--color-background-secondary);
+  color: var(--color-text-body);
+}
+
+.pl-toast-close svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Animations */
+@keyframes pl-toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pl-toast-slide-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+/* Progress bar (for auto-dismiss) */
+.pl-toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--border-color-subtle);
+  overflow: hidden;
+}
+
+.pl-toast-progress-bar {
+  height: 100%;
+  background: var(--accent-icon-color);
+  width: 100%;
+  transform-origin: left;
+  animation: pl-toast-progress-shrink linear;
+}
+
+@keyframes pl-toast-progress-shrink {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pl-toast-container {
+    top: var(--spacing-2);
+    right: var(--spacing-2);
+    left: var(--spacing-2);
+  }
+
+  .pl-toast {
+    min-width: auto;
+    width: 100%;
+  }
+}
+
+/* Dark mode support */
+[data-theme='dark'] .pl-toast {
+  background: var(--color-background-elevated);
+  border-color: var(--border-color-default);
+  box-shadow: var(--shadow-04);
+}

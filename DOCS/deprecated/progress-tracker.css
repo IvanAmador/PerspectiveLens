@@ -1,0 +1,496 @@
+/**
+ * PerspectiveLens Progress Tracker - Terminal View Styles
+ * Modern terminal interface for structured logs
+ */
+
+@import url('./design-system.css');
+
+/* Main container - Terminal style */
+.pl-progress-container {
+  position: fixed;
+  bottom: var(--spacing-5);
+  right: var(--spacing-5);
+  width: 600px;
+  max-height: 600px;
+  background: var(--color-background-elevated);
+  border: 1px solid var(--border-color-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-03);
+  z-index: 2147483646 !important;
+  font-family: var(--font-family-base);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: pl-slide-in-up var(--duration-slow) var(--easing-decelerate);
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Reposition to left when panel is visible */
+.pl-progress-container.pl-progress-left-side {
+  right: auto;
+  left: var(--spacing-5);
+}
+
+.pl-progress-container.pl-progress-hiding {
+  animation: pl-slide-out-down var(--duration-base) var(--easing-accelerate) forwards;
+}
+
+/* Minimized state */
+.pl-progress-container.pl-progress-minimized {
+  max-height: 80px;
+}
+
+.pl-progress-container.pl-progress-minimized .pl-terminal {
+  display: none;
+}
+
+.pl-progress-container.pl-progress-minimized .pl-filters {
+  display: none;
+}
+
+/* Header */
+.pl-progress-header {
+  background: var(--color-background-secondary);
+  padding: var(--spacing-3) var(--spacing-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color-subtle);
+  flex-shrink: 0;
+}
+
+.pl-progress-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex: 1;
+  min-width: 0;
+}
+
+.pl-progress-header-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--accent-icon-color);
+  flex-shrink: 0;
+}
+
+.pl-progress-header-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.pl-progress-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-title);
+  margin: 0;
+}
+
+.pl-progress-subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin: 0;
+  margin-top: 2px;
+  font-family: var(--font-family-mono);
+}
+
+.pl-progress-header-actions {
+  display: flex;
+  gap: var(--spacing-1);
+}
+
+.pl-progress-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-tertiary);
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.pl-progress-btn:hover {
+  background: var(--color-background-tertiary);
+  color: var(--color-text-body);
+}
+
+.pl-progress-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Overall progress bar */
+.pl-progress-overall {
+  padding: var(--spacing-3) var(--spacing-4);
+  border-bottom: 1px solid var(--border-color-subtle);
+  background: var(--color-background-secondary);
+  flex-shrink: 0;
+}
+
+.pl-progress-bar-container {
+  height: 4px;
+  background: var(--color-background-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.pl-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-icon-color), #34A853);
+  border-radius: var(--radius-full);
+  transition: width var(--transition-base);
+  position: relative;
+}
+
+.pl-progress-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.3) 50%,
+    rgba(255,255,255,0) 100%
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Filters */
+.pl-filters {
+  padding: var(--spacing-3) var(--spacing-4);
+  background: var(--color-background-secondary);
+  border-bottom: 1px solid var(--border-color-subtle);
+  flex-shrink: 0;
+}
+
+.pl-filters-section {
+  margin-bottom: var(--spacing-2);
+}
+
+.pl-filters-section:last-child {
+  margin-bottom: 0;
+}
+
+.pl-filters-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wide);
+  margin-bottom: var(--spacing-2);
+}
+
+.pl-filters-buttons {
+  display: flex;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+
+.pl-filter-btn {
+  padding: var(--spacing-1) var(--spacing-3);
+  border: 1px solid var(--border-color-default);
+  background: var(--color-background-primary);
+  color: var(--color-text-body);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family-mono);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.pl-filter-btn:hover {
+  background: var(--color-background-tertiary);
+  border-color: var(--accent-icon-color);
+}
+
+.pl-filter-btn.pl-filter-active {
+  background: var(--accent-background);
+  border-color: var(--accent-icon-color);
+  color: var(--accent-icon-color);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Terminal */
+.pl-terminal {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: #1e1e1e; /* Dark terminal background */
+}
+
+.pl-terminal-header {
+  padding: var(--spacing-2) var(--spacing-4);
+  background: #2d2d2d;
+  border-bottom: 1px solid #3e3e3e;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  color: #858585;
+  flex-shrink: 0;
+}
+
+.pl-terminal-prompt {
+  color: #4ec9b0; /* Cyan for prompt */
+}
+
+.pl-terminal-count {
+  color: #858585;
+}
+
+.pl-terminal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-2) var(--spacing-4);
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #d4d4d4; /* VSCode default text color */
+  background: #1e1e1e;
+}
+
+.pl-terminal-empty {
+  color: #858585;
+  text-align: center;
+  padding: var(--spacing-5) var(--spacing-4);
+  font-style: italic;
+}
+
+/* Terminal line */
+.pl-terminal-line {
+  display: flex;
+  gap: var(--spacing-2);
+  padding: 2px 0;
+  border-left: 2px solid transparent;
+  transition: all var(--transition-fast);
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+.pl-terminal-line:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-left-color: var(--accent-icon-color);
+}
+
+/* Log components */
+.pl-log-time {
+  color: #858585;
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+.pl-log-level {
+  font-weight: var(--font-weight-bold);
+  flex-shrink: 0;
+  min-width: 50px;
+}
+
+/* Log levels - ANSI-style colors */
+.pl-level-error {
+  color: #f48771; /* Red */
+}
+
+.pl-level-warn {
+  color: #dcdcaa; /* Yellow */
+}
+
+.pl-level-info {
+  color: #4fc1ff; /* Blue */
+}
+
+.pl-level-debug {
+  color: #b5cea8; /* Green */
+}
+
+.pl-level-trace {
+  color: #858585; /* Gray */
+  opacity: 0.7;
+}
+
+/* Category badges */
+.pl-log-category {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.pl-category-extract {
+  background: rgba(78, 201, 176, 0.2);
+  color: #4ec9b0;
+}
+
+.pl-category-keywords {
+  background: rgba(206, 145, 120, 0.2);
+  color: #ce9178;
+}
+
+.pl-category-search {
+  background: rgba(79, 193, 255, 0.2);
+  color: #4fc1ff;
+}
+
+.pl-category-fetch {
+  background: rgba(220, 220, 170, 0.2);
+  color: #dcdcaa;
+}
+
+.pl-category-analyze {
+  background: rgba(197, 134, 192, 0.2);
+  color: #c586c0;
+}
+
+.pl-category-translate {
+  background: rgba(86, 156, 214, 0.2);
+  color: #569cd6;
+}
+
+.pl-category-compress {
+  background: rgba(181, 206, 168, 0.2);
+  color: #b5cea8;
+}
+
+.pl-category-validate {
+  background: rgba(156, 220, 254, 0.2);
+  color: #9cdcfe;
+}
+
+.pl-category-error {
+  background: rgba(244, 135, 113, 0.2);
+  color: #f48771;
+}
+
+.pl-category-general {
+  background: rgba(133, 133, 133, 0.2);
+  color: #858585;
+}
+
+.pl-log-message {
+  flex: 1;
+  color: #d4d4d4;
+  word-wrap: break-word;
+}
+
+/* Highlight for errors and warnings */
+.pl-terminal-line.pl-log-error {
+  background: rgba(244, 135, 113, 0.1);
+}
+
+.pl-terminal-line.pl-log-warn {
+  background: rgba(220, 220, 170, 0.1);
+}
+
+/* Scrollbar styling - VSCode style */
+.pl-terminal-body::-webkit-scrollbar {
+  width: 10px;
+}
+
+.pl-terminal-body::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+.pl-terminal-body::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 5px;
+}
+
+.pl-terminal-body::-webkit-scrollbar-thumb:hover {
+  background: #4e4e4e;
+}
+
+/* Animations */
+@keyframes pl-slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pl-slide-out-down {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+/* New log entry animation */
+@keyframes pl-log-appear {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.pl-terminal-line {
+  animation: pl-log-appear 0.2s ease-out;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pl-progress-container {
+    bottom: 0;
+    right: 0;
+    left: 0;
+    width: 100%;
+    max-height: 70vh;
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+  }
+
+  .pl-terminal-body {
+    font-size: 11px;
+  }
+
+  .pl-log-time {
+    display: none; /* Hide timestamps on mobile */
+  }
+}
+
+/* Dark mode support (already using dark colors) */
+[data-theme='dark'] .pl-progress-container {
+  background: #1e1e1e;
+  border-color: #3e3e3e;
+}
+
+[data-theme='dark'] .pl-progress-header,
+[data-theme='dark'] .pl-progress-overall,
+[data-theme='dark'] .pl-filters {
+  background: #252526;
+  border-color: #3e3e3e;
+}

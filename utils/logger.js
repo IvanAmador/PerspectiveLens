@@ -463,6 +463,75 @@ const both = {
 };
 
 /**
+ * Log user-friendly progress with optional AI indicator
+ * @param {string} phase - Analysis phase (detection, search, extraction, compression, analysis)
+ * @param {number} progress - Progress percentage (0-100)
+ * @param {string} message - User-friendly message
+ * @param {Object} metadata - Additional metadata
+ */
+async function logUserProgress(phase, progress, message, metadata = {}) {
+  const userLog = {
+    context: 'USER',
+    phase,
+    progress,
+    message,
+    timestamp: Date.now(),
+    ...metadata
+  };
+
+  // Broadcast to content scripts via tabs
+  if (typeof chrome !== 'undefined' && chrome.tabs) {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      for (const tab of tabs) {
+        try {
+          await chrome.tabs.sendMessage(tab.id, {
+            type: 'USER_PROGRESS',
+            payload: userLog
+          });
+        } catch (e) {
+          // Tab might not have content script, that's ok
+        }
+      }
+    } catch (e) {
+      // Not in background context or tabs API not available
+    }
+  }
+
+  // Also log to system for debugging
+  log('INFO', 'USER', message, {
+    category: LOG_CATEGORIES.GENERAL,
+    progress,
+    data: metadata
+  });
+}
+
+/**
+ * Log AI operation with special indicator
+ * @param {string} operation - AI operation type (translation, summarization, analysis, detection)
+ * @param {Object} details - Operation details
+ */
+function logUserAI(operation, details) {
+  const {
+    phase,
+    progress,
+    message,
+    metadata = {}
+  } = details;
+
+  logUserProgress(
+    phase,
+    progress,
+    message,
+    {
+      icon: 'AI',
+      aiOperation: operation,
+      ...metadata
+    }
+  );
+}
+
+/**
  * Public API - Utilities
  */
 const utils = {
@@ -472,7 +541,11 @@ const utils = {
   getCurrentRequestId,
   getHistory: () => [...state.history],
   clearHistory: () => state.history = [],
-  setConfig: (key, value) => CONFIG[key] = value
+  setConfig: (key, value) => CONFIG[key] = value,
+
+  // User-friendly progress logging
+  logUserProgress,
+  logUserAI
 };
 
 /**
