@@ -352,42 +352,19 @@ async function handleNewArticle(articleData) {
 
         // Extract content from ALL articles (no limit here)
         // Configuration from pipeline.js is used as defaults
-        perspectivesWithContent = await extractArticlesContentWithTabs(
-          perspectives,
-          {}, // Use default options
-          async (article, index, total) => {
-            // Progress callback for each extracted article
-            const progressPercent = 50 + ((index + 1) / total) * 15; // 50-65% range
-            const source = article.source || `Article ${index + 1}`;
-            const success = article.contentExtracted;
-
-            if (success) {
-              logger.logUserProgress('extraction', Math.round(progressPercent), `Extracted: ${source}`, {
-                icon: 'EXTRACT',
-                articleIndex: index + 1,
-                total: total,
-                source: source
-              });
-            } else {
-              logger.logUserProgress('extraction', Math.round(progressPercent), `Failed to extract: ${source}`, {
-                icon: 'WARN',
-                articleIndex: index + 1,
-                total: total,
-                source: source
-              });
-            }
-          }
-        );
+        // Note: No individual progress logs - extraction is fast (6-10s) and parallel
+        perspectivesWithContent = await extractArticlesContentWithTabs(perspectives);
 
         const extractedCount = perspectivesWithContent.filter(p => p.contentExtracted).length;
 
-        // FASE 4: EXTRAÇÃO COMPLETADA (65%)
-        logger.logUserProgress('extraction', 65, `Extracted ${extractedCount}/${perspectives.length} articles successfully`, {
+        // Show completion with count
+        logger.logUserProgress('extraction', 65, `Content ready from ${extractedCount} articles`, {
           icon: 'SUCCESS',
           successful: extractedCount,
           total: perspectives.length
         });
 
+        // Log extraction completion (system only)
         logger.system.info('Content extraction completed', {
           category: logger.CATEGORIES.FETCH,
           data: {
@@ -525,14 +502,7 @@ async function handleNewArticle(articleData) {
       });
 
       if (selectedArticles.length >= 2) {
-        // FASE 5: COMPRESSÃO (65-85%) - AI trabalhando
-        logger.logUserAI('summarization', {
-          phase: 'compression',
-          progress: 70,
-          message: 'Creating AI summarizer...',
-          metadata: {}
-        });
-
+        // FASE 5: COMPRESSÃO (70-85%) - AI trabalhando
         logger.system.info('Starting progressive multi-stage analysis', {
           category: logger.CATEGORIES.ANALYZE,
           data: {
@@ -540,13 +510,6 @@ async function handleNewArticle(articleData) {
             stages: 4,
             note: 'Using centralized config for analysis parameters'
           }
-        });
-
-        logger.logUserAI('summarization', {
-          phase: 'compression',
-          progress: 75,
-          message: `AI summarizing ${selectedArticles.length} articles...`,
-          metadata: { articlesCount: selectedArticles.length }
         });
 
         logger.progress(logger.CATEGORIES.ANALYZE, {

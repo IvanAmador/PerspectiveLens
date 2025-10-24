@@ -670,8 +670,8 @@ export async function batchCompressForAnalysis(articles, lengthOption = 'long', 
             data: { source, from: sourceLanguage, to: SUMMARIZER_CONFIG.PREFERRED_LANGUAGE }
           });
 
-          // Calculate progress within compression phase (70-83% range)
-          const compressionProgress = 70 + ((index / articles.length) * 13);
+          // Calculate progress within compression phase (66-85% range)
+          const compressionProgress = 66 + ((index / articles.length) * 19);
 
           textForSummarizer = await translate(
             content,
@@ -684,21 +684,34 @@ export async function batchCompressForAnalysis(articles, lengthOption = 'long', 
               }
             }
           );
-        }
 
-        // Log summarization progress for user
-        const summaryProgress = 70 + ((index / articles.length) * 13);
-        logger.logUserAI('summarization', {
-          phase: 'compression',
-          progress: Math.round(summaryProgress),
-          message: `AI summarizing: ${source}`,
-          metadata: {
-            source,
-            articleIndex: index + 1,
-            total: articles.length,
-            contentLength: textForSummarizer.length
-          }
-        });
+          // Log after translation completes
+          logger.logUserAI('summarization', {
+            phase: 'compression',
+            progress: Math.round(compressionProgress) + 1,
+            message: `AI summarizing: ${source}`,
+            metadata: {
+              source,
+              articleIndex: index + 1,
+              total: articles.length,
+              contentLength: textForSummarizer.length
+            }
+          });
+        } else {
+          // No translation needed - log before summarization
+          const summaryProgress = 66 + ((index / articles.length) * 19);
+          logger.logUserAI('summarization', {
+            phase: 'compression',
+            progress: Math.round(summaryProgress),
+            message: `AI summarizing: ${source}`,
+            metadata: {
+              source,
+              articleIndex: index + 1,
+              total: articles.length,
+              contentLength: textForSummarizer.length
+            }
+          });
+        }
 
         // Use the shared summarizer session
         const compressed = await summarizer.summarize(textForSummarizer, {
