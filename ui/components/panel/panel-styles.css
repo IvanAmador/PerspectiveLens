@@ -272,6 +272,11 @@
   border: 1px solid var(--md-sys-color-outline-variant);
   transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
   box-shadow: var(--md-elevation-1);
+  margin-bottom: var(--spacing-5);
+}
+
+.pl-card:last-child {
+  margin-bottom: 0;
 }
 
 .pl-card:hover {
@@ -384,6 +389,23 @@
   border-radius: var(--radius-lg);
   padding: var(--spacing-4);
   border: 1px solid var(--panel-section-divider);
+  margin-bottom: var(--spacing-5);
+}
+
+.pl-section:last-child {
+  margin-bottom: 0;
+}
+
+/* ============================================
+   STAGES (Progressive Analysis Containers)
+   ============================================ */
+
+.pl-stage {
+  margin-bottom: var(--spacing-6);
+}
+
+.pl-stage:last-child {
+  margin-bottom: 0;
 }
 
 .pl-section-title {
@@ -525,12 +547,56 @@
    TAGS (Source Links)
    ============================================ */
 
+.pl-source-tag {
+  background: var(--button-secondary-background);
+  color: var(--button-secondary-text) !important;
+  border: 1px solid var(--border-color-default);
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-button);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none !important;
+  display: inline-block;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  font-family: var(--font-family-base);
+}
+
+.pl-source-tag:link,
+.pl-source-tag:visited {
+  color: var(--button-secondary-text) !important;
+  text-decoration: none !important;
+}
+
+.pl-source-tag:hover {
+  background: var(--button-secondary-background-hover);
+  border-color: var(--border-color-hover);
+  color: var(--button-secondary-text) !important;
+  transform: scale(1.02);
+}
+
+.pl-source-tag:active {
+  background: var(--button-secondary-background-active);
+  color: var(--button-secondary-text) !important;
+  transform: scale(0.98);
+}
+
+.pl-source-tag:focus-visible {
+  outline: 2px solid var(--border-color-focus);
+  outline-offset: 2px;
+}
+
+/* Legacy class names for compatibility */
 .pl-tag-source {
   background: var(--md-sys-color-surface-variant);
   border: 1px solid var(--md-sys-color-outline-variant);
   color: var(--md-sys-color-on-surface-variant);
   padding: var(--spacing-1) var(--spacing-2);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-chip);
   font-size: var(--font-size-xs);
   font-weight: var(--visual-hierarchy-2);
   text-decoration: none;
