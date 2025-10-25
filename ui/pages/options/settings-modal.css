@@ -28,7 +28,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.32);
+  background: var(--overlay-background);
   animation: fadeIn 0.2s ease;
 }
 
@@ -45,8 +45,8 @@
   height: 85vh;
   max-height: 720px;
   background: var(--color-background-primary);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.24), 0 0 8px rgba(0, 0, 0, 0.16);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-04);
   display: flex;
   flex-direction: column;
   animation: modalSlideIn 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
@@ -163,7 +163,7 @@
   padding: 10px 12px;
   border: none;
   background: transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   color: var(--color-text-body);
   font-family: var(--font-family-base);
@@ -243,7 +243,7 @@
 .settings-group {
   background: var(--color-background-secondary);
   border: 1px solid var(--border-color-default);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   padding: 20px;
   margin-bottom: 20px;
 }
@@ -292,7 +292,7 @@
   width: 100%;
   padding: 8px 12px 8px 36px;
   border: 1px solid var(--border-color-default);
-  border-radius: 24px;
+  border-radius: var(--radius-2xl);
   background: var(--color-background-primary);
   color: var(--color-text-body);
   font-family: var(--font-family-base);
@@ -315,7 +315,7 @@
   max-height: 400px;
   overflow-y: auto;
   border: 1px solid var(--border-color-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--color-background-primary);
 }
 
@@ -455,7 +455,7 @@
   width: 100px;
   padding: 8px 12px;
   border: 1px solid var(--border-color-default);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--color-background-primary);
   color: var(--color-text-body);
   font-family: var(--font-family-base);
@@ -506,7 +506,7 @@
   bottom: 0;
   background-color: var(--color-background-tertiary);
   border: 2px solid var(--border-color-default);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
@@ -520,7 +520,7 @@
   background-color: var(--color-background-primary);
   border-radius: 50%;
   transition: transform 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-01);
 }
 
 .toggle-switch input:checked + .toggle-slider {
@@ -618,13 +618,13 @@
   border-radius: 50%;
   background: var(--accent-icon-color);
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-01);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .range-slider::-webkit-slider-thumb:hover {
   transform: scale(1.1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-03);
 }
 
 .range-slider::-moz-range-thumb {
@@ -634,13 +634,13 @@
   background: var(--accent-icon-color);
   cursor: pointer;
   border: none;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-01);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .range-slider::-moz-range-thumb:hover {
   transform: scale(1.1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-03);
 }
 
 .slider-value {
@@ -671,9 +671,9 @@
 /* ===== Buttons ===== */
 .btn-primary {
   background: var(--accent-icon-color);
-  color: #FFFFFF;
+  color: var(--button-primary-text);
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   padding: 10px 24px;
   font-family: var(--font-family-base);
   font-size: 14px;
@@ -687,7 +687,7 @@
 
 .btn-primary:hover {
   background: var(--accent-text-color);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-02);
 }
 
 .btn-primary:active {
@@ -698,7 +698,7 @@
   background: transparent;
   color: var(--accent-text-color);
   border: 1px solid var(--border-color-default);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   padding: 10px 20px;
   font-family: var(--font-family-base);
   font-size: 14px;
@@ -723,7 +723,7 @@
   background: transparent;
   color: var(--color-text-body);
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   padding: 10px 20px;
   font-family: var(--font-family-base);
   font-size: 14px;
@@ -748,9 +748,9 @@
   transform: translateX(-50%) translateY(100px);
   background: var(--color-background-primary);
   border: 1px solid var(--border-color-default);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   padding: 16px 20px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-03);
   display: flex;
   align-items: center;
   gap: 12px;
