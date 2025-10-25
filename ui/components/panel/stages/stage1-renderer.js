@@ -22,45 +22,47 @@ export class Stage1Renderer {
       return '';
     }
 
-    const trustBadges = {
+    // Trust signal configuration - subtle and professional
+    const trustConfig = {
       'high_agreement': {
         label: 'High Agreement',
-        class: 'success',
-        icon: 'check-circle'
+        description: 'Coverage is largely consistent across multiple sources'
       },
       'some_conflicts': {
         label: 'Some Conflicts',
-        class: 'warning',
-        icon: 'alert-circle'
+        description: 'Some variations in coverage between sources'
       },
       'major_disputes': {
         label: 'Major Disputes',
-        class: 'error',
-        icon: 'alert-triangle'
+        description: 'Significant differences in how sources report this story'
       }
     };
 
-    const badge = trustBadges[trust_signal] || trustBadges['some_conflicts'];
+    const trust = trustConfig[trust_signal] || trustConfig['some_conflicts'];
 
     return `
       <div id="pl-stage-1" class="pl-stage" data-stage="1">
+        <!-- Story Summary -->
         <div class="pl-card pl-card-summary">
-          <div class="pl-card-header">
-            <h3 class="pl-card-title">
-              <svg class="pl-icon" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-              </svg>
-              Story Summary
-            </h3>
-            <span class="pl-badge pl-badge-${badge.class}">${badge.label}</span>
+          <h3 class="pl-card-title">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+            </svg>
+            Story Summary
+          </h3>
+          <p class="pl-main-story">${escapeHtml(story_summary)}</p>
+
+          <!-- Trust Signal - Clean & Subtle -->
+          <div class="pl-trust-signal">
+            <div class="pl-trust-header">
+              <span class="pl-trust-label">${trust.label}</span>
+            </div>
+            <p class="pl-trust-description">${trust.description}</p>
           </div>
-          <p class="pl-summary-text">${escapeHtml(story_summary)}</p>
+
           ${reader_action ? `
             <div class="pl-reader-action">
-              <svg class="pl-icon pl-icon-sm" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-              </svg>
-              <span>${escapeHtml(reader_action)}</span>
+              <strong>What to watch for:</strong> ${escapeHtml(reader_action)}
             </div>
           ` : ''}
         </div>

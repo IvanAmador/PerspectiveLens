@@ -42,20 +42,18 @@ export class Stage4Renderer {
       const group2Tags = (item.group2_sources || []).map(s => renderSourceTag(s)).join('');
 
       return `
-        <div class="pl-list-item pl-list-item-perspective" data-index="${idx}">
-          <h4 class="pl-list-item-title">${escapeHtml(item.angle)}</h4>
-          <div class="pl-perspective-approaches">
-            <div class="pl-approach">
-              <p class="pl-approach-text">${escapeHtml(item.group1)}</p>
-              <div class="pl-sources-tags">
-                ${group1Tags}
-              </div>
+        <div class="pl-list-item" data-index="${idx}">
+          <p class="pl-list-item-title">${escapeHtml(item.angle)}</p>
+          <div class="pl-perspective-groups">
+            <div class="pl-perspective-group">
+              <div class="pl-group-label">Perspective 1</div>
+              <div class="pl-group-text">${escapeHtml(item.group1)}</div>
+              ${group1Tags ? `<div class="pl-group-sources">${group1Tags}</div>` : ''}
             </div>
-            <div class="pl-approach">
-              <p class="pl-approach-text">${escapeHtml(item.group2)}</p>
-              <div class="pl-sources-tags">
-                ${group2Tags}
-              </div>
+            <div class="pl-perspective-group">
+              <div class="pl-group-label">Perspective 2</div>
+              <div class="pl-group-text">${escapeHtml(item.group2)}</div>
+              ${group2Tags ? `<div class="pl-group-sources">${group2Tags}</div>` : ''}
             </div>
           </div>
         </div>
@@ -65,16 +63,14 @@ export class Stage4Renderer {
     return `
       <div id="pl-stage-4" class="pl-stage" data-stage="4">
         <div class="pl-section">
-          <div class="pl-section-header">
-            <h3 class="pl-section-title">
-              <svg class="pl-icon" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-              </svg>
-              Coverage Angles
-            </h3>
-            <span class="pl-badge pl-badge-info">${coverage_angles.length}</span>
-          </div>
-          <p class="pl-section-desc">Different approaches in how sources frame or emphasize the story</p>
+          <h3 class="pl-section-title">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+            </svg>
+            Coverage Angles
+            <span class="pl-badge">${coverage_angles.length}</span>
+          </h3>
+          <p class="pl-section-desc">Different approaches in how sources frame this story</p>
           <div class="pl-list">
             ${angleItems}
           </div>

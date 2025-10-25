@@ -38,26 +38,22 @@ export class Stage3Renderer {
 
     // Render dispute items
     const disputeItems = factual_disputes.map((item, idx) => {
-      const sourcesACount = item.sources_a?.length || 0;
-      const sourcesBCount = item.sources_b?.length || 0;
       const sourceATags = (item.sources_a || []).map(s => renderSourceTag(s)).join('');
       const sourceBTags = (item.sources_b || []).map(s => renderSourceTag(s)).join('');
 
       return `
-        <div class="pl-list-item pl-list-item-dispute" data-index="${idx}">
-          <h4 class="pl-list-item-title">${escapeHtml(item.what)}</h4>
+        <div class="pl-list-item" data-index="${idx}">
+          <p class="pl-list-item-title">${escapeHtml(item.what)}</p>
           <div class="pl-dispute-claims">
             <div class="pl-claim">
-              <p class="pl-claim-text">${escapeHtml(item.claim_a)}</p>
-              <div class="pl-sources-tags">
-                ${sourceATags}
-              </div>
+              <div class="pl-claim-label">Claim A</div>
+              <div class="pl-claim-text">${escapeHtml(item.claim_a)}</div>
+              ${sourceATags ? `<div class="pl-claim-sources">${sourceATags}</div>` : ''}
             </div>
             <div class="pl-claim">
-              <p class="pl-claim-text">${escapeHtml(item.claim_b)}</p>
-              <div class="pl-sources-tags">
-                ${sourceBTags}
-              </div>
+              <div class="pl-claim-label">Claim B</div>
+              <div class="pl-claim-text">${escapeHtml(item.claim_b)}</div>
+              ${sourceBTags ? `<div class="pl-claim-sources">${sourceBTags}</div>` : ''}
             </div>
           </div>
         </div>
@@ -67,16 +63,14 @@ export class Stage3Renderer {
     return `
       <div id="pl-stage-3" class="pl-stage" data-stage="3">
         <div class="pl-section">
-          <div class="pl-section-header">
-            <h3 class="pl-section-title">
-              <svg class="pl-icon" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-              </svg>
-              Factual Disputes
-            </h3>
-            <span class="pl-badge pl-badge-error">${factual_disputes.length}</span>
-          </div>
-          <p class="pl-section-desc">Direct contradictions on facts - verify with additional sources</p>
+          <h3 class="pl-section-title">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+            </svg>
+            Factual Disputes
+            <span class="pl-badge">${factual_disputes.length}</span>
+          </h3>
+          <p class="pl-section-desc">Direct contradictions - verify with additional sources</p>
           <div class="pl-list">
             ${disputeItems}
           </div>
