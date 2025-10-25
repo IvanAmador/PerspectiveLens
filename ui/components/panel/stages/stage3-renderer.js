@@ -23,9 +23,6 @@ export class Stage3Renderer {
           <div class="pl-section">
             <div class="pl-section-header">
               <h3 class="pl-section-title">
-                <svg class="pl-icon" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-                </svg>
                 Factual Disputes
               </h3>
               <span class="pl-badge pl-badge-success">0</span>
@@ -64,9 +61,6 @@ export class Stage3Renderer {
       <div id="pl-stage-3" class="pl-stage" data-stage="3">
         <div class="pl-section">
           <h3 class="pl-section-title">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-            </svg>
             Factual Disputes
             <span class="pl-badge">${factual_disputes.length}</span>
           </h3>

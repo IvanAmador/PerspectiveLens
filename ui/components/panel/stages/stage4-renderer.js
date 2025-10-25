@@ -23,9 +23,6 @@ export class Stage4Renderer {
           <div class="pl-section">
             <div class="pl-section-header">
               <h3 class="pl-section-title">
-                <svg class="pl-icon" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-                </svg>
                 Coverage Angles
               </h3>
               <span class="pl-badge pl-badge-success">0</span>
@@ -64,9 +61,6 @@ export class Stage4Renderer {
       <div id="pl-stage-4" class="pl-stage" data-stage="4">
         <div class="pl-section">
           <h3 class="pl-section-title">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-            </svg>
             Coverage Angles
             <span class="pl-badge">${coverage_angles.length}</span>
           </h3>

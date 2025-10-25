@@ -55,18 +55,40 @@
         const panelHTML = `
           <div id="perspectivelens-panel" class="pl-panel">
             <div class="pl-panel-header">
-              <div class="pl-panel-title">
-                ${ICONS.lens}
-                <span>PerspectiveLens</span>
+              <div class="pl-panel-header-top">
+                <div class="pl-panel-title">
+                  <span>PerspectiveLens</span>
+                </div>
+                <div class="pl-panel-actions">
+                  <button id="pl-close-btn" class="pl-btn-icon" aria-label="Close panel" title="Close">
+                    ${ICONS.collapse}
+                  </button>
+                </div>
               </div>
-              <div class="pl-panel-actions">
-                <button id="pl-close-btn" class="pl-btn-icon" aria-label="Close panel" title="Close">
-                  ${ICONS.collapse}
-                </button>
-              </div>
+              <div class="pl-panel-subtitle">Comparative news analysis</div>
             </div>
 
             <div class="pl-panel-body">
+              <!-- Stage Progress Indicator -->
+              <div class="pl-stage-progress">
+                <div class="pl-stage-indicator" data-stage="1">
+                  <div class="pl-stage-dot"></div>
+                  <div class="pl-stage-label">Context</div>
+                </div>
+                <div class="pl-stage-indicator" data-stage="2">
+                  <div class="pl-stage-dot"></div>
+                  <div class="pl-stage-label">Facts</div>
+                </div>
+                <div class="pl-stage-indicator" data-stage="3">
+                  <div class="pl-stage-dot"></div>
+                  <div class="pl-stage-label">Disputes</div>
+                </div>
+                <div class="pl-stage-indicator" data-stage="4">
+                  <div class="pl-stage-dot"></div>
+                  <div class="pl-stage-label">Perspectives</div>
+                </div>
+              </div>
+
               <!-- Loading State -->
               <div id="pl-loading" class="pl-state" style="display: none;">
                 <div class="pl-spinner"></div>
@@ -105,6 +127,36 @@
         if (retryBtn) {
           retryBtn.addEventListener('click', () => this.retry());
         }
+      }
+      
+      /**
+       * Update stage indicator
+       * @param {number} stage - Stage number (1-4)
+       * @param {string} status - 'active' or 'completed'
+       */
+      updateStageIndicator(stage, status) {
+        const indicator = document.querySelector(`.pl-stage-indicator[data-stage="${stage}"]`);
+        if (!indicator) return;
+        
+        // Reset classes
+        indicator.classList.remove('active', 'completed');
+        
+        // Add appropriate class
+        if (status === 'active') {
+          indicator.classList.add('active');
+        } else if (status === 'completed') {
+          indicator.classList.add('completed');
+        }
+      }
+      
+      /**
+       * Reset all stage indicators
+       */
+      resetStageIndicators() {
+        const indicators = document.querySelectorAll('.pl-stage-indicator');
+        indicators.forEach(ind => {
+          ind.classList.remove('active', 'completed');
+        });
       }
 
       /**
@@ -172,6 +224,9 @@
             content.style.display = 'block';
             content.innerHTML = ''; // Clear previous content
           }
+          
+          // Mark first stage as active
+          this.updateStageIndicator(1, 'active');
         }
 
         // Render this stage
@@ -181,6 +236,14 @@
         const content = document.getElementById('pl-content');
         if (content && stageHTML) {
           content.insertAdjacentHTML('beforeend', stageHTML);
+
+          // Mark current stage as completed
+          this.updateStageIndicator(stage, 'completed');
+          
+          // Mark next stage as active (unless it's the last stage)
+          if (stage < 4) {
+            this.updateStageIndicator(stage + 1, 'active');
+          }
 
           // Add footer on last stage
           if (stage === 4) {
@@ -209,6 +272,11 @@
         if (content) {
           content.innerHTML = html;
           content.style.display = 'block';
+        }
+
+        // Mark all stages as completed since we're showing complete analysis
+        for (let i = 1; i <= 4; i++) {
+          this.updateStageIndicator(i, 'completed');
         }
 
         this.attachDynamicEventListeners();
@@ -312,6 +380,7 @@
       reset() {
         this.renderer.reset();
         this.hideAllStates();
+        this.resetStageIndicators();
         const content = document.getElementById('pl-content');
         if (content) content.innerHTML = '';
       }

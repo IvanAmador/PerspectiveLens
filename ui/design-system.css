@@ -401,6 +401,25 @@
   /* Loading spinner colors */
   --spinner-color: var(--accent-icon-color);
   --spinner-track: var(--surface-03);
+  
+  /* Stage indicators */
+  --stage-indicator-incomplete: var(--surface-04);
+  --stage-indicator-complete: var(--md-sys-color-primary);
+  --stage-indicator-active: var(--md-sys-color-primary);
+  --stage-indicator-size: 24px;
+  --stage-indicator-border-width: 2px;
+  
+  /* Panel specific enhancements */
+  --panel-header-gradient-start: var(--md-sys-color-primary-container);
+  --panel-header-gradient-end: var(--md-sys-color-secondary-container);
+  --panel-border-color: var(--md-sys-color-outline);
+  --panel-section-divider: var(--md-sys-color-outline-variant);
+  --panel-card-hover: var(--md-sys-color-surface-variant);
+  
+  /* Visual hierarchy */
+  --visual-hierarchy-1: var(--font-weight-semibold);
+  --visual-hierarchy-2: var(--font-weight-medium);
+  --visual-hierarchy-3: var(--font-weight-regular);
 }
 
 [data-theme='dark'] {
@@ -409,6 +428,16 @@
   --progress-fill-secondary: var(--state-success);
   --spinner-color: var(--accent-icon-color);
   --spinner-track: var(--surface-03);
+  
+  /* Stage indicators for dark mode */
+  --stage-indicator-incomplete: var(--surface-04);
+  --stage-indicator-complete: var(--state-success);
+  --stage-indicator-active: var(--md-sys-color-primary);
+  --panel-header-gradient-start: var(--md-sys-color-primary-container);
+  --panel-header-gradient-end: var(--md-sys-color-secondary-container);
+  --panel-border-color: var(--md-sys-color-outline);
+  --panel-section-divider: var(--md-sys-color-outline-variant);
+  --panel-card-hover: var(--md-sys-color-surface-variant);
 }
 
 /* ===== BASE RESET ===== */
