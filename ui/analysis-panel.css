@@ -1,0 +1,12 @@
+
+/* Icon SVG styles */
+.pl-icon-svg {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 8px;
+  color: currentColor;
+}
+
+.pl-error-icon svg {
+  color: var(--state-error, #D93025);
+}

@@ -320,23 +320,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   try {
     switch (message.type) {
-      case 'USER_PROGRESS':  // ← NEW: User-friendly progress updates for toast
+      case 'USER_PROGRESS':  // User-friendly progress updates for toast
         handleUserProgress(message.payload);
         break;
 
-      case 'LOG_EVENT':  // ← NEW: Log events from logger
-        handleLogEvent(message.payload);
-        break;
-
-      case 'PROGRESS_UPDATE':
-        handleProgressUpdate(message.data);
-        break;
-
-      case 'SHOW_ANALYSIS':  // ← CORRIGIDO: background envia SHOW_ANALYSIS
+      case 'SHOW_ANALYSIS':  // Background sends complete analysis
         handleShowAnalysis(message.data);
         break;
 
-      case 'ANALYSIS_STAGE_COMPLETE':  // ← NEW: Progressive analysis updates
+      case 'ANALYSIS_STAGE_COMPLETE':  // Progressive analysis updates
         handleAnalysisStageComplete(message.data);
         break;
 
@@ -384,22 +376,6 @@ function handleUserProgress(data) {
   }
 }
 
-/**
- * Handle log events from background logger
- */
-function handleLogEvent(logEntry) {
-  console.log('[PerspectiveLens] Log event received:', logEntry);
-  // Progress tracker removed - using single toast now
-}
-
-/**
- * Handle progress updates from background
- */
-function handleProgressUpdate(data) {
-  const { step, status, message, progress } = data;
-  console.log('[PerspectiveLens] Progress update:', { step, status, message, progress });
-  // Progress tracker removed - using single toast now
-}
 
 /**
  * Handle SHOW_ANALYSIS message from background
@@ -496,14 +472,6 @@ function handleAnalysisError(error) {
 window.addEventListener('perspectivelens:retry', () => {
   console.log('[PerspectiveLens] Retry requested from panel');
   startAnalysis();
-});
-
-/**
- * Listen for log events from content script context (via window.dispatchEvent)
- */
-window.addEventListener('perspectivelens:log', (event) => {
-  console.log('[PerspectiveLens] Log event:', event.detail);
-  // Progress tracker removed - using single toast now
 });
 
 /**

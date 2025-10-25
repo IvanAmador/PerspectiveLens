@@ -84,13 +84,16 @@ const CONFIG = {
 const state = {
   // Current request ID for operation tracking
   currentRequestId: null,
-  
+
+  // Current tab ID for targeted messaging
+  currentTabId: null,
+
   // Log history (for debugging and analytics)
   history: [],
-  
+
   // Rate limiting tracker
   rateLimitTracker: new Map(),
-  
+
   // Request start times (for duration tracking)
   requestTimings: new Map()
 };
@@ -117,14 +120,17 @@ function getCurrentRequestId() {
 /**
  * Start a new request tracking session
  * @param {string} operationName - Name of the operation
+ * @param {number|null} tabId - Tab ID where the operation is running
  * @returns {string} New request ID
  */
-function startRequest(operationName) {
+function startRequest(operationName, tabId = null) {
   const requestId = generateRequestId();
   state.currentRequestId = requestId;
+  state.currentTabId = tabId;
   state.requestTimings.set(requestId, {
     startTime: Date.now(),
-    operation: operationName
+    operation: operationName,
+    tabId
   });
   return requestId;
 }
@@ -149,6 +155,23 @@ function endRequest(requestId) {
  */
 function clearRequest() {
   state.currentRequestId = null;
+  state.currentTabId = null;
+}
+
+/**
+ * Set tab ID for current context
+ * @param {number|null} tabId - Tab ID to set
+ */
+function setTabId(tabId) {
+  state.currentTabId = tabId;
+}
+
+/**
+ * Get current tab ID
+ * @returns {number|null} Current tab ID
+ */
+function getCurrentTabId() {
+  return state.currentTabId;
 }
 
 /**
@@ -255,9 +278,9 @@ function shouldLogToConsole(level) {
 function shouldBroadcast(level, context) {
   if (!CONFIG.broadcastEnabled) return false;
 
-  // Broadcast ALL logs to UI (filtering happens in frontend)
-  // This allows users to toggle DEBUG/TRACE visibility
-  return true;
+  // Only broadcast USER and BOTH context logs to UI
+  // SYSTEM logs stay in console only
+  return context === 'USER' || context === 'BOTH';
 }
 
 /**
@@ -288,39 +311,53 @@ function formatConsoleOutput(entry) {
 }
 
 /**
- * Broadcast log to UI components
- * @param {Object} entry - Log entry
+ * Send message to specific tab with retry logic
+ * @param {number} tabId - Target tab ID
+ * @param {Object} message - Message to send
+ * @param {number} retries - Number of retries
+ * @returns {Promise<boolean>} True if successful
  */
-async function broadcastToUI(entry) {
-  // Send to content scripts via chrome.tabs (background context)
-  if (typeof chrome !== 'undefined' && chrome.tabs) {
+async function sendMessageToTab(tabId, message, retries = 2) {
+  if (!tabId) {
+    console.warn('[Logger] No tabId provided for message:', message.type);
+    return false;
+  }
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const tabs = await chrome.tabs.query({ active: true });
-      for (const tab of tabs) {
-        try {
-          await chrome.tabs.sendMessage(tab.id, {
-            type: 'LOG_EVENT',
-            payload: entry
-          });
-        } catch (e) {
-          // Tab might not have content script, that's ok
-        }
+      await chrome.tabs.sendMessage(tabId, message);
+      return true;
+    } catch (error) {
+      const isLastAttempt = attempt === retries;
+
+      if (isLastAttempt) {
+        console.error('[Logger] Failed to send message after retries:', {
+          tabId,
+          messageType: message.type,
+          error: error.message,
+          attempts: attempt + 1
+        });
+        return false;
       }
-    } catch (e) {
-      // Not in background context or tabs API not available
+
+      // Wait before retry (exponential backoff: 50ms, 100ms)
+      await new Promise(resolve => setTimeout(resolve, 50 * Math.pow(2, attempt)));
     }
   }
 
-  // Also dispatch custom event for content scripts (content script context)
-  if (typeof window !== 'undefined') {
-    try {
-      window.dispatchEvent(new CustomEvent('perspectivelens:log', {
-        detail: entry
-      }));
-    } catch (e) {
-      // Not in browser context
-    }
-  }
+  return false;
+}
+
+/**
+ * Broadcast log to UI components
+ * NOTE: This is deprecated - use logUserProgress() instead for UI updates
+ * Kept for backward compatibility but does nothing
+ * @param {Object} entry - Log entry
+ */
+async function broadcastToUI(entry) {
+  // LOG_EVENT is deprecated - UI updates should use USER_PROGRESS
+  // This function is kept for backward compatibility but does nothing
+  // All user-facing logs should use logUserProgress() directly
 }
 
 /**
@@ -358,12 +395,8 @@ function log(level, context, message, options = {}) {
     console[consoleMethod](...consoleArgs);
   }
 
-  // Broadcast to UI (async, non-blocking)
-  if (shouldBroadcast(level, context)) {
-    broadcastToUI(entry).catch(() => {
-      // Ignore broadcast errors
-    });
-  }
+  // Note: UI updates should use logUserProgress() directly, not broadcast
+  // broadcastToUI is deprecated and does nothing
 }
 
 /**
@@ -479,22 +512,27 @@ async function logUserProgress(phase, progress, message, metadata = {}) {
     ...metadata
   };
 
-  // Broadcast to content scripts via tabs
+  // Send to specific tab only
   if (typeof chrome !== 'undefined' && chrome.tabs) {
-    try {
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      for (const tab of tabs) {
-        try {
-          await chrome.tabs.sendMessage(tab.id, {
-            type: 'USER_PROGRESS',
-            payload: userLog
-          });
-        } catch (e) {
-          // Tab might not have content script, that's ok
-        }
-      }
-    } catch (e) {
-      // Not in background context or tabs API not available
+    const tabId = getCurrentTabId();
+
+    if (!tabId) {
+      console.warn('[Logger] No tabId set for USER_PROGRESS:', { phase, message });
+      return;
+    }
+
+    const success = await sendMessageToTab(tabId, {
+      type: 'USER_PROGRESS',
+      payload: userLog
+    });
+
+    if (!success) {
+      console.error('[Logger] Failed to send USER_PROGRESS:', {
+        tabId,
+        phase,
+        progress,
+        message
+      });
     }
   }
 
@@ -539,6 +577,8 @@ const utils = {
   endRequest,
   clearRequest,
   getCurrentRequestId,
+  setTabId,
+  getCurrentTabId,
   getHistory: () => [...state.history],
   clearHistory: () => state.history = [],
   setConfig: (key, value) => CONFIG[key] = value,

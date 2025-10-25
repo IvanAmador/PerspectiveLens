@@ -94,8 +94,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Handle async responses
   if (message.type === 'START_ANALYSIS') {
     // Store tab ID for progress updates and start request tracking
-    activeAnalysis.tabId = sender.tab?.id || null;
-    activeAnalysis.requestId = logger.startRequest('article_analysis');
+    const tabId = sender.tab?.id || null;
+    activeAnalysis.tabId = tabId;
+
+    // Start request with tabId context
+    activeAnalysis.requestId = logger.startRequest('article_analysis', tabId);
 
     handleNewArticle(message.data)
       .then(response => {
@@ -130,8 +133,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // Legacy support for old message type
   if (message.type === 'NEW_ARTICLE_DETECTED') {
-    activeAnalysis.tabId = sender.tab?.id || null;
-    activeAnalysis.requestId = logger.startRequest('article_analysis');
+    const tabId = sender.tab?.id || null;
+    activeAnalysis.tabId = tabId;
+    activeAnalysis.requestId = logger.startRequest('article_analysis', tabId);
 
     handleNewArticle(message.data)
       .then(response => {
