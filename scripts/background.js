@@ -352,19 +352,52 @@ async function handleNewArticle(articleData) {
 
         // Extract content from ALL articles (no limit here)
         // Configuration from pipeline.js is used as defaults
-        // Note: No individual progress logs - extraction is fast (6-10s) and parallel
-        perspectivesWithContent = await extractArticlesContentWithTabs(perspectives);
+        perspectivesWithContent = await extractArticlesContentWithTabs(
+          perspectives,
+          {}, // Use default options from pipeline.js
+          async (article, completedIndex, total) => {
+            // Real-time progress callback for each extracted article
+            const completedCount = completedIndex + 1;
+            const remaining = total - completedCount;
+
+            // Calculate monotonic progress: 50-65% range (15% total)
+            const baseProgress = 50;
+            const range = 15;
+            const progress = baseProgress + ((completedCount / total) * range);
+
+            // Detect RTL text (Arabic, Hebrew, etc.) and format appropriately
+            const hasRTL = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u0590-\u05FF]/.test(article.source);
+            const formattedSource = hasRTL ? `\u202B${article.source}\u202C` : article.source;
+
+            // Hybrid message: show completion + ongoing state
+            let message;
+            if (remaining > 0) {
+              // Still extracting - show what completed + what remains
+              if (article.contentExtracted) {
+                message = `Extracted ${formattedSource} • ${completedCount} ready, ${remaining} processing`;
+              } else {
+                message = `Failed ${formattedSource} • ${completedCount} completed, ${remaining} processing`;
+              }
+            } else {
+              // Last article - show final summary with success count
+              message = `Extraction complete • ${completedCount} articles ready`;
+            }
+
+            logger.logUserProgress('extraction', Math.round(progress), message, {
+              icon: 'EXTRACT',
+              source: article.source,
+              completedCount,
+              total,
+              remaining,
+              contentExtracted: article.contentExtracted,
+              success: article.contentExtracted
+            });
+          }
+        );
 
         const extractedCount = perspectivesWithContent.filter(p => p.contentExtracted).length;
 
-        // Show completion with count
-        logger.logUserProgress('extraction', 65, `Content ready from ${extractedCount} articles`, {
-          icon: 'SUCCESS',
-          successful: extractedCount,
-          total: perspectives.length
-        });
-
-        // Log extraction completion (system only)
+        // Log extraction completion (system only - user already saw final progress in callback)
         logger.system.info('Content extraction completed', {
           category: logger.CATEGORIES.FETCH,
           data: {
@@ -372,14 +405,6 @@ async function handleNewArticle(articleData) {
             total: perspectives.length,
             successRate: `${((extractedCount / perspectives.length) * 100).toFixed(1)}%`
           }
-        });
-
-        logger.progress(logger.CATEGORIES.FETCH, {
-          status: 'completed',
-          userMessage: `Extracted content from ${extractedCount} articles`,
-          systemMessage: `Successfully extracted ${extractedCount}/${perspectives.length} articles`,
-          progress: 100,
-          data: { successful: extractedCount, total: perspectives.length }
         });
 
         // Log sample of extracted content (system only)

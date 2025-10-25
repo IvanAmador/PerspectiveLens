@@ -78,6 +78,7 @@ export async function extractArticlesContentWithTabs(articles, options = {}, onP
     }
 
     let results = [];
+    let completedCount = 0; // Track completions across all batches
 
     if (parallel) {
       // Parallel batch processing
@@ -96,7 +97,24 @@ export async function extractArticlesContentWithTabs(articles, options = {}, onP
 
         const batchStart = Date.now();
         const batchResults = await Promise.allSettled(
-          batch.map(article => extractSingleArticleWithTab(article, timeout, windowManager))
+          batch.map(async (article, batchIndex) => {
+            const result = await extractSingleArticleWithTab(article, timeout, windowManager);
+
+            // Call progress callback immediately when this article completes
+            if (onProgress) {
+              completedCount++;
+              try {
+                await onProgress(result, completedCount - 1, articlesToProcess.length);
+              } catch (callbackError) {
+                logger.system.warn('Progress callback failed', {
+                  category: logger.CATEGORIES.FETCH,
+                  error: callbackError
+                });
+              }
+            }
+
+            return result;
+          })
         );
 
         const processedBatch = batchResults.map((result, index) => {
@@ -136,22 +154,6 @@ export async function extractArticlesContentWithTabs(articles, options = {}, onP
         });
 
         results.push(...processedBatch);
-
-        // Call progress callback for each processed article in batch
-        if (onProgress) {
-          for (let j = 0; j < processedBatch.length; j++) {
-            const article = processedBatch[j];
-            const globalIndex = i + j;
-            try {
-              await onProgress(article, globalIndex, articlesToProcess.length);
-            } catch (callbackError) {
-              logger.system.warn('Progress callback failed', {
-                category: logger.CATEGORIES.FETCH,
-                error: callbackError
-              });
-            }
-          }
-        }
       }
     } else {
       // Sequential processing (fallback)

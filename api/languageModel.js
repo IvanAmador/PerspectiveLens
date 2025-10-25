@@ -853,6 +853,14 @@ export async function compareArticlesProgressive(articles, onStageComplete, opti
       data: { articles: articlesToAnalyze.length, level: compressionLevel }
     });
 
+    // Show user we're starting compression (especially important if translations needed)
+    logger.logUserAI('summarization', {
+      phase: 'compression',
+      progress: 66,
+      message: `Preparing ${articlesToAnalyze.length} articles for AI analysis...`,
+      metadata: { total: articlesToAnalyze.length }
+    });
+
     const compressionStart = Date.now();
     const compressionResult = await batchCompressForAnalysis(
       articlesToAnalyze,
@@ -866,27 +874,39 @@ export async function compareArticlesProgressive(articles, onStageComplete, opti
         const baseProgress = 66;
         const range = 19; // 85 - 66
         const progress = baseProgress + ((completedCount / total) * range);
+        const remaining = total - completedCount;
 
-        // Show what happened to this article
-        if (hadTranslation) {
-          const langName = sourceLanguage === 'pt' ? 'Portuguese' :
-                          sourceLanguage === 'ru' ? 'Russian' :
-                          sourceLanguage === 'zh' ? 'Chinese' :
-                          sourceLanguage === 'ar' ? 'Arabic' : sourceLanguage;
-          logger.logUserAI('summarization', {
-            phase: 'compression',
-            progress: Math.round(progress),
-            message: `Translated & summarized: ${source}`,
-            metadata: { source, from: langName, completedCount, total }
-          });
+        // Format source name with RTL support for Arabic, Hebrew, Persian, etc.
+        const isRTL = sourceLanguage && ['ar', 'he', 'fa', 'ur'].includes(sourceLanguage);
+        const formattedSource = isRTL ? `\u202B${source}\u202C` : source; // Add RTL marks
+
+        // HYBRID: Show what completed + ongoing state
+        let message;
+        if (remaining > 0) {
+          // Still processing - show completion + remaining (concise format)
+          if (hadTranslation) {
+            message = `Translated ${formattedSource} • ${completedCount} ready, ${remaining} processing`;
+          } else {
+            message = `Summarized ${formattedSource} • ${completedCount} ready, ${remaining} processing`;
+          }
         } else {
-          logger.logUserAI('summarization', {
-            phase: 'compression',
-            progress: Math.round(progress),
-            message: `Summarized: ${source}`,
-            metadata: { source, completedCount, total }
-          });
+          // Last article - brief completion message
+          message = `All ${total} articles ready for analysis`;
         }
+
+        logger.logUserAI('summarization', {
+          phase: 'compression',
+          progress: Math.round(progress),
+          message,
+          metadata: {
+            source,
+            completedCount,
+            total,
+            remaining,
+            hadTranslation,
+            sourceLanguage
+          }
+        });
       }
     );
 
