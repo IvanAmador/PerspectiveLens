@@ -1,0 +1,279 @@
+/**
+ * Single Toast - Chrome Material 3 Style
+ *
+ * Toast único persistente durante análise com:
+ * - Progress bar linear
+ * - Mensagens dinâmicas
+ * - Flags de países
+ * - Indicadores de IA
+ */
+
+.perspective-single-toast {
+  /* Positioning */
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 2147483647; /* Maximum z-index */
+
+  /* Sizing */
+  width: 380px;
+  max-width: calc(100vw - var(--spacing-12));
+
+  /* Chrome Material 3 Surface */
+  background: var(--md-sys-color-surface-container);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-03);
+
+  /* Spacing */
+  padding: var(--spacing-4);
+
+  /* Typography */
+  font-family: var(--font-family-base);
+  color: var(--md-sys-color-on-surface);
+
+  /* Initial state - hidden */
+  transform: translateX(450px);
+  opacity: 0;
+
+  /* Smooth animations */
+  transition: transform var(--duration-slow) var(--easing-decelerate),
+              opacity var(--duration-slow) var(--easing-standard);
+
+  /* Prevent text selection */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.perspective-single-toast.visible {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+/* Panel is open - move toast to the LEFT side of screen */
+.perspective-single-toast.panel-open {
+  right: auto;
+  left: var(--spacing-6);
+  transition: left var(--duration-slow) var(--easing-decelerate),
+              right var(--duration-slow) var(--easing-decelerate),
+              transform var(--duration-slow) var(--easing-decelerate),
+              opacity var(--duration-slow) var(--easing-standard);
+}
+
+/* Toast Header */
+.toast-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-3);
+  gap: var(--spacing-2);
+}
+
+.toast-title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-tight);
+  color: var(--md-sys-color-on-surface);
+  flex: 1;
+}
+
+/* AI Indicator */
+.toast-ai-indicator {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.ai-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--md-sys-color-primary);
+  animation: pulse-ai var(--duration-slower) var(--easing-standard) infinite;
+}
+
+@keyframes pulse-ai {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+/* Progress Bar */
+.toast-progress {
+  height: 4px;
+  background: var(--progress-background);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  margin-bottom: var(--spacing-3);
+  position: relative;
+
+  /* Accessibility */
+  role: progressbar;
+  aria-valuemin: 0;
+  aria-valuemax: 100;
+}
+
+.toast-progress-fill {
+  height: 100%;
+  background: var(--progress-fill);
+  border-radius: var(--radius-xs);
+  width: 0%;
+  transition: width var(--duration-slow) var(--easing-decelerate);
+}
+
+/* Message */
+.toast-message {
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-tight);
+  color: var(--md-sys-color-on-surface-variant);
+  margin-bottom: var(--spacing-2);
+  min-height: 18px;
+}
+
+.toast-message:empty {
+  margin-bottom: 0;
+}
+
+/* Flags Container */
+.toast-flags {
+  display: none;
+  flex-wrap: wrap;
+  gap: var(--spacing-1);
+  margin-top: var(--spacing-2);
+  align-items: center;
+}
+
+.toast-flag {
+  width: var(--spacing-6);
+  height: var(--spacing-6);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  object-fit: cover;
+
+  /* Animation on appear */
+  animation: flag-pop var(--duration-slow) var(--easing-standard);
+}
+
+@keyframes flag-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Responsive - Mobile */
+@media (max-width: var(--breakpoint-sm)) {
+  .perspective-single-toast {
+    top: var(--spacing-4);
+    right: var(--spacing-4);
+    left: var(--spacing-4);
+    width: auto;
+    max-width: none;
+  }
+
+  .perspective-single-toast {
+    transform: translateY(-100px);
+  }
+
+  .perspective-single-toast.visible {
+    transform: translateY(0);
+  }
+}
+
+/* Action Buttons */
+.toast-actions {
+  display: none;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-3);
+  justify-content: flex-end;
+}
+
+.toast-btn {
+  padding: var(--spacing-2) var(--spacing-4);
+  border: none;
+  border-radius: var(--radius-button);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--easing-standard),
+              transform var(--duration-fast) var(--easing-standard);
+  outline: none;
+}
+
+.toast-btn:hover {
+  transform: scale(1.02);
+}
+
+.toast-btn:active {
+  transform: scale(0.98);
+}
+
+.toast-btn:focus-visible {
+  outline: 2px solid var(--border-color-focus);
+  outline-offset: 2px;
+}
+
+.toast-btn-primary {
+  background: var(--button-primary-background);
+  color: var(--button-primary-text);
+}
+
+.toast-btn-primary:hover {
+  background: var(--button-primary-background-hover);
+}
+
+.toast-btn-primary:active {
+  background: var(--button-primary-background-active);
+}
+
+.toast-btn-secondary {
+  background: var(--button-secondary-background);
+  color: var(--button-secondary-text);
+  border: 1px solid var(--border-color-default);
+}
+
+.toast-btn-secondary:hover {
+  background: var(--button-secondary-background-hover);
+}
+
+.toast-btn-secondary:active {
+  background: var(--button-secondary-background-active);
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .perspective-single-toast {
+    transition: opacity var(--duration-fast) var(--easing-linear);
+  }
+
+  .perspective-single-toast.visible {
+    transform: none;
+  }
+
+  .toast-progress-fill {
+    transition: none;
+  }
+
+  .ai-icon {
+    animation: none;
+  }
+
+  .toast-flag {
+    animation: none;
+  }
+}

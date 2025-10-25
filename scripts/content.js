@@ -14,7 +14,7 @@ let singleToast = null;
 function waitForDependencies() {
   return new Promise((resolve) => {
     // Verificação inicial imediata
-    if (window.PerspectiveLensToast && window.PerspectiveLensPanel && window.PerspectiveLensSingleToast) {
+    if (window.PerspectiveLensPanel && window.PerspectiveLensSingleToast) {
       console.log('[PerspectiveLens] All dependencies already loaded');
       singleToast = window.PerspectiveLensSingleToast;
       resolve(true);
@@ -28,7 +28,7 @@ function waitForDependencies() {
     const intervalId = setInterval(() => {
       attempts++;
 
-      if (window.PerspectiveLensToast && window.PerspectiveLensPanel && window.PerspectiveLensSingleToast) {
+      if (window.PerspectiveLensPanel && window.PerspectiveLensSingleToast) {
         clearInterval(intervalId);
         console.log(`[PerspectiveLens] Dependencies loaded after ${attempts * checkInterval}ms`);
         singleToast = window.PerspectiveLensSingleToast;
@@ -37,7 +37,6 @@ function waitForDependencies() {
         clearInterval(intervalId);
         console.warn('[PerspectiveLens] Some dependencies not loaded after 1s');
         console.log('[PerspectiveLens] Available:', {
-          toast: !!window.PerspectiveLensToast,
           panel: !!window.PerspectiveLensPanel,
           singleToast: !!window.PerspectiveLensSingleToast
         });
@@ -209,20 +208,34 @@ function detectNewsArticle() {
  * Show toast notification when article is detected
  */
 function showDetectionToast() {
-  if (!dependenciesLoaded || !window.PerspectiveLensToast) {
-    console.log('[PerspectiveLens] Toast not available, skipping notification');
+  if (!dependenciesLoaded || !singleToast) {
+    console.log('[PerspectiveLens] SingleToast not available, skipping notification');
     return;
   }
 
-  window.PerspectiveLensToast.showArticleDetected(
-    () => {
-      console.log('[PerspectiveLens] User clicked "Analyze"');
-      startAnalysis();
-    },
-    () => {
-      console.log('[PerspectiveLens] User dismissed detection toast');
-    }
-  );
+  // Show article detection notification with action button
+  singleToast.show('Article Detected', {
+    message: 'Analyze this article from multiple international perspectives',
+    actions: [
+      {
+        label: 'Dismiss',
+        callback: () => {
+          console.log('[PerspectiveLens] User dismissed detection');
+        },
+        primary: false,
+        dismiss: true
+      },
+      {
+        label: 'Analyze',
+        callback: () => {
+          console.log('[PerspectiveLens] User clicked Analyze');
+          startAnalysis();
+        },
+        primary: true,
+        dismiss: false // Don't dismiss - will show progress
+      }
+    ]
+  });
 }
 
 /**
@@ -236,11 +249,9 @@ function startAnalysis() {
 
   if (!detectedArticleData) {
     console.error('[PerspectiveLens] No article data to analyze');
-    if (window.PerspectiveLensToast) {
-      window.PerspectiveLensToast.showError(
-        'Error',
-        'No article data available. Please refresh the page.'
-      );
+    if (singleToast) {
+      singleToast.show('❌ No article data available. Please refresh the page.');
+      setTimeout(() => singleToast.dismiss(), 3000);
     }
     return;
   }
@@ -267,12 +278,9 @@ function startAnalysis() {
         console.error('[PerspectiveLens] Error sending message:', chrome.runtime.lastError);
         analysisInProgress = false;
 
-        if (window.PerspectiveLensToast) {
-          window.PerspectiveLensToast.showError(
-            'Analysis Failed',
-            'Could not communicate with background service',
-            () => startAnalysis()
-          );
+        if (singleToast) {
+          singleToast.show('❌ Could not communicate with background service');
+          setTimeout(() => singleToast.dismiss(), 4000);
         }
 
         if (window.PerspectiveLensPanel) {
@@ -289,12 +297,9 @@ function startAnalysis() {
         console.error('[PerspectiveLens] Failed to start analysis:', response?.error);
         analysisInProgress = false;
 
-        if (window.PerspectiveLensToast) {
-          window.PerspectiveLensToast.showError(
-            'Analysis Failed',
-            response?.error || 'Unknown error occurred',
-            () => startAnalysis()
-          );
+        if (singleToast) {
+          singleToast.show(`❌ Analysis failed: ${response?.error || 'Unknown error occurred'}`);
+          setTimeout(() => singleToast.dismiss(), 4000);
         }
 
         if (window.PerspectiveLensPanel) {

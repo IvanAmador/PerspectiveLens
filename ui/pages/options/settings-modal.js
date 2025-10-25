@@ -3,7 +3,7 @@
  * Handles UI interactions for the settings modal
  */
 
-import { ConfigManager } from '../config/configManager.js';
+import { ConfigManager } from '../../../config/configManager.js';
 
 // Country data
 const COUNTRIES = [
@@ -94,7 +94,7 @@ export class SettingsModal {
    */
   async loadModalHTML() {
     try {
-      const response = await fetch(chrome.runtime.getURL('ui/settings-modal.html'));
+      const response = await fetch(chrome.runtime.getURL('ui/pages/options/settings-modal.html'));
       const html = await response.text();
 
       // Create container and insert HTML

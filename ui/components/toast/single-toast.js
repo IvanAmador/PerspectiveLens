@@ -27,16 +27,21 @@ class SingleToast {
     this.messageElement = null;
     this.flagsContainer = null;
     this.aiIndicator = null;
+    this.actionsContainer = null;
     this.currentProgress = 0;
     this.activeFlags = new Set(); // Track active flags
     this.dismissTimeout = null;
+    this.actionCallbacks = {}; // Store action callbacks
   }
 
   /**
-   * Show toast with initial title
+   * Show toast with initial title and optional actions
    * @param {string} title - Toast title
+   * @param {Object} options - Optional configuration
+   * @param {Array} options.actions - Array of action buttons [{label, callback, primary}]
+   * @param {string} options.message - Optional message text
    */
-  show(title = 'Processing...') {
+  show(title = 'Processing...', options = {}) {
     if (!this.container) {
       this.create();
     }
@@ -46,6 +51,17 @@ class SingleToast {
     this.updateProgress(0);
     this.clearFlags();
     this.hideAIIndicator();
+    this.clearActions();
+
+    // Set message if provided
+    if (options.message) {
+      this.updateMessage(options.message);
+    }
+
+    // Add action buttons if provided
+    if (options.actions && options.actions.length > 0) {
+      this.setActions(options.actions);
+    }
 
     // Clear any pending dismiss timeout
     if (this.dismissTimeout) {
@@ -78,6 +94,8 @@ class SingleToast {
       <div class="toast-message"></div>
 
       <div class="toast-flags"></div>
+
+      <div class="toast-actions"></div>
     `;
 
     // Get element references
@@ -87,6 +105,7 @@ class SingleToast {
     this.progressFill = this.container.querySelector('.toast-progress-fill');
     this.flagsContainer = this.container.querySelector('.toast-flags');
     this.aiIndicator = this.container.querySelector('.toast-ai-indicator');
+    this.actionsContainer = this.container.querySelector('.toast-actions');
 
     // Append to body
     document.body.appendChild(this.container);
@@ -283,6 +302,59 @@ class SingleToast {
     if (this.container) {
       this.container.classList.remove('panel-open');
     }
+  }
+
+  /**
+   * Set action buttons
+   * @param {Array} actions - Array of action objects [{label, callback, primary, dismiss}]
+   */
+  setActions(actions) {
+    if (!this.actionsContainer) return;
+
+    this.clearActions();
+
+    actions.forEach((action, index) => {
+      const button = document.createElement('button');
+      button.className = action.primary ? 'toast-btn toast-btn-primary' : 'toast-btn toast-btn-secondary';
+      button.textContent = action.label;
+      button.dataset.actionId = `action-${index}`;
+
+      // Store callback
+      this.actionCallbacks[`action-${index}`] = action.callback;
+
+      // Add click handler
+      button.addEventListener('click', (e) => {
+        e.stopPropagation();
+
+        // Execute callback
+        if (action.callback) {
+          action.callback();
+        }
+
+        // Auto-dismiss if specified
+        if (action.dismiss !== false) {
+          this.dismiss();
+        }
+      });
+
+      this.actionsContainer.appendChild(button);
+    });
+
+    // Show actions container
+    if (actions.length > 0) {
+      this.actionsContainer.style.display = 'flex';
+    }
+  }
+
+  /**
+   * Clear all action buttons
+   */
+  clearActions() {
+    if (this.actionsContainer) {
+      this.actionsContainer.innerHTML = '';
+      this.actionsContainer.style.display = 'none';
+    }
+    this.actionCallbacks = {};
   }
 }
 

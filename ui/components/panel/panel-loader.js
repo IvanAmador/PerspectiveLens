@@ -13,11 +13,11 @@
     const extensionUrl = chrome.runtime.getURL('');
 
     // Import PanelRenderer and stage renderers
-    const { PanelRenderer } = await import(chrome.runtime.getURL('ui/panel/panel-renderer.js'));
-    const { Stage1Renderer } = await import(chrome.runtime.getURL('ui/panel/stages/stage1-renderer.js'));
-    const { Stage2Renderer } = await import(chrome.runtime.getURL('ui/panel/stages/stage2-renderer.js'));
-    const { Stage3Renderer } = await import(chrome.runtime.getURL('ui/panel/stages/stage3-renderer.js'));
-    const { Stage4Renderer } = await import(chrome.runtime.getURL('ui/panel/stages/stage4-renderer.js'));
+    const { PanelRenderer } = await import(chrome.runtime.getURL('ui/components/panel/panel-renderer.js'));
+    const { Stage1Renderer } = await import(chrome.runtime.getURL('ui/components/panel/stages/stage1-renderer.js'));
+    const { Stage2Renderer } = await import(chrome.runtime.getURL('ui/components/panel/stages/stage2-renderer.js'));
+    const { Stage3Renderer } = await import(chrome.runtime.getURL('ui/components/panel/stages/stage3-renderer.js'));
+    const { Stage4Renderer } = await import(chrome.runtime.getURL('ui/components/panel/stages/stage4-renderer.js'));
 
     console.log('[PanelLoader] Modules loaded successfully');
 

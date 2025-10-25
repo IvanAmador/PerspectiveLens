@@ -3,8 +3,8 @@
  * Handles settings UI for PerspectiveLens
  */
 
-import { ConfigManager } from '../config/configManager.js';
-import { availableCountries } from '../config/availableCountries.js';
+import { ConfigManager } from '../../../config/configManager.js';
+import { availableCountries } from '../../../config/availableCountries.js';
 
 // Use centralized country data
 const COUNTRIES = availableCountries.map(country => ({

@@ -356,6 +356,61 @@
   --blur-2xl: 40px;
 }
 
+/* ===== RESPONSIVE BREAKPOINTS ===== */
+:root {
+  /* Mobile-first breakpoints following Chrome DevTools presets */
+  --breakpoint-xs: 320px;   /* Extra small devices (phones) */
+  --breakpoint-sm: 600px;   /* Small devices (large phones) */
+  --breakpoint-md: 768px;   /* Medium devices (tablets) */
+  --breakpoint-lg: 1024px;  /* Large devices (desktops) */
+  --breakpoint-xl: 1200px;  /* Extra large devices (large desktops) */
+  --breakpoint-2xl: 1440px; /* Extra extra large devices */
+}
+
+/* ===== EXTENDED STATE COLORS ===== */
+:root {
+  /* Additional state variants for consistency */
+  --state-success-text: #137333;
+  --state-success-border: #81C995;
+  --state-warning-text: #EA8600;
+  --state-warning-border: #FDD663;
+  --state-error-text: #C5221F;
+  --state-error-border: #F28B82;
+  --state-info-text: #1967D2;
+  --state-info-border: #A8C7FA;
+}
+
+[data-theme='dark'] {
+  --state-success-text: #81C995;
+  --state-success-border: #5BB974;
+  --state-warning-text: #FDD663;
+  --state-warning-border: #F9AB00;
+  --state-error-text: #F28B82;
+  --state-error-border: #D93025;
+  --state-info-text: #A8C7FA;
+  --state-info-border: #8AB4F8;
+}
+
+/* ===== PROGRESS & LOADING ===== */
+:root {
+  /* Progress bar colors */
+  --progress-background: var(--surface-03);
+  --progress-fill: var(--accent-icon-color);
+  --progress-fill-secondary: var(--state-success);
+
+  /* Loading spinner colors */
+  --spinner-color: var(--accent-icon-color);
+  --spinner-track: var(--surface-03);
+}
+
+[data-theme='dark'] {
+  --progress-background: var(--surface-03);
+  --progress-fill: var(--accent-icon-color);
+  --progress-fill-secondary: var(--state-success);
+  --spinner-color: var(--accent-icon-color);
+  --spinner-track: var(--surface-03);
+}
+
 /* ===== BASE RESET ===== */
 *,
 *::before,

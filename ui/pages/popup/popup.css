@@ -1,0 +1,288 @@
+/**
+ * PerspectiveLens Popup Styles
+ * Chrome-inspired minimal design using Material Design 3
+ */
+
+@import url('./ui/design-system.css');
+
+/* ===== Base Styles ===== */
+body {
+  width: 380px;
+  min-height: 320px;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-body);
+  background-color: var(--color-background-primary);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== Header ===== */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-5) var(--spacing-4);
+  border-bottom: 1px solid var(--border-color-subtle);
+  position: relative;
+}
+
+.title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-title);
+  margin: 0;
+  letter-spacing: var(--letter-spacing-normal);
+}
+
+.icon-btn {
+  position: absolute;
+  right: var(--spacing-4);
+  background: transparent;
+  border: none;
+  padding: var(--spacing-2);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.icon-btn:hover {
+  background-color: var(--color-background-secondary);
+  color: var(--accent-icon-color);
+}
+
+.icon-btn:active {
+  background-color: var(--color-background-tertiary);
+}
+
+.icon-btn svg {
+  display: block;
+}
+
+/* ===== Main Content ===== */
+.content {
+  padding: var(--spacing-4);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== Section ===== */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.section-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  margin: 0;
+  text-transform: none;
+  letter-spacing: var(--letter-spacing-normal);
+}
+
+.icon-btn-small {
+  background: transparent;
+  border: none;
+  padding: var(--spacing-1);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-tertiary);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.icon-btn-small:hover {
+  background-color: var(--color-background-secondary);
+  color: var(--accent-icon-color);
+}
+
+.icon-btn-small:active {
+  background-color: var(--color-background-tertiary);
+}
+
+.icon-btn-small svg {
+  display: block;
+}
+
+/* ===== Status Card ===== */
+.status-card {
+  background: var(--color-background-secondary);
+  border: 1px solid var(--border-color-default);
+  border-radius: var(--radius-card);
+  padding: var(--spacing-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  transition: border-color var(--transition-base);
+}
+
+.status-card:hover {
+  border-color: var(--border-color-hover);
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.status-label {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-body);
+}
+
+.status-value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* ===== Progress Bar ===== */
+.progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.progress-bar {
+  height: 4px;
+  background: var(--color-background-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent-icon-color);
+  transition: width var(--transition-base);
+  border-radius: var(--radius-full);
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+#progress-percent {
+  font-weight: var(--font-weight-medium);
+  color: var(--accent-text-color);
+}
+
+/* ===== Button ===== */
+.btn-primary {
+  background: var(--button-primary-background);
+  color: var(--button-primary-text);
+  border: none;
+  border-radius: var(--radius-button);
+  padding: var(--spacing-2) var(--spacing-4);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.btn-primary:hover {
+  background: var(--button-primary-background-hover);
+  box-shadow: var(--shadow-01);
+}
+
+.btn-primary:active {
+  background: var(--button-primary-background-active);
+}
+
+/* ===== Spinner Animation ===== */
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--color-background-tertiary);
+  border-top-color: var(--accent-icon-color);
+  border-radius: var(--radius-full);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ===== Footer ===== */
+.footer {
+  border-top: 1px solid var(--border-color-subtle);
+  padding: var(--spacing-3) var(--spacing-4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: auto;
+}
+
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-button);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.footer-link:hover {
+  background-color: var(--color-background-secondary);
+  color: var(--accent-icon-color);
+}
+
+.footer-link svg {
+  flex-shrink: 0;
+}
+
+/* ===== State Variations ===== */
+.status-card.downloading {
+  border-color: var(--accent-border);
+  background: var(--accent-background);
+}
+
+.status-card.success {
+  border-color: var(--state-success);
+  background: var(--state-success-background);
+}
+
+.status-card.error {
+  border-color: var(--state-error);
+  background: var(--state-error-background);
+}
+
+/* ===== Dark Mode Support ===== */
+[data-theme='dark'] body {
+  color: var(--color-text-body);
+  background: var(--color-background-primary);
+}
