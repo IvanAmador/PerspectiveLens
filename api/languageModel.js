@@ -13,7 +13,6 @@
 import { logger } from '../utils/logger.js';
 import { AIModelError, ERROR_MESSAGES } from '../utils/errors.js';
 import { getModelPrompt, getStageSchema } from '../utils/prompts.js';
-import { detectLanguageSimple } from './languageDetector.js';
 import { translate } from './translator.js';
 import {
   normalizeLanguageCode,

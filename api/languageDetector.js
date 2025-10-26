@@ -153,258 +153,251 @@ export async function createLanguageDetector(onProgress = null) {
 }
 
 /**
- * Detect language of text with confidence scores
- * Returns ranked list of detected languages from most to least likely
+ * Detect language of text with confidence scores and automatic fallback cascading
+ * Implements smart fallback: title → content excerpt → larger excerpt
+ *
+ * Strategy:
+ * 1. Try with primary text (e.g., title)
+ * 2. If confidence < MIN_CONFIDENCE and fallbackTexts provided, try with first fallback
+ * 3. If still < MIN_CONFIDENCE and more fallbacks, try with next fallback
+ * 4. Accept final result regardless of confidence
+ *
  * Reference: https://developer.chrome.com/docs/ai/language-detector-api#run_the_language_detector
- * 
- * @param {string} text - Text to analyze
+ *
+ * @param {string} text - Primary text to analyze (e.g., article title)
  * @param {Object} options - Detection options
  * @param {Function} options.onProgress - Progress callback for model download
  * @param {boolean} options.returnAllCandidates - Return all ranked candidates (default: false)
- * @returns {Promise<Object>} Detection result: { language, confidence, alternatives }
+ * @param {Array<string>} options.fallbackTexts - Array of fallback texts to try if confidence is low (e.g., [excerpt500, excerpt1500])
+ * @returns {Promise<Object>} Detection result: { language, confidence, alternatives, attemptUsed }
  */
 export async function detectLanguage(text, options = {}) {
   const operationStart = Date.now();
+  const fallbackTexts = options.fallbackTexts || [];
 
   // Validation
   if (!text || text.trim().length === 0) {
     logger.system.warn('Empty text provided for language detection', {
       category: logger.CATEGORIES.GENERAL
     });
-    return {
-      language: 'unknown',
-      confidence: 0,
-      alternatives: []
-    };
+    throw new AIModelError('Empty text provided for language detection');
   }
 
-  const textLength = text.length;
+  // Prepare all texts to try (primary + fallbacks)
+  const textsToTry = [
+    { text, label: 'primary', length: text.length },
+    ...fallbackTexts.map((fb, idx) => ({
+      text: fb,
+      label: `fallback-${idx + 1}`,
+      length: fb?.length || 0
+    }))
+  ].filter(t => t.text && t.text.trim().length > 0);
 
-  // Warn if text is too short for accurate detection
-  if (textLength < DETECTION_CONFIG.MIN_TEXT_LENGTH) {
-    logger.system.warn('Text too short for accurate detection', {
-      category: logger.CATEGORIES.GENERAL,
-      data: {
-        textLength,
-        minLength: DETECTION_CONFIG.MIN_TEXT_LENGTH,
-        recommendedLength: DETECTION_CONFIG.RECOMMENDED_LENGTH
-      }
-    });
-  }
-
-  logger.system.info('Starting language detection', {
+  logger.system.info('Starting language detection with cascading fallback', {
     category: logger.CATEGORIES.GENERAL,
     data: {
-      textLength,
-      textPreview: text.substring(0, 60).replace(/\n/g, ' ') + (textLength > 60 ? '...' : '')
+      primaryTextLength: text.length,
+      fallbacksAvailable: fallbackTexts.length,
+      totalAttempts: textsToTry.length,
+      primaryPreview: text.substring(0, 60).replace(/\n/g, ' ') + (text.length > 60 ? '...' : '')
     }
   });
 
+  // Create detector once for all attempts
+  const detectorStart = Date.now();
+  const detector = await createLanguageDetector(options.onProgress);
+  const detectorDuration = Date.now() - detectorStart;
+
+  logger.system.debug('Detector ready, starting detection attempts', {
+    category: logger.CATEGORIES.GENERAL,
+    data: { detectorCreationTime: detectorDuration }
+  });
+
+  let finalResult = null;
+
   try {
-    // Create detector
-    const detectorStart = Date.now();
-    const detector = await createLanguageDetector(options.onProgress);
-    const detectorDuration = Date.now() - detectorStart;
+    // Try each text in sequence until we get confident result or exhaust all options
+    for (let i = 0; i < textsToTry.length; i++) {
+      const attempt = textsToTry[i];
+      const isLastAttempt = i === textsToTry.length - 1;
 
-    logger.system.debug('Detector ready, executing detection', {
-      category: logger.CATEGORIES.GENERAL,
-      data: { detectorCreationTime: detectorDuration }
-    });
+      logger.system.debug(`Detection attempt ${i + 1}/${textsToTry.length}`, {
+        category: logger.CATEGORIES.GENERAL,
+        data: {
+          attemptLabel: attempt.label,
+          textLength: attempt.length,
+          isLastAttempt
+        }
+      });
 
-    // Execute detection
-    const detectionStart = Date.now();
-    const results = await detector.detect(text);
-    const detectionDuration = Date.now() - detectionStart;
+      // Execute detection
+      const detectionStart = Date.now();
+      const results = await detector.detect(attempt.text);
+      const detectionDuration = Date.now() - detectionStart;
+
+      // Process results
+      if (!results || results.length === 0) {
+        logger.system.warn('No detection results for this attempt', {
+          category: logger.CATEGORIES.GENERAL,
+          data: { attempt: attempt.label }
+        });
+
+        if (isLastAttempt) {
+          throw new AIModelError('No language detection results from API');
+        }
+        continue;
+      }
+
+      // Get top result
+      const topResult = results[0];
+      const detectedLanguage = normalizeLanguageCode(topResult.detectedLanguage);
+      const confidence = topResult.confidence;
+
+      // Get alternatives
+      const alternatives = results
+        .slice(1, DETECTION_CONFIG.MAX_ALTERNATIVES + 1)
+        .map(r => ({
+          language: normalizeLanguageCode(r.detectedLanguage),
+          languageName: getLanguageName(r.detectedLanguage),
+          confidence: r.confidence
+        }));
+
+      // Build result object
+      const attemptResult = {
+        language: detectedLanguage,
+        languageName: getLanguageName(detectedLanguage),
+        confidence,
+        alternatives,
+        method: 'api',
+        attemptUsed: attempt.label,
+        attemptNumber: i + 1,
+        totalAttempts: textsToTry.length,
+        isConfident: confidence >= DETECTION_CONFIG.MIN_CONFIDENCE,
+        isHighConfidence: confidence >= DETECTION_CONFIG.HIGH_CONFIDENCE
+      };
+
+      // Log result
+      if (confidence >= DETECTION_CONFIG.HIGH_CONFIDENCE) {
+        logger.system.info(`High confidence detection on attempt ${i + 1}`, {
+          category: logger.CATEGORIES.GENERAL,
+          data: {
+            language: detectedLanguage,
+            languageName: getLanguageName(detectedLanguage),
+            confidence: confidence.toFixed(4),
+            confidencePercent: `${(confidence * 100).toFixed(1)}%`,
+            attemptUsed: attempt.label,
+            detectionTime: detectionDuration
+          }
+        });
+      } else if (confidence >= DETECTION_CONFIG.MIN_CONFIDENCE) {
+        logger.system.info(`Moderate confidence detection on attempt ${i + 1}`, {
+          category: logger.CATEGORIES.GENERAL,
+          data: {
+            language: detectedLanguage,
+            languageName: getLanguageName(detectedLanguage),
+            confidence: confidence.toFixed(4),
+            confidencePercent: `${(confidence * 100).toFixed(1)}%`,
+            attemptUsed: attempt.label,
+            alternatives: alternatives.map(a => `${a.language}:${(a.confidence * 100).toFixed(1)}%`)
+          }
+        });
+      } else {
+        logger.system.warn(`Low confidence detection on attempt ${i + 1}`, {
+          category: logger.CATEGORIES.GENERAL,
+          data: {
+            language: detectedLanguage,
+            confidence: confidence.toFixed(4),
+            confidencePercent: `${(confidence * 100).toFixed(1)}%`,
+            minConfidence: DETECTION_CONFIG.MIN_CONFIDENCE,
+            attemptUsed: attempt.label,
+            isLastAttempt
+          }
+        });
+      }
+
+      // If confident OR this is the last attempt, accept result
+      if (confidence >= DETECTION_CONFIG.MIN_CONFIDENCE || isLastAttempt) {
+        finalResult = attemptResult;
+
+        if (isLastAttempt && confidence < DETECTION_CONFIG.MIN_CONFIDENCE) {
+          logger.system.info('Accepting low confidence result from final attempt', {
+            category: logger.CATEGORIES.GENERAL,
+            data: {
+              language: detectedLanguage,
+              confidence: confidence.toFixed(4),
+              reason: 'All fallback attempts exhausted'
+            }
+          });
+        }
+
+        break;
+      }
+
+      // Low confidence and more attempts available - continue to next fallback
+      logger.system.debug('Low confidence, trying next fallback', {
+        category: logger.CATEGORIES.GENERAL,
+        data: {
+          currentConfidence: confidence.toFixed(4),
+          threshold: DETECTION_CONFIG.MIN_CONFIDENCE,
+          nextAttempt: textsToTry[i + 1]?.label
+        }
+      });
+    }
 
     // Cleanup
     detector.destroy();
 
-    // Process results
-    if (!results || results.length === 0) {
-      logger.system.warn('No language detection results returned', {
-        category: logger.CATEGORIES.GENERAL,
-        data: { textLength }
-      });
-      
-      // Fallback to pattern-based detection
-      const fallbackLang = fallbackLanguageDetection(text);
-      const totalDuration = Date.now() - operationStart;
-      
-      logger.system.info('Using fallback language detection', {
-        category: logger.CATEGORIES.GENERAL,
-        data: { fallbackLanguage: fallbackLang, duration: totalDuration }
-      });
-      
-      return {
-        language: fallbackLang,
-        confidence: 0.5,
-        alternatives: [],
-        method: 'fallback'
-      };
-    }
-
-    // Get top result
-    const topResult = results[0];
-    const detectedLanguage = topResult.detectedLanguage;
-    const confidence = topResult.confidence;
-
-    // Get alternatives (top N results after the first)
-    const alternatives = results
-      .slice(1, DETECTION_CONFIG.MAX_ALTERNATIVES + 1)
-      .map(r => ({
-        language: r.detectedLanguage,
-        languageName: getLanguageName(r.detectedLanguage),
-        confidence: r.confidence
-      }));
-
     const totalDuration = Date.now() - operationStart;
 
-    // Log based on confidence level
-    if (confidence >= DETECTION_CONFIG.HIGH_CONFIDENCE) {
-      logger.system.info('High confidence language detection', {
-        category: logger.CATEGORIES.GENERAL,
-        data: {
-          language: detectedLanguage,
-          languageName: getLanguageName(detectedLanguage),
-          confidence: confidence.toFixed(4),
-          confidencePercent: `${(confidence * 100).toFixed(1)}%`,
-          alternativesCount: alternatives.length,
-          duration: totalDuration,
-          breakdown: {
-            detectorCreation: detectorDuration,
-            detection: detectionDuration
-          }
-        }
-      });
-    } else if (confidence >= DETECTION_CONFIG.MIN_CONFIDENCE) {
-      logger.system.info('Moderate confidence language detection', {
-        category: logger.CATEGORIES.GENERAL,
-        data: {
-          language: detectedLanguage,
-          languageName: getLanguageName(detectedLanguage),
-          confidence: confidence.toFixed(4),
-          confidencePercent: `${(confidence * 100).toFixed(1)}%`,
-          alternatives: alternatives.map(a => `${a.language}:${(a.confidence * 100).toFixed(1)}%`),
-          duration: totalDuration
-        }
-      });
-    } else {
-      logger.system.warn('Low confidence language detection', {
-        category: logger.CATEGORIES.GENERAL,
-        data: {
-          language: detectedLanguage,
-          confidence: confidence.toFixed(4),
-          confidencePercent: `${(confidence * 100).toFixed(1)}%`,
-          minConfidence: DETECTION_CONFIG.MIN_CONFIDENCE,
-          message: 'Consider using fallback or requesting more text',
-          duration: totalDuration
-        }
-      });
-    }
-
-    const result = {
-      language: detectedLanguage,
-      languageName: getLanguageName(detectedLanguage),
-      confidence,
-      alternatives,
-      method: 'api',
-      isConfident: confidence >= DETECTION_CONFIG.MIN_CONFIDENCE,
-      isHighConfidence: confidence >= DETECTION_CONFIG.HIGH_CONFIDENCE
-    };
-
-    // Optionally return all candidates
-    if (options.returnAllCandidates) {
-      result.allCandidates = results.map(r => ({
-        language: r.detectedLanguage,
-        languageName: getLanguageName(r.detectedLanguage),
-        confidence: r.confidence
-      }));
-    }
-
-    return result;
-  } catch (error) {
-    const duration = Date.now() - operationStart;
-    
-    logger.system.error('Language detection failed', {
-      category: logger.CATEGORIES.ERROR,
-      error,
-      data: { textLength, duration }
-    });
-
-    // Fallback to pattern-based detection
-    const fallbackLang = fallbackLanguageDetection(text);
-    
-    logger.system.warn('Using fallback detection due to error', {
-      category: logger.CATEGORIES.GENERAL,
-      data: { fallbackLanguage: fallbackLang, duration }
-    });
-
-    return {
-      language: fallbackLang,
-      confidence: 0.5,
-      alternatives: [],
-      method: 'fallback',
-      error: error.message
-    };
-  }
-}
-
-/**
- * Simplified language detection with automatic fallback
- * Returns normalized ISO 639-1 code (e.g., 'pt-BR' → 'pt')
- * Reference: https://developer.chrome.com/docs/ai/language-detector-api
- * 
- * @param {string} text - Text to analyze
- * @returns {Promise<string>} Normalized ISO 639-1 language code
- */
-export async function detectLanguageSimple(text) {
-  if (!text || text.trim().length === 0) {
-    logger.system.debug('Empty text, returning default language', {
-      category: logger.CATEGORIES.GENERAL,
-      data: { defaultLanguage: 'en' }
-    });
-    return 'en';
-  }
-
-  try {
-    const result = await detectLanguage(text);
-    
-    // Normalize the detected language code
-    const normalizedLang = normalizeLanguageCode(result.language);
-
-    // Return language if confidence is high enough
-    if (result.confidence >= DETECTION_CONFIG.MIN_CONFIDENCE) {
-      logger.system.debug('Confident detection, returning normalized language', {
-        category: logger.CATEGORIES.GENERAL,
-        data: {
-          detected: result.language,
-          normalized: normalizedLang,
-          confidence: `${(result.confidence * 100).toFixed(1)}%`
-        }
-      });
-      return normalizedLang;
-    }
-
-    // Low confidence - use fallback
-    logger.system.debug('Low confidence, using fallback detection', {
+    logger.system.info('Language detection completed', {
       category: logger.CATEGORIES.GENERAL,
       data: {
-        detected: result.language,
-        confidence: result.confidence,
-        threshold: DETECTION_CONFIG.MIN_CONFIDENCE
+        finalLanguage: finalResult.language,
+        finalConfidence: finalResult.confidence.toFixed(4),
+        attemptUsed: finalResult.attemptUsed,
+        totalDuration,
+        breakdown: {
+          detectorCreation: detectorDuration,
+          totalAttempts: finalResult.attemptNumber
+        }
       }
     });
 
-    const fallbackLang = fallbackLanguageDetection(text);
-    return normalizeLanguageCode(fallbackLang);
+    // Optionally return all candidates
+    if (options.returnAllCandidates) {
+      // Re-run detection on final text to get all candidates
+      const finalDetector = await createLanguageDetector();
+      const allResults = await finalDetector.detect(textsToTry[finalResult.attemptNumber - 1].text);
+      finalDetector.destroy();
+
+      finalResult.allCandidates = allResults.map(r => ({
+        language: normalizeLanguageCode(r.detectedLanguage),
+        languageName: getLanguageName(r.detectedLanguage),
+        confidence: r.confidence
+      }));
+    }
+
+    return finalResult;
   } catch (error) {
-    logger.system.error('Simple detection failed, defaulting to English', {
+    // Cleanup detector
+    detector.destroy();
+
+    const duration = Date.now() - operationStart;
+
+    logger.system.error('Language detection failed', {
       category: logger.CATEGORIES.ERROR,
-      error
+      error,
+      data: {
+        primaryTextLength: text.length,
+        fallbacksAvailable: fallbackTexts.length,
+        duration
+      }
     });
-    return 'en';
+
+    throw new AIModelError('Language detection failed', error);
   }
 }
+
 
 /**
  * Batch detect languages for multiple texts
@@ -473,8 +466,7 @@ export async function detectLanguagesBatch(texts, options = {}) {
             data: { index, textLength: text.length }
           });
 
-          const fallbackLang = fallbackLanguageDetection(text);
-          return { language: fallbackLang, confidence: 0.5, method: 'fallback' };
+          return { language: 'unknown', confidence: 0, method: 'error' };
         }
       })
     );
@@ -491,9 +483,8 @@ export async function detectLanguagesBatch(texts, options = {}) {
           category: logger.CATEGORIES.ERROR,
           data: { index, reason: result.reason?.message }
         });
-        
-        const fallbackLang = fallbackLanguageDetection(texts[index] || '');
-        return { language: fallbackLang, confidence: 0.5, method: 'fallback-error' };
+
+        return { language: 'unknown', confidence: 0, method: 'promise-rejected' };
       }
     });
 
@@ -514,109 +505,17 @@ export async function detectLanguagesBatch(texts, options = {}) {
     return processedResults;
   } catch (error) {
     const duration = Date.now() - operationStart;
-    
+
     logger.system.error('Batch detection failed catastrophically', {
       category: logger.CATEGORIES.ERROR,
       error,
       data: { textsCount: texts.length, duration }
     });
 
-    // Return fallback for all texts
-    logger.system.warn('Using fallback detection for all texts', {
-      category: logger.CATEGORIES.GENERAL
-    });
-
-    return texts.map(text => ({
-      language: fallbackLanguageDetection(text || ''),
-      confidence: 0.5,
-      method: 'fallback-batch-error'
-    }));
+    throw new AIModelError('Batch language detection failed', error);
   }
 }
 
-/**
- * Pattern-based fallback language detection
- * Uses common words and character patterns to guess language
- * Caution: Less accurate than API, should only be used as fallback
- * 
- * @param {string} text - Text to analyze
- * @returns {string} ISO 639-1 language code
- */
-function fallbackLanguageDetection(text) {
-  if (!text || text.trim().length === 0) {
-    return 'en';
-  }
-
-  logger.system.trace('Using pattern-based fallback detection', {
-    category: logger.CATEGORIES.GENERAL,
-    data: { textLength: text.length }
-  });
-
-  const lowerText = text.toLowerCase();
-
-  // Portuguese patterns (must come before Spanish due to similarities)
-  if (/\b(não|são|também|então|você|artigo|notícias|recebe|corpos|mortos|prisioneiros)\b/.test(lowerText)) {
-    return 'pt';
-  }
-
-  // Portuguese verb endings (common in PT but not ES)
-  if (/\b\w+(ção|ões|ãe|õe)\b/.test(lowerText)) {
-    return 'pt';
-  }
-
-  // Spanish patterns
-  if (/\b(también|artículo|noticias|después|mientras|durante)\b/.test(lowerText)) {
-    return 'es';
-  }
-
-  // French patterns
-  if (/\b(être|avec|dans|pour|cette|tous|leur|mais)\b/.test(lowerText)) {
-    return 'fr';
-  }
-
-  // German patterns
-  if (/\b(nicht|auch|nach|über|dieser|werden|können)\b/.test(lowerText)) {
-    return 'de';
-  }
-
-  // Italian patterns
-  if (/\b(essere|anche|dopo|tutti|loro|questo|essere)\b/.test(lowerText)) {
-    return 'it';
-  }
-
-  // Chinese characters (CJK Unified Ideographs)
-  if (/[\u4e00-\u9fff]/.test(text)) {
-    return 'zh';
-  }
-
-  // Japanese (Hiragana, Katakana, Kanji)
-  if (/[\u3040-\u309f\u30a0-\u30ff]/.test(text)) {
-    return 'ja';
-  }
-
-  // Korean (Hangul)
-  if (/[\uac00-\ud7af]/.test(text)) {
-    return 'ko';
-  }
-
-  // Arabic script
-  if (/[\u0600-\u06ff]/.test(text)) {
-    return 'ar';
-  }
-
-  // Cyrillic script (Russian, etc.)
-  if (/[\u0400-\u04ff]/.test(text)) {
-    return 'ru';
-  }
-
-  // Thai script
-  if (/[\u0e00-\u0e7f]/.test(text)) {
-    return 'th';
-  }
-
-  // Default to English
-  return 'en';
-}
 
 /**
  * Check if detection result meets confidence threshold

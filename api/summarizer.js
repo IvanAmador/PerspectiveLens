@@ -18,7 +18,7 @@
 
 import { logger } from '../utils/logger.js';
 import { AIModelError, ERROR_MESSAGES } from '../utils/errors.js';
-import { detectLanguageSimple } from './languageDetector.js';
+import { detectLanguage } from './languageDetector.js';
 import { translate } from './translator.js';
 import {
   normalizeLanguageCode,
@@ -271,13 +271,22 @@ export async function summarize(text, options = {}) {
         data: { provided: options.language, normalized: sourceLanguage }
       });
     } else {
-      logger.system.debug('Auto-detecting language', {
-        category: logger.CATEGORIES.COMPRESS
-      });
-      sourceLanguage = await detectLanguageSimple(text);
-      logger.system.debug('Language detected', {
+      logger.system.debug('Auto-detecting language from full text', {
         category: logger.CATEGORIES.COMPRESS,
-        data: { language: sourceLanguage }
+        data: { textLength: text.length }
+      });
+
+      // No fallback needed - already have full text
+      const detectionResult = await detectLanguage(text);
+      sourceLanguage = detectionResult.language;
+
+      logger.system.info('Language detected from full text', {
+        category: logger.CATEGORIES.COMPRESS,
+        data: {
+          language: sourceLanguage,
+          confidence: detectionResult.confidence.toFixed(4),
+          attemptUsed: detectionResult.attemptUsed
+        }
       });
     }
 
@@ -663,8 +672,34 @@ export async function batchCompressForAnalysis(articles, lengthOption = 'long', 
 
         const compressStart = Date.now();
 
-        // Translate to English if needed (Summarizer works best with English)
-        const sourceLanguage = await detectLanguageSimple(content.substring(0, 500));
+        // Detect language with cascading fallback for better accuracy
+        logger.system.debug('Detecting article language with cascading fallback', {
+          category: logger.CATEGORIES.COMPRESS,
+          data: {
+            source,
+            contentLength: content.length
+          }
+        });
+
+        // Use cascading: 500 chars → 1500 chars → 3000 chars (final)
+        const detectionResult = await detectLanguage(content.substring(0, 500), {
+          fallbackTexts: [
+            content.substring(0, 1500),
+            content.substring(0, 3000)
+          ]
+        });
+        const sourceLanguage = detectionResult.language;
+
+        logger.system.debug('Article language detected', {
+          category: logger.CATEGORIES.COMPRESS,
+          data: {
+            source,
+            language: sourceLanguage,
+            confidence: detectionResult.confidence.toFixed(4),
+            attemptUsed: detectionResult.attemptUsed
+          }
+        });
+
         let textForSummarizer = content;
 
         if (needsTranslation(sourceLanguage, SUMMARIZER_CONFIG.PREFERRED_LANGUAGE)) {

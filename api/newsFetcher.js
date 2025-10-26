@@ -14,7 +14,7 @@
  */
 
 import { logger } from '../utils/logger.js';
-import { detectLanguageSimple } from './languageDetector.js';
+import { detectLanguage } from './languageDetector.js';
 import { translate } from './translator.js';
 import { PIPELINE_CONFIG } from '../config/pipeline.js';
 
@@ -250,16 +250,37 @@ export async function fetchPerspectives(title, articleData = {}, searchConfig = 
   });
 
   try {
-    // Step 1: Detect title language
-    logger.system.debug('Detecting title language', {
-      category: logger.CATEGORIES.SEARCH
+    // Step 1: Detect title language with cascading fallback
+    logger.system.debug('Detecting title language with fallback support', {
+      category: logger.CATEGORIES.SEARCH,
+      data: {
+        titleLength: title.length,
+        hasArticleContent: !!articleData.content,
+        contentLength: articleData.content?.length || 0
+      }
     });
 
-    const detectedLang = await detectLanguageSimple(title);
+    // Prepare fallback texts from article content if available
+    const fallbackTexts = [];
+    if (articleData.content) {
+      // First fallback: 500 chars excerpt
+      fallbackTexts.push(articleData.content.substring(0, 500));
+      // Second fallback: 1500 chars excerpt (will be accepted even with low confidence)
+      fallbackTexts.push(articleData.content.substring(0, 1500));
+    }
 
-    logger.system.debug('Title language detected', {
+    const detectionResult = await detectLanguage(title, { fallbackTexts });
+    const detectedLang = detectionResult.language;
+
+    logger.system.info('Title language detected', {
       category: logger.CATEGORIES.SEARCH,
-      data: { language: detectedLang }
+      data: {
+        language: detectedLang,
+        languageName: detectionResult.languageName,
+        confidence: detectionResult.confidence.toFixed(4),
+        attemptUsed: detectionResult.attemptUsed,
+        isConfident: detectionResult.isConfident
+      }
     });
 
     // Step 2: Translate to English first (pivot language for better translation quality)
