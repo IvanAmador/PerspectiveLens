@@ -12,7 +12,7 @@
 
 import { logger } from '../utils/logger.js';
 import { AIModelError, ERROR_MESSAGES } from '../utils/errors.js';
-import { getPrompt, loadSchema } from '../utils/prompts.js';
+import { getModelPrompt, getStageSchema } from '../utils/prompts.js';
 import { detectLanguageSimple } from './languageDetector.js';
 import { translate } from './translator.js';
 import {
@@ -27,6 +27,7 @@ import {
   getContentExcerpt
 } from '../utils/contentValidator.js';
 import { batchCompressForAnalysis } from './summarizer.js';
+import { prepareForNano, validateArticleContent } from '../utils/contentPreparation.js';
 import { PIPELINE_CONFIG } from '../config/pipeline.js';
 
 // Supported languages for Prompt API output: en, es, ja (Chrome 140+)
@@ -950,12 +951,12 @@ export async function compareArticlesProgressive(articles, onStageComplete, opti
     }
   };
 
-  // Stage definitions
+  // Stage definitions (using new model-specific prompt system)
   const stages = [
-    { name: 'stage1-context-trust', number: 1, schemaKey: 'stage1-context-trust-schema', critical: true },
-    { name: 'stage2-consensus', number: 2, schemaKey: 'stage2-consensus-schema', critical: true },
-    { name: 'stage3-disputes', number: 3, schemaKey: 'stage3-disputes-schema', critical: false },
-    { name: 'stage4-perspectives', number: 4, schemaKey: 'stage4-perspectives-schema', critical: false }
+    { name: 'stage1-context-trust', number: 1, schemaName: 'stage1', critical: true },
+    { name: 'stage2-consensus', number: 2, schemaName: 'stage2', critical: true },
+    { name: 'stage3-disputes', number: 3, schemaName: 'stage3', critical: false },
+    { name: 'stage4-perspectives', number: 4, schemaName: 'stage4', critical: false }
   ];
 
   // Retry configuration
@@ -1012,9 +1013,9 @@ export async function compareArticlesProgressive(articles, onStageComplete, opti
           });
         }
 
-        // Load stage-specific schema and prompt
-        const schema = await loadSchema(stage.schemaKey);
-        const systemPrompt = await getPrompt(stage.name);
+        // Load stage-specific schema and prompt from new model-specific system
+        const schema = await getStageSchema(stage.schemaName);
+        const systemPrompt = await getModelPrompt('nano', stage.name);
 
         logger.system.debug(`Stage ${stage.number} schema and prompt loaded`, {
           category: logger.CATEGORIES.ANALYZE,

@@ -215,11 +215,47 @@ export async function loadSchema(name) {
 }
 
 /**
+ * Load a prompt for a specific AI model and stage
+ * @param {string} model - AI model type ('nano' or 'pro')
+ * @param {string} stage - Stage name (e.g., 'stage1-context-trust')
+ * @param {Object} variables - Variables for template substitution
+ * @returns {Promise<string>} Processed prompt
+ */
+export async function getModelPrompt(model, stage, variables = {}) {
+  const promptPath = `${model}/${stage}`;
+
+  logger.system.debug('Loading model-specific prompt', {
+    category: logger.CATEGORIES.GENERAL,
+    data: { model, stage, promptPath }
+  });
+
+  return await getPrompt(promptPath, variables);
+}
+
+/**
+ * Load JSON schema from schemas directory
+ * @param {string} stageName - Stage name (e.g., 'stage1', 'stage2')
+ * @returns {Promise<Object>} Parsed JSON schema
+ */
+export async function getStageSchema(stageName) {
+  return await loadSchema(`schemas/${stageName}`);
+}
+
+/**
  * Preload commonly used prompts for performance
  */
 export async function preloadPrompts() {
   const commonPrompts = [
-    'comparative-analysis'
+    'comparative-analysis',
+    // Model-specific prompts
+    'nano/stage1-context-trust',
+    'nano/stage2-consensus',
+    'nano/stage3-disputes',
+    'nano/stage4-perspectives',
+    'pro/stage1-context-trust',
+    'pro/stage2-consensus',
+    'pro/stage3-disputes',
+    'pro/stage4-perspectives'
   ];
 
   logger.system.info('Preloading common prompts', {

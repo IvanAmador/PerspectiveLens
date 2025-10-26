@@ -13,6 +13,8 @@
  */
 
 import { logger } from '../utils/logger.js';
+import { getModelPrompt, getStageSchema } from '../utils/prompts.js';
+import { prepareForPro, validateArticleContent } from '../utils/contentPreparation.js';
 
 // JSON Schemas for each stage (converted from JSON Schema to Gemini API format)
 const STAGE_SCHEMAS = {
@@ -238,6 +240,18 @@ class Gemini25ProAPI {
       model: this.model
     });
 
+    // Validate article content before processing
+    const validation = validateArticleContent(articles, 'pro');
+    if (!validation.valid) {
+      const error = new Error(`Articles missing content: ${validation.missingContent.length} articles have no content`);
+      logger.system.error('Article content validation failed', {
+        category: logger.CATEGORIES.ERROR,
+        error,
+        missingCount: validation.missingContent.length
+      });
+      throw error;
+    }
+
     const stages = [
       { id: 1, name: 'context-trust', critical: true },
       { id: 2, name: 'consensus', critical: true },
@@ -355,7 +369,7 @@ class Gemini25ProAPI {
    * @private
    */
   async _executeStage(stageId, articles) {
-    const prompt = this._buildPrompt(stageId, articles);
+    const prompt = await this._buildPrompt(stageId, articles);
     const schema = STAGE_SCHEMAS[stageId];
 
     const payload = {
@@ -449,96 +463,49 @@ class Gemini25ProAPI {
   }
 
   /**
-   * Builds prompt for a specific stage
+   * Builds prompt for a specific stage using new prompt system
    * @private
    */
-  _buildPrompt(stageId, articles) {
-    // Format articles - Gemini 2.5 Pro can handle multi-language content directly
-    const articlesText = articles.map((article, idx) => `
-### Article ${idx + 1}
-**Source:** ${article.source} (${article.country})
-**Language:** ${article.language}
-**Title:** ${article.title}
-**Content:**
-${article.content}
+  async _buildPrompt(stageId, articles) {
+    logger.system.debug('Building Pro prompt for stage', {
+      category: logger.CATEGORIES.ANALYZE,
+      stageId,
+      articlesCount: articles.length
+    });
 
----
-    `).join('\n');
+    // Prepare article content for Pro (full text, multi-language)
+    const prepared = prepareForPro(articles);
 
-    const prompts = {
-      1: `You are analyzing news coverage to help readers quickly assess a story.
-
-${articlesText}
-
-Task: Provide immediate context and trust assessment based on the articles above (in their original languages).
-
-Output JSON with:
-1. story_summary: One sentence (max 25 words) - What happened? Use only undisputed facts.
-2. trust_signal: Choose ONE:
-   - "high_agreement" = sources mostly agree on key facts
-   - "some_conflicts" = minor contradictions exist
-   - "major_disputes" = significant factual conflicts found
-3. reader_action: One sentence (max 20 words) telling reader what to do with this analysis.
-
-Examples of good reader_action:
-- "Coverage is consistent across sources"
-- "Verify casualty numbers with additional sources"
-- "Be aware of different perspectives on this story"
-
-Keep it simple, clear, and actionable. Output ONLY valid JSON in English.`,
-
-      2: `Find consensus facts across these articles (provided in their original languages):
-
-${articlesText}
-
-Task: Identify facts that multiple sources agree on. These validate that the story is real.
-
-Rules:
-- Maximum 4 consensus facts
-- Each fact must be confirmed by at least 2 sources
-- Be specific and concise (max 30 words per fact)
-- Use exact source names (e.g., "BBC", "Reuters"), not "Article 1"
-
-Output ONLY valid JSON in English.`,
-
-      3: `Identify REAL factual contradictions across these articles:
-
-${articlesText}
-
-Task: Find direct contradictions on FACTS (numbers, dates, direct quotes). Do NOT include:
-- Different opinions or interpretations
-- Different emphasis or framing
-- Missing vs. present information
-
-Rules:
-- Maximum 3 factual disputes
-- Each dispute must show conflicting numbers, dates, or quotes
-- Use exact source names (e.g., "CNN", "Al Jazeera"), not "Article 2"
-- If no real factual disputes exist, return empty array: {"factual_disputes": []}
-
-Output ONLY valid JSON in English.`,
-
-      4: `Analyze how these sources cover the story differently:
-
-${articlesText}
-
-Task: Identify different coverage angles, focuses, or approaches (NOT factual disputes).
-
-Examples of angles:
-- Main Focus: "Economic impact" vs "Political implications"
-- Tone: "Optimistic outlook" vs "Cautionary stance"
-- Context Level: "Detailed background" vs "Brief update"
-
-Rules:
-- Maximum 3 coverage angles
-- Group sources by their approach (minimum 1 source per group)
-- Use exact source names
-- If all sources cover story similarly, return empty array: {"coverage_angles": []}
-
-Output ONLY valid JSON in English.`
+    // Map stage ID to stage name
+    const stageNames = {
+      1: 'stage1-context-trust',
+      2: 'stage2-consensus',
+      3: 'stage3-disputes',
+      4: 'stage4-perspectives'
     };
 
-    return prompts[stageId];
+    const stageName = stageNames[stageId];
+
+    // Load prompt template for Pro model
+    const promptTemplate = await getModelPrompt('pro', stageName);
+
+    // Combine prompt with formatted articles
+    const fullPrompt = `${promptTemplate}
+
+# Articles to Analyze
+
+${prepared.formattedText}`;
+
+    logger.system.debug('Pro prompt built', {
+      category: logger.CATEGORIES.ANALYZE,
+      stageId,
+      stageName,
+      promptLength: fullPrompt.length,
+      articlesIncluded: prepared.articles.length,
+      totalChars: prepared.stats.totalChars
+    });
+
+    return fullPrompt;
   }
 
   /**

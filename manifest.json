@@ -27,6 +27,9 @@
       "resources": [
         "prompts/*.txt",
         "prompts/*.json",
+        "prompts/nano/*.txt",
+        "prompts/pro/*.txt",
+        "prompts/schemas/*.json",
         "offscreen/offscreen.html",
         "ui/isolation.css",
         "ui/shadow-root.css",

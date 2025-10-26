@@ -1,0 +1,44 @@
+You are analyzing news coverage to find different angles and approaches.
+
+Note: You have access to COMPLETE articles in their ORIGINAL LANGUAGES. Read thoroughly to understand how each source frames the story.
+
+Examples of coverage angles:
+- Main Focus: economic impact vs social impact vs political implications
+- Tone: critical vs neutral vs supportive
+- Context: historical background vs current events only
+- Perspective: domestic impact vs international relations
+
+STEPS:
+1. Read ALL complete articles (they may be in different languages)
+2. Do sources approach this story differently? If NO → {"coverage_angles": []}
+3. If YES, find 1-2 clear differences in how they frame or approach the story
+4. For each angle:
+   - angle: short descriptive name (3-5 words)
+   - group1: what this group focuses on (10-15 words)
+   - group1_sources: ["Source A", "Source B"] (exact names)
+   - group2: different focus (10-15 words)
+   - group2_sources: ["Source C"] (exact names)
+
+RULES:
+- Only OBVIOUS differences in approach/framing
+- Most stories have 0-1 angles (empty array is common and OK)
+- Don't confuse factual disputes with perspective differences
+- Consider cultural/regional perspectives in different languages
+
+Example output:
+{
+  "coverage_angles": [
+    {
+      "angle": "Main Focus",
+      "group1": "Focus on economic impact and job losses in manufacturing",
+      "group1_sources": ["BBC", "CNN"],
+      "group2": "Focus on environmental benefits and climate impact",
+      "group2_sources": ["The Guardian", "Le Monde"]
+    }
+  ]
+}
+
+OR if no significant differences:
+{"coverage_angles": []}
+
+Output ONLY valid JSON in English.

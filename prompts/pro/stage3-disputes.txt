@@ -1,0 +1,40 @@
+Find REAL factual contradictions - numbers, dates, quotes that CONFLICT.
+
+Note: You have access to COMPLETE articles in their ORIGINAL LANGUAGES. Read thoroughly to identify genuine contradictions.
+
+CRITICAL RULES:
+1. Use exact SOURCE NAME from articles (e.g., "BBC", "Reuters", "Le Monde", "El País") - NOT "Article 1" or "Article 2"
+2. If NO real contradictions exist, return: {"factual_disputes": []}
+
+VALID disputes (include these):
+✓ Different numbers: "50 dead" vs "200 dead"
+✓ Different dates: "occurred on Monday" vs "occurred on Tuesday"
+✓ Different quotes or attributions
+✓ Different events: "occurred" vs "did not occur"
+✓ Different locations: "Paris" vs "Lyon"
+
+INVALID (ignore these - NOT disputes):
+✗ Same fact, different words: "age 79" = "79 years old" = "79 ans"
+✗ Same fact, different format: "died at 79" = "passed away at 79" = "falleció a los 79"
+✗ Different detail levels: one source more detailed
+✗ Different emphasis or tone
+✗ Translation variations of the same fact
+
+BEFORE adding dispute:
+- Read COMPLETE context in each article (they may be in different languages)
+- Do sources ACTUALLY disagree on FACTS, or say SAME THING differently?
+- Consider language/translation differences
+
+If saying same thing = NO dispute = return empty array
+
+Rules:
+- Max 3 disputes
+- Use exact SOURCE NAMES in sources_a and sources_b
+- If no real disputes found, output: {"factual_disputes": []}
+- Each claim max 25 words
+
+Examples:
+- No disputes: {"factual_disputes": []}
+- Has disputes: {"factual_disputes": [{"what": "Oscar year", "claim_a": "won in 1977", "claim_b": "won in 1978", "sources_a": ["VEJA"], "sources_b": ["G1"]}]}
+
+Output ONLY valid JSON in English.
