@@ -11,7 +11,8 @@
 
 import { logger } from '../utils/logger.js';
 import { checkAvailability, createSession, compareArticlesProgressive } from '../api/languageModel.js';
-import { Gemini25ProAPI } from '../api/gemini-2-5-pro.js';
+import { GeminiAPI } from '../api/geminiAPI.js';
+import { ModelRouter } from '../api/modelRouter.js';
 import { APIKeyManager } from '../config/apiKeyManager.js';
 import { handleError } from '../utils/errors.js';
 import { normalizeLanguageCode } from '../utils/languages.js';
@@ -199,6 +200,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .then(() => sendResponse({ success: true }))
       .catch(error => {
         const errorInfo = handleError(error, 'clearCache');
+        sendResponse({ success: false, error: errorInfo });
+      });
+
+    return true;
+  }
+
+  if (message.type === 'GET_RATE_LIMIT_STATUS') {
+    getRateLimitStatus()
+      .then(status => sendResponse({ success: true, models: status }))
+      .catch(error => {
+        const errorInfo = handleError(error, 'getRateLimitStatus');
+        sendResponse({ success: false, error: errorInfo });
+      });
+
+    return true;
+  }
+
+  if (message.type === 'CLEAR_RATE_LIMITS') {
+    clearRateLimits()
+      .then(() => sendResponse({ success: true }))
+      .catch(error => {
+        const errorInfo = handleError(error, 'clearRateLimits');
         sendResponse({ success: false, error: errorInfo });
       });
 
@@ -574,95 +597,187 @@ async function handleNewArticle(articleData) {
           data: { articlesCount: selectedArticles.length, modelProvider }
         });
 
-        // ===== MODEL ROUTING =====
+        // ===== MODEL ROUTING WITH AUTOMATIC FALLBACK =====
         let analysisResult;
 
-        if (modelProvider === 'gemini-2.5-pro') {
-          // GEMINI 2.5 PRO PIPELINE
-          logger.system.info('Using Gemini 2.5 Pro for analysis', {
+        if (modelProvider === 'api' || modelProvider === 'gemini-2.5-pro') {
+          // API MODELS PIPELINE (with automatic fallback)
+          logger.system.info('Using Gemini API models with fallback', {
             category: logger.CATEGORIES.ANALYZE
           });
 
           const apiKey = await APIKeyManager.load();
           if (!apiKey) {
-            throw new Error('Gemini 2.5 Pro selected but no API key configured');
+            throw new Error('API models selected but no API key configured');
           }
 
-          const proAPI = new Gemini25ProAPI(apiKey, config.analysis.gemini25Pro);
+          // Get preferred models list from config
+          const preferredModels = config.analysis.preferredModels || [
+            'gemini-2.5-pro',
+            'gemini-2.5-flash',
+            'gemini-2.5-flash-lite'
+          ];
 
-          // Check availability before proceeding
-          const availability = await proAPI.checkAvailability();
+          // Create model router
+          const modelRouter = new ModelRouter(preferredModels);
+
+          // Select best available model (not rate limited)
+          const { model, wasFallback, blockedModels, preferredModel, displayName } =
+            await modelRouter.selectBestAvailableModel();
+
+          // Notify user about fallback
+          if (wasFallback) {
+            const blockedNames = blockedModels.map(b => b.displayName).join(', ');
+            logger.logUserProgress('analysis', 68,
+              `${blockedNames} rate limited. Using ${displayName}...`,
+              { icon: 'AI' }
+            );
+          }
+
+          // Get model-specific configuration
+          const modelConfig = config.analysis.models?.[model] || config.analysis.gemini25Pro || {};
+
+          // Create API client for selected model
+          const apiClient = new GeminiAPI(apiKey, model, modelConfig);
+
+          // Check availability
+          const availability = await apiClient.checkAvailability();
           if (availability !== 'ready') {
-            throw new Error(`Gemini 2.5 Pro not available: ${availability}`);
+            throw new Error(`${displayName} not available: ${availability}`);
           }
 
-          // Pro can handle full articles directly (no compression needed)
-          logger.logUserProgress('analysis', 70, 'Analyzing with Gemini 2.5 Pro...', {
+          // Start analysis
+          logger.logUserProgress('analysis', 70, `Analyzing with ${displayName}...`, {
             icon: 'AI',
-            metadata: { model: config.analysis.gemini25Pro.model }
+            metadata: { model, wasFallback }
           });
 
-          analysisResult = await proAPI.compareArticlesProgressive(
-            selectedArticles,
-            // Stage callback - same signature as Nano
-            async (stageInfo) => {
-              const { stage, name, success, duration } = stageInfo;
+          try {
+            analysisResult = await apiClient.compareArticlesProgressive(
+              selectedArticles,
+              // Stage callback
+              async (stageInfo) => {
+                const { stage, name, success, duration } = stageInfo;
 
-              if (success) {
-                logger.system.info(`Stage ${stage}/4 completed with Pro`, {
-                  category: logger.CATEGORIES.ANALYZE,
-                  data: { stage, name, duration }
-                });
+                if (success) {
+                  logger.system.info(`Stage ${stage}/4 completed with ${model}`, {
+                    category: logger.CATEGORIES.ANALYZE,
+                    data: { stage, name, duration, model }
+                  });
 
-                // Stage start messages
-                const stageStartProgress = [86, 90, 94, 97];
-                const stageStartMessages = [
-                  'AI analyzing context & trust with Pro...',
-                  'AI finding consensus with Pro...',
-                  'AI detecting disputes with Pro...',
-                  'AI analyzing perspectives with Pro...'
-                ];
+                  // Stage start messages
+                  const stageStartProgress = [86, 90, 94, 97];
+                  const stageStartMessages = [
+                    `AI analyzing context & trust with ${displayName}...`,
+                    `AI finding consensus with ${displayName}...`,
+                    `AI detecting disputes with ${displayName}...`,
+                    `AI analyzing perspectives with ${displayName}...`
+                  ];
 
-                logger.logUserAI('analysis', {
-                  phase: 'analysis',
-                  progress: stageStartProgress[stage - 1],
-                  message: stageStartMessages[stage - 1],
-                  metadata: { stage, model: 'gemini-2.5-pro' }
-                });
+                  logger.logUserAI('analysis', {
+                    phase: 'analysis',
+                    progress: stageStartProgress[stage - 1],
+                    message: stageStartMessages[stage - 1],
+                    metadata: { stage, model }
+                  });
 
-                // Send progressive update to content script
-                try {
-                  const tabs = await chrome.tabs.query({ url: articleData.url });
-                  if (tabs.length > 0) {
-                    await chrome.tabs.sendMessage(tabs[0].id, {
-                      type: 'ANALYSIS_STAGE_COMPLETE',
-                      data: {
-                        stage,
-                        stageData: stageInfo.result,
-                        perspectives: selectedArticles,
-                        articleData
-                      }
+                  // Send progressive update to content script
+                  try {
+                    const tabs = await chrome.tabs.query({ url: articleData.url });
+                    if (tabs.length > 0) {
+                      await chrome.tabs.sendMessage(tabs[0].id, {
+                        type: 'ANALYSIS_STAGE_COMPLETE',
+                        data: {
+                          stage,
+                          stageData: stageInfo.result,
+                          perspectives: selectedArticles,
+                          articleData
+                        }
+                      });
+                    }
+                  } catch (error) {
+                    logger.system.warn('Failed to send stage update to UI', {
+                      category: logger.CATEGORIES.ANALYZE,
+                      error,
+                      data: { stage }
                     });
                   }
-                } catch (error) {
-                  logger.system.warn('Failed to send stage update to UI', {
-                    category: logger.CATEGORIES.ANALYZE,
-                    error,
-                    data: { stage }
+
+                  // Update progress bar
+                  const progress = 10 + (stage / 4) * 80;
+                  const stageNames = ['Context & Trust', 'Consensus', 'Disputes', 'Perspectives'];
+                  logger.progress(logger.CATEGORIES.ANALYZE, {
+                    status: 'active',
+                    userMessage: `Stage ${stage}/4: ${stageNames[stage - 1]} complete`,
+                    progress
                   });
                 }
-
-                // Update progress bar
-                const progress = 10 + (stage / 4) * 80;
-                const stageNames = ['Context & Trust', 'Consensus', 'Disputes', 'Perspectives'];
-                logger.progress(logger.CATEGORIES.ANALYZE, {
-                  status: 'active',
-                  userMessage: `Stage ${stage}/4: ${stageNames[stage - 1]} complete`,
-                  progress
-                });
               }
+            );
+
+            // Add fallback metadata to results
+            if (wasFallback) {
+              analysisResult.metadata.wasFallback = true;
+              analysisResult.metadata.preferredModel = preferredModel;
+              analysisResult.metadata.blockedModels = blockedModels;
             }
-          );
+
+          } catch (error) {
+            // Check if it's a rate limit error
+            if (error.status === 429) {
+              // Record the rate limit hit
+              await modelRouter.handleRateLimitError(model, error.errorData);
+
+              // Try to get next available model
+              const nextModel = await modelRouter.getNextAvailableModel(model);
+
+              if (nextModel) {
+                logger.logUserProgress('analysis', 70,
+                  `${displayName} rate limited. Switching to ${nextModel.displayName}...`,
+                  { icon: 'AI' }
+                );
+
+                // Retry with next model (recursive call with same articles)
+                const nextConfig = config.analysis.models?.[nextModel.model] || {};
+                const nextClient = new GeminiAPI(apiKey, nextModel.model, nextConfig);
+
+                analysisResult = await nextClient.compareArticlesProgressive(
+                  selectedArticles,
+                  async (stageInfo) => {
+                    // Same callback logic as above
+                    const { stage, success } = stageInfo;
+                    if (success) {
+                      const stageStartProgress = [86, 90, 94, 97];
+                      const stageStartMessages = [
+                        `AI analyzing context & trust with ${nextModel.displayName}...`,
+                        `AI finding consensus with ${nextModel.displayName}...`,
+                        `AI detecting disputes with ${nextModel.displayName}...`,
+                        `AI analyzing perspectives with ${nextModel.displayName}...`
+                      ];
+
+                      logger.logUserAI('analysis', {
+                        phase: 'analysis',
+                        progress: stageStartProgress[stage - 1],
+                        message: stageStartMessages[stage - 1],
+                        metadata: { stage, model: nextModel.model, wasFallback: true }
+                      });
+                    }
+                  }
+                );
+
+                // Add fallback metadata
+                analysisResult.metadata.wasFallback = true;
+                analysisResult.metadata.preferredModel = model;
+                analysisResult.metadata.actualModel = nextModel.model;
+              } else {
+                // No models available
+                throw new Error('All API models are rate limited. Please try again later.');
+              }
+            } else {
+              // Other error - propagate
+              throw error;
+            }
+          }
 
         } else {
           // GEMINI NANO PIPELINE (existing code)
@@ -1027,7 +1142,7 @@ async function handleNewArticle(articleData) {
 
 /**
  * Get extension status for popup (with caching to reduce API calls)
- * Now supports both Gemini Nano and Gemini 2.5 Pro
+ * Now supports Gemini Nano and multiple API models
  */
 async function getExtensionStatus() {
   try {
@@ -1042,8 +1157,8 @@ async function getExtensionStatus() {
     };
 
     // Check status based on selected model
-    if (modelProvider === 'gemini-2.5-pro') {
-      // Gemini 2.5 Pro status
+    if (modelProvider === 'api' || modelProvider === 'gemini-2.5-pro') {
+      // API Models status
       const apiKey = await APIKeyManager.load();
 
       if (!apiKey) {
@@ -1051,22 +1166,28 @@ async function getExtensionStatus() {
         aiStatus.message = 'API key not configured';
       } else {
         try {
-          const proAPI = new Gemini25ProAPI(apiKey, config.analysis.gemini25Pro);
-          const proStatus = await proAPI.checkAvailability();
+          // Check first preferred model for basic availability
+          const preferredModels = config.analysis.preferredModels || ['gemini-2.5-pro'];
+          const firstModel = preferredModels[0];
+          const modelConfig = config.analysis.models?.[firstModel] || config.analysis.gemini25Pro || {};
 
-          aiStatus.availability = proStatus;
+          const apiClient = new GeminiAPI(apiKey, firstModel, modelConfig);
+          const apiStatus = await apiClient.checkAvailability();
+
+          aiStatus.availability = apiStatus;
           aiStatus.apiKeyMasked = APIKeyManager.mask(apiKey);
-          aiStatus.model = config.analysis.gemini25Pro.model;
+          aiStatus.preferredModels = preferredModels;
+          aiStatus.firstModel = firstModel;
 
-          if (proStatus === 'ready') {
-            aiStatus.message = 'Gemini 2.5 Pro connected';
-          } else if (proStatus === 'invalid-key') {
+          if (apiStatus === 'ready') {
+            aiStatus.message = 'API connected';
+          } else if (apiStatus === 'invalid-key') {
             aiStatus.message = 'Invalid or expired API key';
           } else {
             aiStatus.message = 'Network error connecting to API';
           }
         } catch (error) {
-          logger.system.error('Failed to check Gemini 2.5 Pro availability', {
+          logger.system.error('Failed to check API availability', {
             category: logger.CATEGORIES.ERROR,
             error
           });
@@ -1285,6 +1406,69 @@ async function clearCache() {
     });
   } catch (error) {
     logger.system.error('Failed to clear cache', {
+      category: logger.CATEGORIES.ERROR,
+      error
+    });
+    throw error;
+  }
+}
+
+/**
+ * Get rate limit status for all API models
+ */
+async function getRateLimitStatus() {
+  try {
+    const config = await ConfigManager.load();
+    const preferredModels = config.analysis.preferredModels || [
+      'gemini-2.5-pro',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite'
+    ];
+
+    const modelRouter = new ModelRouter(preferredModels);
+    const statuses = await modelRouter.getModelsStatus();
+
+    logger.system.debug('Rate limit status retrieved', {
+      category: logger.CATEGORIES.GENERAL,
+      data: {
+        models: statuses.map(s => ({
+          model: s.model,
+          available: s.available,
+          retryIn: s.retryIn
+        }))
+      }
+    });
+
+    return statuses;
+  } catch (error) {
+    logger.system.error('Failed to get rate limit status', {
+      category: logger.CATEGORIES.ERROR,
+      error
+    });
+    throw error;
+  }
+}
+
+/**
+ * Clear all rate limit blocks (for debugging/testing)
+ */
+async function clearRateLimits() {
+  try {
+    const config = await ConfigManager.load();
+    const preferredModels = config.analysis.preferredModels || [
+      'gemini-2.5-pro',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite'
+    ];
+
+    const modelRouter = new ModelRouter(preferredModels);
+    await modelRouter.clearAllBlocks();
+
+    logger.system.info('All rate limit blocks cleared', {
+      category: logger.CATEGORIES.GENERAL
+    });
+  } catch (error) {
+    logger.system.error('Failed to clear rate limits', {
       category: logger.CATEGORIES.ERROR,
       error
     });

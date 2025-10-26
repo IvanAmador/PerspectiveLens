@@ -1,6 +1,7 @@
 /**
  * PerspectiveLens Popup Script
- * Manages model selection and status for Gemini Nano and Gemini 2.5 Pro
+ * Simple model selection and API key management
+ * Detailed model preferences are managed in Options page
  */
 
 console.log('[Popup] Script loading...');
@@ -12,7 +13,7 @@ console.log('[Popup] Imports loaded successfully');
 
 class PopupManager {
   constructor() {
-    this.selectedModel = 'gemini-nano';
+    this.selectedModel = 'api'; // 'nano' or 'api'
     this.elements = this.getElements();
     this.init();
   }
@@ -24,7 +25,7 @@ class PopupManager {
     return {
       // Model tabs
       tabNano: document.getElementById('tab-nano'),
-      tabPro: document.getElementById('tab-pro'),
+      tabApi: document.getElementById('tab-api'),
 
       // Common
       refreshStatus: document.getElementById('refresh-status'),
@@ -36,14 +37,13 @@ class PopupManager {
       nanoProgress: document.getElementById('nano-progress'),
       nanoProgressFill: document.getElementById('nano-progress-fill'),
       nanoProgressPercent: document.getElementById('nano-progress-percent'),
-      nanoProgressSize: document.getElementById('nano-progress-size'),
       nanoDownloadBtn: document.getElementById('nano-download-btn'),
 
-      // Pro card
-      proCard: document.getElementById('pro-card'),
-      proStatus: document.getElementById('pro-status'),
-      proKeyInput: document.getElementById('pro-key-input'),
-      apiKeyInput: document.getElementById('api-key'),
+      // API card
+      apiCard: document.getElementById('api-card'),
+      apiStatus: document.getElementById('api-status'),
+      apiKeyInput: document.getElementById('api-key-input'),
+      apiKeyField: document.getElementById('api-key'),
       toggleVisibility: document.getElementById('toggle-visibility'),
       saveKeyBtn: document.getElementById('save-key-btn'),
       validationMsg: document.getElementById('validation-msg'),
@@ -60,16 +60,13 @@ class PopupManager {
     try {
       // Load selected model from config
       const config = await ConfigManager.load();
-      this.selectedModel = config.analysis.modelProvider;
+      this.selectedModel = config.analysis.modelProvider === 'nano' ? 'nano' : 'api';
 
       // Setup event listeners
       this.setupEventListeners();
 
       // Update UI
       await this.updateUI();
-
-      // Auto-refresh every 30s
-      setInterval(() => this.updateUI(), 30000);
 
       console.log('[PerspectiveLens] Popup initialized successfully');
     } catch (error) {
@@ -82,8 +79,8 @@ class PopupManager {
    */
   setupEventListeners() {
     // Model tabs
-    this.elements.tabNano?.addEventListener('click', () => this.switchModel('gemini-nano'));
-    this.elements.tabPro?.addEventListener('click', () => this.switchModel('gemini-2.5-pro'));
+    this.elements.tabNano?.addEventListener('click', () => this.switchModel('nano'));
+    this.elements.tabApi?.addEventListener('click', () => this.switchModel('api'));
 
     // Refresh status
     this.elements.refreshStatus?.addEventListener('click', () => this.updateUI());
@@ -102,7 +99,7 @@ class PopupManager {
     this.elements.removeKeyBtn?.addEventListener('click', () => this.removeApiKey());
 
     // Enter key to save API key
-    this.elements.apiKeyInput?.addEventListener('keypress', (e) => {
+    this.elements.apiKeyField?.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
         this.saveApiKey();
       }
@@ -119,7 +116,8 @@ class PopupManager {
 
     try {
       // Save to config
-      await ConfigManager.set('analysis.modelProvider', model);
+      const modelProvider = model === 'nano' ? 'nano' : 'api';
+      await ConfigManager.set('analysis.modelProvider', modelProvider);
 
       // Update UI
       await this.updateUI();
@@ -140,21 +138,17 @@ class PopupManager {
       // Update model tabs
       this.updateModelTabs();
 
-      // Show/hide status cards
+      // Show/hide model cards
       this.elements.nanoCard.style.display =
-        this.selectedModel === 'gemini-nano' ? 'flex' : 'none';
-      this.elements.proCard.style.display =
-        this.selectedModel === 'gemini-2.5-pro' ? 'flex' : 'none';
-
-      console.log('[Popup] Cards visibility - Nano:', this.elements.nanoCard.style.display, 'Pro:', this.elements.proCard.style.display);
+        this.selectedModel === 'nano' ? 'block' : 'none';
+      this.elements.apiCard.style.display =
+        this.selectedModel === 'api' ? 'block' : 'none';
 
       // Update status for selected model
-      if (this.selectedModel === 'gemini-nano') {
-        console.log('[Popup] Calling updateNanoStatus...');
+      if (this.selectedModel === 'nano') {
         await this.updateNanoStatus();
       } else {
-        console.log('[Popup] Calling updateProStatus...');
-        await this.updateProStatus();
+        await this.updateApiStatus();
       }
     } catch (error) {
       console.error('[PerspectiveLens] Failed to update UI:', error);
@@ -165,11 +159,12 @@ class PopupManager {
    * Update model tabs
    */
   updateModelTabs() {
-    const tabs = [this.elements.tabNano, this.elements.tabPro];
+    const tabs = [this.elements.tabNano, this.elements.tabApi];
 
     tabs.forEach(tab => {
       if (tab) {
-        const isActive = tab.dataset.model === this.selectedModel;
+        const tabModel = tab.dataset.model;
+        const isActive = tabModel === this.selectedModel;
         tab.classList.toggle('active', isActive);
       }
     });
@@ -192,9 +187,6 @@ class PopupManager {
       }
 
       const { aiStatus } = response.status;
-
-      console.log('[Popup] AI status:', aiStatus);
-      console.log('[Popup] AI availability:', aiStatus.availability);
 
       // Handle different availability states
       switch (aiStatus.availability) {
@@ -268,7 +260,6 @@ class PopupManager {
 
     const config = types[type] || types.error;
 
-    // Update status display
     statusEl.innerHTML = `
       <span class="status-icon ${config.class}">${config.icon}</span>
       <span>${message}</span>
@@ -328,60 +319,56 @@ class PopupManager {
   }
 
   /**
-   * Update Gemini 2.5 Pro status
+   * Update API status
    */
-  async updateProStatus() {
+  async updateApiStatus() {
     try {
       const apiKey = await APIKeyManager.load();
 
-      console.log('[Popup] Pro status - has API key:', !!apiKey);
+      console.log('[Popup] API status - has API key:', !!apiKey);
 
       if (!apiKey) {
         // No API key configured
-        this.setProStatus('warning', 'Not configured');
-        this.elements.proKeyInput.style.display = 'flex';
+        this.setApiStatus('warning', 'Not Configured');
+        this.elements.apiKeyInput.style.display = 'block';
         this.elements.removeKeyBtn.style.display = 'none';
         return;
       }
 
-      // Validate API key
+      // API key configured - check status
       const response = await chrome.runtime.sendMessage({ type: 'GET_STATUS' });
 
-      console.log('[Popup] Pro status response:', response);
+      if (response && response.success && response.status.aiStatus) {
+        const { aiStatus } = response.status;
 
-      if (!response || !response.success) {
-        this.setProStatus('error', 'Error checking API status');
-        this.elements.proKeyInput.style.display = 'flex';
-        this.elements.removeKeyBtn.style.display = 'none';
-        return;
-      }
-
-      const { aiStatus } = response.status;
-
-      console.log('[Popup] Pro AI status:', aiStatus);
-
-      if (aiStatus.availability === 'ready') {
-        // API key valid
-        this.setProStatus('success', 'Connected');
-        this.elements.proKeyInput.style.display = 'none';
-        this.elements.removeKeyBtn.style.display = 'inline-flex';
+        switch (aiStatus.availability) {
+          case 'ready':
+            this.setApiStatus('success', 'Connected');
+            break;
+          case 'invalid-key':
+            this.setApiStatus('error', 'Invalid API Key');
+            break;
+          default:
+            this.setApiStatus('error', 'Connection Error');
+        }
       } else {
-        // API key invalid
-        this.setProStatus('error', 'Invalid API key');
-        this.elements.proKeyInput.style.display = 'flex';
-        this.elements.removeKeyBtn.style.display = 'none';
+        this.setApiStatus('success', 'Configured');
       }
+
+      this.elements.apiKeyInput.style.display = 'none';
+      this.elements.removeKeyBtn.style.display = 'block';
+
     } catch (error) {
-      console.error('[PerspectiveLens] Failed to update Pro status:', error);
-      this.setProStatus('error', 'Error checking status');
+      console.error('[PerspectiveLens] Failed to update API status:', error);
+      this.setApiStatus('error', 'Error checking status');
     }
   }
 
   /**
-   * Set Pro status
+   * Set API status
    */
-  setProStatus(type, message) {
-    const statusEl = this.elements.proStatus;
+  setApiStatus(type, message) {
+    const statusEl = this.elements.apiStatus;
 
     const types = {
       success: {
@@ -398,9 +385,8 @@ class PopupManager {
       }
     };
 
-    const config = types[type] || types.error;
+    const config = types[type] || types.warning;
 
-    // Update status display
     statusEl.innerHTML = `
       <span class="status-icon ${config.class}">${config.icon}</span>
       <span>${message}</span>
@@ -411,19 +397,16 @@ class PopupManager {
    * Toggle API key visibility
    */
   toggleApiKeyVisibility() {
-    const input = this.elements.apiKeyInput;
+    const input = this.elements.apiKeyField;
     const isPassword = input.type === 'password';
-
     input.type = isPassword ? 'text' : 'password';
-
-    // Update icon (optional - would need different SVG)
   }
 
   /**
    * Save API key
    */
   async saveApiKey() {
-    const apiKey = this.elements.apiKeyInput.value.trim();
+    const apiKey = this.elements.apiKeyField.value.trim();
 
     if (!apiKey) {
       this.showValidation('error', 'Please enter an API key');
@@ -450,7 +433,7 @@ class PopupManager {
         this.showValidation('success', 'API key saved successfully!');
 
         // Clear input
-        this.elements.apiKeyInput.value = '';
+        this.elements.apiKeyField.value = '';
 
         // Update UI after short delay
         setTimeout(() => this.updateUI(), 1500);
@@ -485,7 +468,7 @@ class PopupManager {
    * Remove API key
    */
   async removeApiKey() {
-    if (!confirm('Remove API key? You will need to enter it again to use Gemini 2.5 Pro.')) {
+    if (!confirm('Remove API key? You will need to enter it again to use API models.')) {
       return;
     }
 
@@ -502,5 +485,5 @@ class PopupManager {
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   console.log('[PerspectiveLens] Popup DOM loaded, initializing...');
-  new PopupManager();
+  window.popupManager = new PopupManager();
 });

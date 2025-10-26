@@ -522,8 +522,23 @@ body {
   color: var(--accent-text-color);
 }
 
-.status-icon.error {
+status-icon.error {
   color: var(--state-error);
+}
+
+/* ===== Spinner ===== */
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-color-strong);
+  border-top-color: var(--accent-border-color);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ===== Dark Mode Support ===== */

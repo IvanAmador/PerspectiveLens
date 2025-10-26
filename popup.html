@@ -34,18 +34,18 @@
 
         <!-- Model Selector Tabs -->
         <div class="model-tabs">
-          <button id="tab-nano" class="model-tab active" data-model="gemini-nano">
+          <button id="tab-nano" class="model-tab" data-model="nano">
             <span class="tab-label">Gemini Nano</span>
             <span class="tab-badge">Local</span>
           </button>
-          <button id="tab-pro" class="model-tab" data-model="gemini-2.5-pro">
-            <span class="tab-label">Gemini 2.5 Pro</span>
-            <span class="tab-badge">API</span>
+          <button id="tab-api" class="model-tab active" data-model="api">
+            <span class="tab-label">API Models</span>
+            <span class="tab-badge">Cloud</span>
           </button>
         </div>
 
         <!-- Gemini Nano Status Card -->
-        <div id="nano-card" class="status-card">
+        <div id="nano-card" class="status-card" style="display: none;">
           <div class="status-row">
             <span class="status-label">Status</span>
             <div class="status-with-action">
@@ -73,12 +73,12 @@
           </button>
         </div>
 
-        <!-- Gemini 2.5 Pro Status Card -->
-        <div id="pro-card" class="status-card" style="display: none;">
+        <!-- API Models Status Card -->
+        <div id="api-card" class="status-card">
           <div class="status-row">
             <span class="status-label">Status</span>
             <div class="status-with-action">
-              <div class="status-value" id="pro-status">
+              <div class="status-value" id="api-status">
                 <span>Not Configured</span>
               </div>
               <button id="remove-key-btn" class="remove-key-btn" title="Remove API key" style="display: none;">
@@ -90,7 +90,7 @@
           </div>
 
           <!-- API Key Not Configured -->
-          <div id="pro-key-input" class="api-key-input">
+          <div id="api-key-input" class="api-key-input">
             <label for="api-key" class="input-label">API Key</label>
             <div class="input-wrapper">
               <input

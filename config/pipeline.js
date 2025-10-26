@@ -125,15 +125,67 @@ export const PIPELINE_CONFIG = {
   analysis: {
     /**
      * Model Provider Selection
-     * Options: 'gemini-nano' | 'gemini-2.5-pro'
-     * - gemini-nano: Chrome's built-in AI (free, requires download)
-     * - gemini-2.5-pro: Google AI Studio API (requires API key)
+     * Options: 'nano' | 'api'
+     * - nano: Gemini Nano - Chrome's built-in AI (free, local, requires download)
+     * - api: Gemini API models with automatic fallback (requires API key)
      */
-    modelProvider: 'gemini-nano',
+    modelProvider: 'api',
+
+    /**
+     * Preferred API models in order of preference
+     * Used when modelProvider is 'api'
+     * Models are tried in order, with automatic fallback if rate limited
+     *
+     * Free tier rate limits:
+     * - gemini-2.5-pro: 5 RPM / 125K TPM / 100 RPD (best quality)
+     * - gemini-2.5-flash: 10 RPM / 250K TPM / 250 RPD (good quality, faster)
+     * - gemini-2.5-flash-lite: 15 RPM / 250K TPM / 1000 RPD (fastest, highest daily limit)
+     */
+    preferredModels: [
+      'gemini-2.5-pro',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite'
+    ],
+
+    /**
+     * Per-model configurations
+     * Each model can have custom temperature, topK, topP, and thinking budget
+     */
+    models: {
+      'gemini-2.5-pro': {
+        displayName: 'Gemini 2.5 Pro',
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        thinkingBudget: -1,  // -1 = dynamic thinking
+        includeThoughts: false
+      },
+      'gemini-2.5-flash': {
+        displayName: 'Gemini 2.5 Flash',
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        thinkingBudget: 0,   // 0 = no thinking (faster)
+        includeThoughts: false
+      },
+      'gemini-2.5-flash-lite': {
+        displayName: 'Gemini 2.5 Flash Lite',
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        thinkingBudget: 0,   // 0 = no thinking (fastest)
+        includeThoughts: false
+      },
+      'gemini-nano': {
+        displayName: 'Gemini Nano',
+        temperature: 0.7,
+        topK: 3  // Nano uses different parameter set
+      }
+    },
 
     /**
      * Use content compression before analysis (Gemini Nano only)
-     * Gemini 2.5 Pro has larger context window and doesn't need compression
+     * API models have larger context window and don't need compression
      */
     useCompression: true,
 
@@ -148,66 +200,27 @@ export const PIPELINE_CONFIG = {
     validateContent: true,
 
     /**
-     * AI model parameters (Gemini Nano)
+     * AI model parameters (Gemini Nano) - DEPRECATED
+     * Use models.gemini-nano instead
      */
     model: {
-      temperature: 0.7,  // Balance between creativity and consistency
-      topK: 3,           // Consider top 3 tokens for diversity
+      temperature: 0.7,
+      topK: 3,
     },
 
     /**
-     * Gemini 2.5 Pro Configuration
-     * Used when modelProvider is 'gemini-2.5-pro'
+     * Gemini 2.5 Pro Configuration - DEPRECATED
+     * Use models.gemini-2.5-pro instead
+     * Kept for backward compatibility
      */
     gemini25Pro: {
-      /**
-       * Model variant to use
-       * Options: 'gemini-2.5-pro' (best quality) | 'gemini-2.5-flash' (faster)
-       */
       model: 'gemini-2.5-pro',
-
-      /**
-       * Temperature for generation (0.0 - 1.0)
-       * Lower = more deterministic, Higher = more creative
-       */
       temperature: 0.7,
-
-      /**
-       * Top-K sampling parameter (1-40)
-       * Number of top tokens to consider
-       */
       topK: 40,
-
-      /**
-       * Top-P (nucleus) sampling parameter (0.0 - 1.0)
-       * Cumulative probability threshold
-       */
       topP: 0.95,
-
-      /**
-       * Thinking Budget (token count for reasoning)
-       * -1 = dynamic (model decides)
-       * 0 = disabled (fastest, no thinking)
-       * 128-32768 = fixed token budget for thinking
-       */
       thinkingBudget: -1,
-
-      /**
-       * Include thought summaries in response
-       * Shows model's reasoning process (increases latency and costs)
-       */
       includeThoughts: false,
-
-      /**
-       * Skip translation step
-       * Pro can process multi-language content directly
-       */
       skipTranslation: true,
-
-      /**
-       * Skip compression step
-       * Pro has large context window (2M tokens) and can handle full articles
-       */
       skipCompression: true,
     },
 
