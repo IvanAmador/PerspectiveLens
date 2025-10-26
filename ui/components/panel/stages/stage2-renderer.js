@@ -35,7 +35,6 @@ export class Stage2Renderer {
 
     // Render consensus items
     const consensusItems = consensus.map((item, idx) => {
-      const sourcesCount = item.sources?.length || 0;
       const sourceTags = (item.sources || []).map(s => renderSourceTag(s)).join('');
 
       return `
@@ -43,7 +42,6 @@ export class Stage2Renderer {
           <p class="pl-list-item-title">${escapeHtml(item.fact)}</p>
           ${sourceTags ? `
             <div class="pl-list-item-meta">
-              <span>${sourcesCount} source${sourcesCount !== 1 ? 's' : ''}</span>
               ${sourceTags}
             </div>
           ` : ''}

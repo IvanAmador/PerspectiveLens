@@ -3,51 +3,47 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PerspectiveLens is processing articles</title>
+  <title>PerspectiveLens - Processing Articles</title>
+  <link rel="stylesheet" href="../ui/design-system.css">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
     body {
-      font-family: 'Roboto', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #fff;
-      color: #202124;
-      line-height: 1.6;
-      padding: 0;
-      margin: 0;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      padding: 0;
+      margin: 0;
     }
 
-    /* Chrome-style header */
+    /* Header */
     .header {
-      background: #fff;
-      border-bottom: 1px solid #dadce0;
-      padding: 16px 24px;
+      background: var(--md-sys-color-surface);
+      border-bottom: 1px solid var(--md-sys-color-outline-variant);
+      padding: var(--spacing-4) var(--spacing-6);
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: var(--spacing-4);
     }
 
     .logo-container {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: var(--spacing-3);
     }
 
     .logo-icon {
       width: 32px;
       height: 32px;
-      background: linear-gradient(135deg, #4285f4 0%, #1967d2 100%);
-      border-radius: 8px;
+      background: linear-gradient(135deg, var(--md-sys-color-primary) 0%, var(--md-sys-color-primary-container) 100%);
+      border-radius: var(--radius-md);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
+    }
+
+    .logo-icon svg {
+      width: 18px;
+      height: 18px;
+      fill: var(--md-sys-color-on-primary);
     }
 
     .logo-text {
@@ -56,16 +52,16 @@
     }
 
     .logo-title {
-      font-size: 20px;
-      font-weight: 500;
-      color: #202124;
-      letter-spacing: -0.25px;
+      font-size: var(--font-size-xl);
+      font-weight: var(--font-weight-medium);
+      color: var(--md-sys-color-on-surface);
+      letter-spacing: var(--letter-spacing-tight);
     }
 
     .logo-subtitle {
-      font-size: 13px;
-      color: #5f6368;
-      font-weight: 400;
+      font-size: var(--font-size-sm);
+      color: var(--md-sys-color-on-surface-variant);
+      font-weight: var(--font-weight-regular);
     }
 
     /* Content area */
@@ -74,33 +70,33 @@
       max-width: 800px;
       width: 100%;
       margin: 0 auto;
-      padding: 48px 24px;
+      padding: var(--spacing-12) var(--spacing-6);
     }
 
-    /* Status card - Chrome style */
+    /* Status card */
     .status-card {
-      background: #fff;
-      border: 1px solid #dadce0;
-      border-radius: 8px;
-      padding: 24px;
-      margin-bottom: 24px;
-      box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+      background: var(--md-sys-color-surface-container);
+      border: 1px solid var(--md-sys-color-outline-variant);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-6);
+      margin-bottom: var(--spacing-6);
+      box-shadow: var(--md-elevation-1);
     }
 
     .status-header {
       display: flex;
       align-items: center;
-      gap: 12px;
-      margin-bottom: 20px;
+      gap: var(--spacing-3);
+      margin-bottom: var(--spacing-5);
     }
 
-    /* Chrome-style spinner */
+    /* Spinner */
     .spinner {
       width: 24px;
       height: 24px;
-      border: 3px solid #e8eaed;
-      border-top-color: #1a73e8;
-      border-radius: 50%;
+      border: 3px solid var(--md-sys-color-surface-variant);
+      border-top-color: var(--md-sys-color-primary);
+      border-radius: var(--radius-full);
       animation: spin 0.8s linear infinite;
     }
 
@@ -109,22 +105,22 @@
     }
 
     .status-title {
-      font-size: 16px;
-      font-weight: 500;
-      color: #202124;
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-medium);
+      color: var(--md-sys-color-on-surface);
     }
 
     .status-grid {
       display: grid;
-      gap: 16px;
+      gap: var(--spacing-4);
     }
 
     .status-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 12px 0;
-      border-bottom: 1px solid #f1f3f4;
+      padding: var(--spacing-3) 0;
+      border-bottom: 1px solid var(--md-sys-color-outline-variant);
     }
 
     .status-item:last-child {
@@ -132,30 +128,30 @@
     }
 
     .status-label {
-      font-size: 14px;
-      color: #5f6368;
-      font-weight: 400;
+      font-size: var(--font-size-md);
+      color: var(--md-sys-color-on-surface-variant);
+      font-weight: var(--font-weight-regular);
     }
 
     .status-value {
-      font-size: 14px;
-      color: #202124;
-      font-weight: 500;
+      font-size: var(--font-size-md);
+      color: var(--md-sys-color-on-surface);
+      font-weight: var(--font-weight-medium);
     }
 
     .status-active {
-      color: #1e8e3e;
+      color: var(--state-success);
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: var(--spacing-2);
     }
 
     .status-active::before {
       content: '';
       width: 8px;
       height: 8px;
-      background: #1e8e3e;
-      border-radius: 50%;
+      background: var(--state-success);
+      border-radius: var(--radius-full);
       animation: pulse 2s ease-in-out infinite;
     }
 
@@ -164,92 +160,82 @@
       50% { opacity: 0.5; }
     }
 
-    /* Info sections - Chrome style */
+    /* Info sections */
     .info-section {
-      background: #f8f9fa;
-      border: 1px solid #dadce0;
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 16px;
+      background: var(--md-sys-color-surface-container-high);
+      border: 1px solid var(--md-sys-color-outline-variant);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-5);
+      margin-bottom: var(--spacing-4);
     }
 
     .info-section h2 {
-      font-size: 14px;
-      font-weight: 500;
-      color: #202124;
-      margin-bottom: 8px;
+      font-size: var(--font-size-md);
+      font-weight: var(--font-weight-medium);
+      color: var(--md-sys-color-on-surface);
+      margin-bottom: var(--spacing-2);
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: var(--spacing-2);
     }
 
     .info-section h2::before {
       content: '';
-      width: 4px;
-      height: 4px;
-      background: #1a73e8;
-      border-radius: 50%;
+      width: 6px;
+      height: 6px;
+      background: var(--md-sys-color-primary);
+      border-radius: var(--radius-full);
     }
 
     .info-section p {
-      font-size: 13px;
-      color: #5f6368;
-      line-height: 20px;
+      font-size: var(--font-size-sm);
+      color: var(--md-sys-color-on-surface-variant);
+      line-height: var(--line-height-relaxed);
       margin: 0;
     }
 
-    /* Footer - Chrome style */
+    /* Footer */
     .footer {
-      background: #f8f9fa;
-      border-top: 1px solid #dadce0;
-      padding: 16px 24px;
+      background: var(--md-sys-color-surface-container);
+      border-top: 1px solid var(--md-sys-color-outline-variant);
+      padding: var(--spacing-4) var(--spacing-6);
       text-align: center;
     }
 
     .footer-text {
-      font-size: 12px;
-      color: #5f6368;
+      font-size: var(--font-size-xs);
+      color: var(--md-sys-color-on-surface-variant);
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-    }
-
-    .footer-icon {
-      font-size: 14px;
-    }
-
-    /* Chrome-style link */
-    a {
-      color: #1a73e8;
-      text-decoration: none;
-    }
-
-    a:hover {
-      text-decoration: underline;
+      gap: var(--spacing-2);
     }
 
     /* Responsive */
-    @media (max-width: 600px) {
+    @media (max-width: 768px) {
       .content {
-        padding: 24px 16px;
+        padding: var(--spacing-6) var(--spacing-4);
       }
 
       .header {
-        padding: 12px 16px;
+        padding: var(--spacing-3) var(--spacing-4);
       }
 
       .logo-title {
-        font-size: 18px;
+        font-size: var(--font-size-lg);
       }
     }
   </style>
 </head>
 <body>
-  <!-- Chrome-style Header -->
+  <!-- Header -->
   <div class="header">
     <div class="logo-container">
-      <div class="logo-icon">🔍</div>
+      <div class="logo-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+        </svg>
+      </div>
       <div class="logo-text">
         <div class="logo-title">PerspectiveLens</div>
         <div class="logo-subtitle">Article Content Extraction</div>
@@ -302,7 +288,6 @@
   <!-- Footer -->
   <div class="footer">
     <div class="footer-text">
-      <span class="footer-icon">⏱️</span>
       <span>This window will close automatically when processing is complete</span>
     </div>
   </div>

@@ -176,6 +176,18 @@
   border-color: var(--stage-indicator-active);
   background: var(--md-sys-color-surface);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--stage-indicator-active) 20%, transparent);
+  animation: pl-stage-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pl-stage-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--stage-indicator-active) 20%, transparent);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--stage-indicator-active) 10%, transparent);
+    transform: scale(1.05);
+  }
 }
 
 .pl-stage-indicator.completed .pl-stage-dot {
@@ -270,18 +282,12 @@
   border-radius: var(--radius-lg);
   padding: var(--spacing-5);
   border: 1px solid var(--md-sys-color-outline-variant);
-  transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
   box-shadow: var(--md-elevation-1);
   margin-bottom: var(--spacing-5);
 }
 
 .pl-card:last-child {
   margin-bottom: 0;
-}
-
-.pl-card:hover {
-  box-shadow: var(--md-elevation-2);
-  border-color: var(--panel-card-hover);
 }
 
 .pl-card-summary {
@@ -493,30 +499,8 @@
   border: 1px solid var(--panel-section-divider);
   border-radius: var(--radius-md);
   padding: var(--spacing-4);
-  transition: all var(--transition-fast);
   position: relative;
   overflow: hidden;
-}
-
-.pl-list-item:hover {
-  border-color: var(--md-sys-color-primary);
-  box-shadow: var(--md-elevation-1);
-}
-
-.pl-list-item::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  width: 3px;
-  background: var(--md-sys-color-primary);
-  transform: scaleY(0);
-  transition: transform var(--transition-fast);
-}
-
-.pl-list-item:hover::before {
-  transform: scaleY(1);
 }
 
 .pl-list-item-title {
@@ -638,14 +622,6 @@
   border-radius: var(--radius-md);
   padding: var(--spacing-3);
   border: 1px solid var(--panel-section-divider);
-  transition: all var(--transition-fast);
-}
-
-.pl-difference-group:hover,
-.pl-claim:hover,
-.pl-perspective-group:hover {
-  border-color: var(--md-sys-color-primary);
-  box-shadow: var(--md-elevation-1);
 }
 
 .pl-group-label,
