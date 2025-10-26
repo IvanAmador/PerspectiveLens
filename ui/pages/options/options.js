@@ -478,13 +478,13 @@ class OptionsPage {
       if (result.success) {
         this.isDirty = false;
         this.showSaveIndicator();
-        this.showToast('success', 'Settings saved', 'Your preferences have been updated successfully');
       } else {
-        this.showToast('error', 'Validation failed', result.errors.join(', '));
+        console.error('[Options] Validation failed:', result.errors.join(', '));
+        alert('Validation failed: ' + result.errors.join(', '));
       }
     } catch (error) {
       console.error('[Options] Error saving config:', error);
-      this.showToast('error', 'Save failed', error.message);
+      alert('Save failed: ' + error.message);
     }
   }
 
@@ -500,14 +500,14 @@ class OptionsPage {
         await this.loadConfiguration();
         this.populateUI();
         this.isDirty = false;
-
-        this.showToast('success', 'Settings reset', 'All settings have been restored to defaults');
+        this.showSaveIndicator();
       } else {
-        this.showToast('error', 'Reset failed', result.errors.join(', '));
+        console.error('[Options] Reset failed:', result.errors.join(', '));
+        alert('Reset failed: ' + result.errors.join(', '));
       }
     } catch (error) {
       console.error('[Options] Error resetting config:', error);
-      this.showToast('error', 'Reset failed', error.message);
+      alert('Reset failed: ' + error.message);
     }
   }
 
@@ -522,20 +522,6 @@ class OptionsPage {
     setTimeout(() => {
       this.elements.saveIndicator?.classList.remove('show');
     }, 3000);
-  }
-
-  showToast(type, title, message) {
-    const prefix = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
-
-    this.elements.toastTitle.textContent = `${prefix} ${title}`;
-    this.elements.toastMessage.textContent = message;
-
-    this.elements.toast.classList.add('show');
-    this.elements.toast.setAttribute('data-type', type);
-
-    setTimeout(() => {
-      this.elements.toast.classList.remove('show');
-    }, 4000);
   }
 }
 
