@@ -33,11 +33,21 @@ class ThemeManager {
           if (!pref) {
             this.applyTheme(e.matches ? 'dark' : 'light');
           }
+        }).catch(err => {
+          // If preference loading fails, just apply system theme
+          console.warn('[ThemeManager] Could not load preference on theme change:', err);
+          this.applyTheme(e.matches ? 'dark' : 'light');
         });
       });
 
       return this.currentTheme;
     } catch (error) {
+      // Handle context invalidation gracefully
+      if (error.message?.includes('Extension context invalidated')) {
+        console.warn('[ThemeManager] Extension context invalidated during init, using system preference');
+        this.applySystemTheme();
+        return this.currentTheme;
+      }
       console.error('[ThemeManager] Initialization error:', error);
       // Fallback to light mode
       this.applyTheme('light');
@@ -112,6 +122,12 @@ class ThemeManager {
       if (typeof chrome !== 'undefined' && chrome.storage) {
         return new Promise((resolve) => {
           chrome.storage.local.get([this.storageKey], (result) => {
+            // Check for extension context invalidation
+            if (chrome.runtime.lastError) {
+              console.warn('[ThemeManager] Extension context invalidated, using fallback');
+              resolve(null);
+              return;
+            }
             resolve(result[this.storageKey] || null);
           });
         });
@@ -119,6 +135,11 @@ class ThemeManager {
       // Fallback to localStorage for non-extension contexts
       return localStorage.getItem(this.storageKey);
     } catch (error) {
+      // Handle context invalidation gracefully
+      if (error.message?.includes('Extension context invalidated')) {
+        console.warn('[ThemeManager] Extension context invalidated, using system preference');
+        return null;
+      }
       console.error('[ThemeManager] Error loading preference:', error);
       return null;
     }
@@ -132,10 +153,20 @@ class ThemeManager {
     try {
       if (typeof chrome !== 'undefined' && chrome.storage) {
         await chrome.storage.local.set({ [this.storageKey]: theme });
+        // Check for extension context invalidation
+        if (chrome.runtime.lastError) {
+          console.warn('[ThemeManager] Extension context invalidated, could not save preference');
+          return;
+        }
       } else {
         localStorage.setItem(this.storageKey, theme);
       }
     } catch (error) {
+      // Handle context invalidation gracefully
+      if (error.message?.includes('Extension context invalidated')) {
+        console.warn('[ThemeManager] Extension context invalidated, preference not saved');
+        return;
+      }
       console.error('[ThemeManager] Error saving preference:', error);
     }
   }
@@ -147,10 +178,20 @@ class ThemeManager {
     try {
       if (typeof chrome !== 'undefined' && chrome.storage) {
         await chrome.storage.local.remove([this.storageKey]);
+        // Check for extension context invalidation
+        if (chrome.runtime.lastError) {
+          console.warn('[ThemeManager] Extension context invalidated, could not clear preference');
+          return;
+        }
       } else {
         localStorage.removeItem(this.storageKey);
       }
     } catch (error) {
+      // Handle context invalidation gracefully
+      if (error.message?.includes('Extension context invalidated')) {
+        console.warn('[ThemeManager] Extension context invalidated, preference not cleared');
+        return;
+      }
       console.error('[ThemeManager] Error clearing preference:', error);
     }
   }
