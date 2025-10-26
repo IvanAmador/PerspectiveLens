@@ -42,7 +42,8 @@ async function createShadowDOM() {
     'ui/shadow-root.css',
     'ui/design-system.css',
     'ui/components/toast/single-toast.css',
-    'ui/components/panel/panel-styles.css'
+    'ui/components/panel/panel-styles.css',
+    'ui/components/panel/modal/perspectives-modal.css'
   ];
 
   try {

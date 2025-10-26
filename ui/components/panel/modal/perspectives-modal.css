@@ -1,0 +1,544 @@
+/**
+ * PerspectivesModal Styles - Google News-inspired design
+ *
+ * @description
+ * Modern, clean modal design using Material Design 3 tokens from design-system.css.
+ * Fully responsive with light/dark mode support.
+ *
+ * @design-principles
+ * - Use only design-system.css variables (no hardcoded values)
+ * - Support both :host (Shadow DOM) and :root contexts
+ * - Mobile-first responsive design
+ * - Smooth transitions and animations
+ * - Accessible focus states
+ *
+ * @author PerspectiveLens
+ */
+
+/* ============================================
+   Modal Container & Overlay
+   ============================================ */
+
+.pl-perspectives-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100000; /* High z-index to appear above panel */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-4);
+  opacity: 0;
+  transition: opacity var(--transition-base);
+}
+
+.pl-perspectives-modal.pl-modal-visible {
+  opacity: 1;
+}
+
+.pl-perspectives-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--overlay-scrim);
+  backdrop-filter: blur(4px);
+  cursor: pointer;
+}
+
+/* ============================================
+   Modal Content
+   ============================================ */
+
+.pl-perspectives-content {
+  position: relative;
+  width: 100%;
+  max-width: 1200px;
+  max-height: 90vh;
+  background: var(--md-sys-color-surface);
+  border-radius: var(--radius-dialog);
+  box-shadow: var(--md-elevation-4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalSlideUp 0.3s var(--easing-standard);
+}
+
+@keyframes modalSlideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ============================================
+   Modal Header
+   ============================================ */
+
+.pl-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-6) var(--spacing-6) var(--spacing-4);
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  flex-shrink: 0;
+}
+
+.pl-modal-title-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.pl-modal-title {
+  margin: 0;
+  font-size: 24px; /* Material 3: headline-small */
+  font-weight: 400;
+  color: var(--color-text-title);
+  line-height: 32px;
+  letter-spacing: 0;
+}
+
+.pl-modal-subtitle {
+  margin: 0;
+  font-size: 14px; /* Material 3: body-medium */
+  color: var(--color-text-secondary);
+  font-weight: 400;
+  line-height: 20px;
+  letter-spacing: 0.25px;
+}
+
+.pl-modal-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--color-icon);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: var(--transition-base);
+}
+
+.pl-modal-close:hover {
+  background: var(--md-sys-color-surface-container);
+}
+
+.pl-modal-close:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+.pl-modal-close svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* ============================================
+   Modal Body & Grid
+   ============================================ */
+
+.pl-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-6);
+  scrollbar-width: thin;
+  scrollbar-color: var(--md-sys-color-outline) transparent;
+}
+
+.pl-modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.pl-modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pl-modal-body::-webkit-scrollbar-thumb {
+  background: var(--md-sys-color-outline);
+  border-radius: var(--radius-full);
+}
+
+.pl-modal-body::-webkit-scrollbar-thumb:hover {
+  background: var(--md-sys-color-outline-variant);
+}
+
+.pl-perspectives-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--spacing-5);
+}
+
+/* ============================================
+   Perspective Cards (Google News Style)
+   ============================================ */
+
+.pl-perspective-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--md-sys-color-surface-container);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  position: relative;
+}
+
+.pl-perspective-card:hover {
+  background: var(--md-sys-color-surface-container-high);
+  box-shadow: var(--md-elevation-2);
+  transform: translateY(-2px);
+  border-color: var(--md-sys-color-outline);
+}
+
+.pl-perspective-card:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+.pl-perspective-card:active {
+  transform: translateY(0);
+}
+
+/* Card Image */
+.pl-card-image-container {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--surface-03);
+  overflow: hidden;
+  position: relative;
+}
+
+.pl-card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s var(--easing-standard);
+}
+
+.pl-perspective-card:hover .pl-card-image {
+  transform: scale(1.05);
+}
+
+/* Image placeholder when no featured image */
+.pl-card-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--md-sys-color-surface-container) 0%, var(--md-sys-color-surface-container-high) 100%);
+}
+
+.pl-image-placeholder-content {
+  font-size: 48px;
+  opacity: 0.3;
+}
+
+/* Image error state */
+.pl-card-image-container.pl-image-error .pl-card-image {
+  display: none;
+}
+
+.pl-card-image-container.pl-image-error {
+  background: linear-gradient(135deg, var(--md-sys-color-surface-container) 0%, var(--md-sys-color-surface-container-high) 100%);
+}
+
+.pl-card-image-container.pl-image-error::after {
+  content: '📰';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 48px;
+  opacity: 0.3;
+}
+
+/* Card Content */
+.pl-card-content {
+  padding: var(--spacing-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  flex: 1;
+}
+
+/* Source Row (Favicon + Source Name) */
+.pl-card-source-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-1);
+}
+
+.pl-card-favicon {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-xs);
+  flex-shrink: 0;
+}
+
+.pl-card-source {
+  font-size: 12px; /* Material 3: label-medium */
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Card Title */
+.pl-card-title {
+  margin: 0;
+  font-size: 16px; /* Material 3: title-medium */
+  font-weight: 500;
+  color: var(--color-text-title);
+  line-height: 24px;
+  letter-spacing: 0.15px;
+
+  /* Truncate to 2 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+/* Byline */
+.pl-card-byline {
+  margin: 0;
+  font-size: 12px; /* Material 3: body-small */
+  font-weight: 400;
+  color: var(--color-text-tertiary);
+  line-height: 16px;
+  letter-spacing: 0.4px;
+}
+
+/* Card Excerpt */
+.pl-card-excerpt {
+  margin: 0;
+  font-size: 14px; /* Material 3: body-medium */
+  font-weight: 400;
+  color: var(--color-text-body);
+  line-height: 20px;
+  letter-spacing: 0.25px;
+
+  /* Truncate to 3 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+  flex: 1;
+}
+
+/* Card Footer */
+.pl-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-2);
+  padding-top: var(--spacing-3);
+  border-top: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.pl-card-country,
+.pl-card-time {
+  font-size: 11px; /* Material 3: label-small */
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  line-height: 16px;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+}
+
+.pl-card-country {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pl-card-time {
+  flex-shrink: 0;
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+
+.pl-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-4);
+  padding: var(--spacing-8);
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.pl-empty-state p {
+  margin: 0;
+  font-size: var(--font-size-md);
+}
+
+.pl-btn-text {
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--md-sys-color-primary);
+  background: transparent;
+  border: 1px solid var(--md-sys-color-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-base);
+  font-family: var(--font-family);
+}
+
+.pl-btn-text:hover {
+  background: var(--md-sys-color-primary-container);
+}
+
+.pl-btn-text:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   Responsive Design
+   ============================================ */
+
+/* Tablet */
+@media (max-width: 1024px) {
+  .pl-perspectives-grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .pl-perspectives-modal {
+    padding: 0;
+  }
+
+  .pl-perspectives-content {
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .pl-modal-header {
+    padding: var(--spacing-4);
+  }
+
+  .pl-modal-title {
+    font-size: var(--font-size-lg);
+  }
+
+  .pl-modal-filters {
+    padding: var(--spacing-3);
+    gap: var(--spacing-2);
+  }
+
+  .pl-filter-group {
+    min-width: 100px;
+  }
+
+  .pl-filter-group.pl-filter-search {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .pl-modal-body {
+    padding: var(--spacing-4);
+  }
+
+  .pl-perspectives-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-4);
+  }
+}
+
+/* Small mobile */
+@media (max-width: 480px) {
+  .pl-modal-header {
+    padding: var(--spacing-3);
+  }
+
+  .pl-modal-filters {
+    flex-direction: column;
+  }
+
+  .pl-filter-group,
+  .pl-filter-group.pl-filter-search {
+    width: 100%;
+    min-width: 100%;
+  }
+}
+
+/* ============================================
+   Dark Mode Support (via design-system.css)
+   ============================================ */
+
+/*
+  All dark mode colors are handled automatically via CSS variables
+  that switch based on :host([data-theme='dark']) selector in design-system.css
+
+  No additional dark mode rules needed here - design tokens handle it all!
+*/
+
+/* ============================================
+   Accessibility Enhancements
+   ============================================ */
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .pl-perspectives-modal,
+  .pl-perspective-card,
+  .pl-card-image,
+  .pl-modal-close,
+  .pl-filter-select,
+  .pl-filter-input {
+    transition: none;
+    animation: none;
+  }
+
+  .pl-perspectives-content {
+    animation: none;
+  }
+
+  .pl-perspective-card:hover {
+    transform: none;
+  }
+
+  .pl-perspective-card:hover .pl-card-image {
+    transform: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .pl-perspective-card {
+    border-width: 2px;
+  }
+
+  .pl-modal-close:focus-visible,
+  .pl-perspective-card:focus-visible,
+  .pl-filter-select:focus,
+  .pl-filter-input:focus {
+    outline-width: 3px;
+  }
+}

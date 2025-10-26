@@ -19,6 +19,9 @@
     const { Stage3Renderer } = await import(chrome.runtime.getURL('ui/components/panel/stages/stage3-renderer.js'));
     const { Stage4Renderer } = await import(chrome.runtime.getURL('ui/components/panel/stages/stage4-renderer.js'));
 
+    // Import PerspectivesModal
+    const { PerspectivesModal } = await import(chrome.runtime.getURL('ui/components/panel/modal/index.js'));
+
     console.log('[PanelLoader] Modules loaded successfully');
 
     // Icon library (Material Design)
@@ -384,66 +387,28 @@
       }
 
       /**
-       * Show perspectives modal
+       * Show perspectives modal (using new PerspectivesModal component)
        */
       showPerspectivesModal() {
         console.log('[Panel] Opening perspectives modal');
 
-        // Get shadow container
-        const shadowContainer = this.getShadowContainer();
-        if (!shadowContainer) {
-          console.error('[Panel] Shadow container not available');
+        // Get perspectives from renderer
+        const perspectives = this.renderer.perspectives;
+
+        if (!perspectives || perspectives.length === 0) {
+          console.warn('[Panel] No perspectives available to display');
           return;
         }
 
-        // Remove existing modal if any
-        const existingModal = shadowContainer.querySelector('#pl-perspectives-modal');
-        if (existingModal) {
-          existingModal.remove();
-        }
-
-        // Create modal
-        const modalHTML = `
-          <div id="pl-perspectives-modal" class="pl-modal">
-            <div class="pl-modal-overlay"></div>
-            <div class="pl-modal-content">
-              <div class="pl-modal-header">
-                <h2>All Perspectives</h2>
-                <button class="pl-btn-icon" id="pl-modal-close" aria-label="Close modal">
-                  ${ICONS.collapse}
-                </button>
-              </div>
-              <div class="pl-modal-body">
-                ${this.renderer.renderPerspectivesModal()}
-              </div>
-            </div>
-          </div>
-        `;
-
-        // Append to shadow container (instead of document.body)
-        shadowContainer.insertAdjacentHTML('beforeend', modalHTML);
-
-        // Attach close listeners (query within shadow container)
-        const modal = shadowContainer.querySelector('#pl-perspectives-modal');
-        const closeBtn = shadowContainer.querySelector('#pl-modal-close');
-        const overlay = modal?.querySelector('.pl-modal-overlay');
-
-        if (closeBtn) {
-          closeBtn.addEventListener('click', () => modal?.remove());
-        }
-
-        if (overlay) {
-          overlay.addEventListener('click', () => modal?.remove());
-        }
-
-        // Close on Escape key
-        const escapeHandler = (e) => {
-          if (e.key === 'Escape') {
-            modal?.remove();
-            document.removeEventListener('keydown', escapeHandler);
+        // Create and show modal
+        const modal = new PerspectivesModal(perspectives, {
+          sortBy: 'relevance',
+          onClose: () => {
+            console.log('[Panel] Perspectives modal closed');
           }
-        };
-        document.addEventListener('keydown', escapeHandler);
+        });
+
+        modal.show();
       }
 
       /**
