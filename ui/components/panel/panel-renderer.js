@@ -117,37 +117,47 @@ export class PanelRenderer {
 
     let html = '';
 
+    // Detect format: new format (Pro) has stage1, stage2, etc.
+    // Old format (Nano) has properties directly on root
+    const isNewFormat = !!this.stageData.stage1;
+
+    console.log('[PanelRenderer] Format detected:', isNewFormat ? 'New (stage1, stage2...)' : 'Old (direct properties)');
+
     // Stage 1: Context & Trust (always render if available)
-    if (this.stageData.story_summary) {
+    const stage1Data = isNewFormat ? this.stageData.stage1 : this.stageData;
+    if (stage1Data && stage1Data.story_summary) {
       html += this.stageRenderers[1].render(
-        this.stageData,
+        stage1Data,
         this.escapeHtml.bind(this),
         this.renderSourceTag.bind(this)
       );
     }
 
     // Stage 2: Consensus Facts
-    if (this.stageData.consensus !== undefined) {
+    const stage2Data = isNewFormat ? this.stageData.stage2 : this.stageData;
+    if (stage2Data && stage2Data.consensus !== undefined) {
       html += this.stageRenderers[2].render(
-        this.stageData,
+        stage2Data,
         this.escapeHtml.bind(this),
         this.renderSourceTag.bind(this)
       );
     }
 
     // Stage 3: Factual Disputes
-    if (this.stageData.factual_disputes !== undefined) {
+    const stage3Data = isNewFormat ? this.stageData.stage3 : this.stageData;
+    if (stage3Data && stage3Data.factual_disputes !== undefined) {
       html += this.stageRenderers[3].render(
-        this.stageData,
+        stage3Data,
         this.escapeHtml.bind(this),
         this.renderSourceTag.bind(this)
       );
     }
 
     // Stage 4: Coverage Angles
-    if (this.stageData.coverage_angles !== undefined) {
+    const stage4Data = isNewFormat ? this.stageData.stage4 : this.stageData;
+    if (stage4Data && stage4Data.coverage_angles !== undefined) {
       html += this.stageRenderers[4].render(
-        this.stageData,
+        stage4Data,
         this.escapeHtml.bind(this),
         this.renderSourceTag.bind(this)
       );

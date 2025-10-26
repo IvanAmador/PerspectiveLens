@@ -480,14 +480,29 @@ function handleShowAnalysis(data) {
       ...data.analysis,
       perspectives: data.perspectives
     };
+
+    // Support both old format (Nano) and new format (Pro with stage1, stage2, etc)
+    const hasStage1 = !!panelData.stage1;
+    const hasStage2 = !!panelData.stage2;
+    const hasStage3 = !!panelData.stage3;
+    const hasStage4 = !!panelData.stage4;
+
     console.log('[PerspectiveLens] Sending to panel:', {
+      // Old format (direct properties)
       hasStory: !!panelData.story_summary,
       hasGuidance: !!panelData.reader_guidance,
       hasConsensus: !!panelData.consensus,
       consensusType: typeof panelData.consensus,
-      consensusKeys: panelData.consensus ? Object.keys(panelData.consensus).length : 0,
-      hasDifferences: !!panelData.key_differences,
-      differencesCount: panelData.key_differences?.length || 0,
+      // New format (stage objects)
+      hasStage1,
+      hasStage2,
+      hasStage3,
+      hasStage4,
+      stage1Keys: hasStage1 ? Object.keys(panelData.stage1) : [],
+      stage2Keys: hasStage2 ? Object.keys(panelData.stage2) : [],
+      consensusCount: panelData.stage2?.consensus?.length || 0,
+      disputesCount: panelData.stage3?.factual_disputes?.length || 0,
+      anglesCount: panelData.stage4?.coverage_angles?.length || 0,
       perspectivesCount: panelData.perspectives?.length || 0
     });
     window.PerspectiveLensPanel.showAnalysis(panelData);

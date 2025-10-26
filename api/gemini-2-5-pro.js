@@ -341,7 +341,7 @@ class Gemini25ProAPI {
       stages: stageMetadata.length
     });
 
-    return {
+    const finalResult = {
       ...results,
       metadata: {
         modelProvider: 'gemini-2.5-pro',
@@ -362,6 +362,20 @@ class Gemini25ProAPI {
         originalContentLength: article.content?.length || 0
       }))
     };
+
+    // DEBUG: Log final result structure
+    logger.system.info('Pro API returning final result', {
+      category: logger.CATEGORIES.ANALYZE,
+      resultKeys: Object.keys(finalResult),
+      hasStage1: !!finalResult.stage1,
+      hasStage2: !!finalResult.stage2,
+      hasStage3: !!finalResult.stage3,
+      hasStage4: !!finalResult.stage4,
+      stage1Keys: finalResult.stage1 ? Object.keys(finalResult.stage1) : [],
+      stage2Keys: finalResult.stage2 ? Object.keys(finalResult.stage2) : []
+    });
+
+    return finalResult;
   }
 
   /**
