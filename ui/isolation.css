@@ -1,0 +1,43 @@
+/**
+ * PerspectiveLens Isolation Styles
+ * Ensures the custom element container doesn't inherit ANY styles from the host page
+ */
+
+perspective-lens-root {
+  /* Complete reset - block ALL inheritance from host page */
+  all: initial;
+
+  /* Re-establish positioning for our overlay */
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+
+  /* Make container non-interactive (children will be interactive via pointer-events: auto) */
+  pointer-events: none;
+
+  /* Ensure we're above everything on the page */
+  z-index: 2147483647; /* Maximum z-index value */
+
+  /* No visual presence */
+  background: transparent;
+  border: none;
+  margin: 0;
+  padding: 0;
+
+  /* Ensure we don't affect layout */
+  overflow: visible;
+}
+
+/* Re-enable pointer events for all children in shadow DOM */
+perspective-lens-root * {
+  pointer-events: auto;
+}
+
+/* Prevent the custom element from affecting page layout */
+perspective-lens-root::before,
+perspective-lens-root::after {
+  display: none;
+}

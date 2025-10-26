@@ -32,6 +32,42 @@ class SingleToast {
     this.activeFlags = new Set(); // Track active flags
     this.dismissTimeout = null;
     this.actionCallbacks = {}; // Store action callbacks
+    this.initialized = false;
+    this.initPromise = null;
+  }
+
+  /**
+   * Wait for shadow root to be ready
+   */
+  async waitForShadowRoot() {
+    if (this.initialized) return true;
+    if (this.initPromise) return this.initPromise;
+
+    this.initPromise = (async () => {
+      // Wait for shadow container to be available
+      let retries = 0;
+      const maxRetries = 30; // 3 seconds max
+
+      while (retries < maxRetries) {
+        if (window.__PL_SHADOW_CONTAINER__) {
+          this.initialized = true;
+          console.log('[SingleToast] Shadow root ready');
+          return true;
+        }
+
+        if (retries % 5 === 0) {
+          console.log(`[SingleToast] Waiting for shadow root... (attempt ${retries + 1}/${maxRetries})`);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retries++;
+      }
+
+      console.error('[SingleToast] Timeout waiting for shadow root');
+      return false;
+    })();
+
+    return this.initPromise;
   }
 
   /**
@@ -41,7 +77,14 @@ class SingleToast {
    * @param {Array} options.actions - Array of action buttons [{label, callback, primary}]
    * @param {string} options.message - Optional message text
    */
-  show(title = 'Processing...', options = {}) {
+  async show(title = 'Processing...', options = {}) {
+    // Wait for shadow root to be ready
+    const ready = await this.waitForShadowRoot();
+    if (!ready) {
+      console.error('[SingleToast] Cannot show toast - shadow root not ready');
+      return;
+    }
+
     if (!this.container) {
       this.create();
     }
@@ -74,6 +117,13 @@ class SingleToast {
    * Create toast DOM structure
    */
   create() {
+    // Get shadow container from global reference
+    const shadowContainer = window.__PL_SHADOW_CONTAINER__;
+    if (!shadowContainer) {
+      console.error('[SingleToast] Shadow container not available');
+      return;
+    }
+
     // Create container
     this.container = document.createElement('div');
     this.container.className = 'perspective-single-toast';
@@ -107,8 +157,9 @@ class SingleToast {
     this.aiIndicator = this.container.querySelector('.toast-ai-indicator');
     this.actionsContainer = this.container.querySelector('.toast-actions');
 
-    // Append to body
-    document.body.appendChild(this.container);
+    // Append to shadow container
+    shadowContainer.appendChild(this.container);
+    console.log('[SingleToast] Toast injected into Shadow DOM');
   }
 
   /**
@@ -360,10 +411,10 @@ class SingleToast {
 
 // Create singleton instance and expose globally
 (function() {
-  const singleToast = new SingleToast();
-
-  // Expose globally for content script
   if (typeof window !== 'undefined') {
+    const singleToast = new SingleToast();
+
+    // Expose globally for content script
     window.PerspectiveLensSingleToast = singleToast;
     console.log('[PerspectiveLens] SingleToast registered globally');
   }

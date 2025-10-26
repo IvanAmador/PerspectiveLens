@@ -5,6 +5,89 @@
 
 console.log('[PerspectiveLens] Content script loaded');
 
+/**
+ * Create Shadow DOM directly in content script
+ * This is the correct approach - no need for MAIN world injection
+ */
+async function createShadowDOM() {
+  console.log('[PerspectiveLens] Creating Shadow DOM...');
+
+  // Create shadow host element
+  const shadowHost = document.createElement('div');
+  shadowHost.id = 'perspective-lens-root';
+
+  // Wait for theme to be set (max 100ms)
+  let currentTheme = document.documentElement.getAttribute('data-theme');
+  if (!currentTheme) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+  }
+
+  // Apply current theme to shadow host (for dark mode support)
+  shadowHost.setAttribute('data-theme', currentTheme);
+  console.log(`[PerspectiveLens] Shadow DOM initialized with theme: ${currentTheme}`);
+
+  // Attach shadow root (open mode for easier debugging)
+  const shadowRoot = shadowHost.attachShadow({ mode: 'open' });
+
+  // Create container inside shadow root
+  const container = document.createElement('div');
+  container.id = 'pl-shadow-container';
+  shadowRoot.appendChild(container);
+
+  // Load CSS files and inject them as <style> elements
+  // This is more reliable than <link> for Shadow DOM
+  // Order matters: shadow-root.css first, then design-system, then components
+  const cssFiles = [
+    'ui/shadow-root.css',
+    'ui/design-system.css',
+    'ui/components/toast/single-toast.css',
+    'ui/components/panel/panel-styles.css'
+  ];
+
+  try {
+    // Fetch and inject each CSS file
+    for (const cssFile of cssFiles) {
+      const url = chrome.runtime.getURL(cssFile);
+      const response = await fetch(url);
+      let cssText = await response.text();
+
+      // CRITICAL FIX: Shadow DOM CSS compatibility
+      // 1. :root doesn't work in Shadow DOM, must use :host
+      // 2. [data-theme='dark'] must become :host([data-theme='dark'])
+      if (cssFile === 'ui/design-system.css') {
+        // Replace :root with :host
+        cssText = cssText.replace(/:root/g, ':host');
+
+        // Replace [data-theme='dark'] with :host([data-theme='dark'])
+        cssText = cssText.replace(/\[data-theme='dark'\]/g, ":host([data-theme='dark'])");
+
+        console.log('[PerspectiveLens] Converted CSS for Shadow DOM (:root → :host, theme selectors)');
+      }
+
+      // Create style element
+      const styleEl = document.createElement('style');
+      styleEl.textContent = cssText;
+      shadowRoot.appendChild(styleEl);
+
+      console.log(`[PerspectiveLens] Loaded CSS: ${cssFile}`);
+    }
+
+    // Append to body
+    document.body.appendChild(shadowHost);
+
+    // Store global reference for UI components to access
+    window.__PL_SHADOW_ROOT__ = shadowRoot;
+    window.__PL_SHADOW_CONTAINER__ = container;
+
+    console.log('[PerspectiveLens] Shadow DOM created successfully with all styles loaded');
+    return { shadowRoot, container };
+  } catch (error) {
+    console.error('[PerspectiveLens] Error loading CSS:', error);
+    throw error;
+  }
+}
+
 // Single toast will be available globally after injection
 let singleToast = null;
 
@@ -475,7 +558,7 @@ window.addEventListener('perspectivelens:retry', () => {
 });
 
 /**
- * Initialize - Wait for dependencies then detect
+ * Initialize - Create Shadow DOM, wait for dependencies, then detect articles
  */
 async function initialize() {
   console.log('[PerspectiveLens] Initializing content script...');
@@ -487,7 +570,23 @@ async function initialize() {
     });
   }
 
-  // Wait for dependencies (with 1s timeout)
+  // Create Shadow DOM (only if not already created)
+  if (!document.getElementById('perspective-lens-root')) {
+    await createShadowDOM();
+
+    // Listen for theme changes and update shadow host
+    window.addEventListener('themeChanged', (event) => {
+      const shadowHost = document.getElementById('perspective-lens-root');
+      if (shadowHost && event.detail?.theme) {
+        shadowHost.setAttribute('data-theme', event.detail.theme);
+        console.log(`[PerspectiveLens] Shadow DOM theme updated: ${event.detail.theme}`);
+      }
+    });
+  } else {
+    console.log('[PerspectiveLens] Shadow DOM already exists');
+  }
+
+  // Wait for dependencies (toast and panel)
   dependenciesLoaded = await waitForDependencies();
 
   if (dependenciesLoaded) {
@@ -500,5 +599,9 @@ async function initialize() {
   detectNewsArticle();
 }
 
-// Start initialization
-initialize();
+// Start initialization with error handling
+try {
+  initialize();
+} catch (error) {
+  console.error('[PerspectiveLens] Fatal initialization error:', error);
+}

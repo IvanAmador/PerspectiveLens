@@ -34,21 +34,65 @@
         this.panel = null;
         this.isCollapsed = false;
         this.renderer = new PanelRenderer();
-        this.init();
+        this.initialized = false;
+        this.initPromise = null;
       }
 
-      init() {
-        this.createPanel();
-        this.attachEventListeners();
-        console.log('[Panel] Analysis panel initialized');
+      /**
+       * Helper to get shadow container
+       */
+      getShadowContainer() {
+        return window.__PL_SHADOW_CONTAINER__;
+      }
+
+      /**
+       * Initialize panel - waits for shadow root to be ready
+       */
+      async init() {
+        if (this.initialized) return;
+        if (this.initPromise) return this.initPromise;
+
+        this.initPromise = (async () => {
+          console.log('[Panel] Waiting for shadow root...');
+
+          // Wait for shadow container to be available
+          let retries = 0;
+          const maxRetries = 30; // 3 seconds max
+
+          while (retries < maxRetries) {
+            if (window.__PL_SHADOW_CONTAINER__) {
+              console.log('[Panel] Shadow root ready, creating panel...');
+              this.createPanel();
+              this.attachEventListeners();
+              this.initialized = true;
+              console.log('[Panel] Analysis panel initialized');
+              return;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+            retries++;
+          }
+
+          console.error('[Panel] Timeout waiting for shadow root to be ready');
+        })();
+
+        return this.initPromise;
       }
 
       /**
        * Create panel DOM structure
        */
       createPanel() {
-        if (document.getElementById('perspectivelens-panel')) {
-          this.panel = document.getElementById('perspectivelens-panel');
+        // Get shadow container
+        const shadowContainer = this.getShadowContainer();
+        if (!shadowContainer) {
+          console.error('[Panel] Shadow container not available');
+          return;
+        }
+
+        // Check if panel already exists in shadow DOM
+        if (shadowContainer.querySelector('#perspectivelens-panel')) {
+          this.panel = shadowContainer.querySelector('#perspectivelens-panel');
+          console.log('[Panel] Panel already exists in Shadow DOM');
           return;
         }
 
@@ -108,22 +152,32 @@
           </div>
         `;
 
-        document.body.insertAdjacentHTML('beforeend', panelHTML);
-        this.panel = document.getElementById('perspectivelens-panel');
+        // Append to shadow container (instead of document.body)
+        shadowContainer.insertAdjacentHTML('beforeend', panelHTML);
+        this.panel = shadowContainer.querySelector('#perspectivelens-panel');
+        console.log('[Panel] Panel injected into Shadow DOM');
       }
 
       /**
        * Attach event listeners
        */
       attachEventListeners() {
+        // Get shadow container for queries
+        const shadowContainer = this.getShadowContainer();
+
+        if (!shadowContainer) {
+          console.warn('[Panel] Cannot attach event listeners - shadow container not found');
+          return;
+        }
+
         // Close button
-        const closeBtn = document.getElementById('pl-close-btn');
+        const closeBtn = shadowContainer.querySelector('#pl-close-btn');
         if (closeBtn) {
           closeBtn.addEventListener('click', () => this.hide());
         }
 
         // Retry button
-        const retryBtn = document.getElementById('pl-retry-btn');
+        const retryBtn = shadowContainer.querySelector('#pl-retry-btn');
         if (retryBtn) {
           retryBtn.addEventListener('click', () => this.retry());
         }
@@ -135,12 +189,15 @@
        * @param {string} status - 'active' or 'completed'
        */
       updateStageIndicator(stage, status) {
-        const indicator = document.querySelector(`.pl-stage-indicator[data-stage="${stage}"]`);
+        const shadowContainer = this.getShadowContainer();
+        if (!shadowContainer) return;
+
+        const indicator = shadowContainer.querySelector(`.pl-stage-indicator[data-stage="${stage}"]`);
         if (!indicator) return;
-        
+
         // Reset classes
         indicator.classList.remove('active', 'completed');
-        
+
         // Add appropriate class
         if (status === 'active') {
           indicator.classList.add('active');
@@ -148,12 +205,15 @@
           indicator.classList.add('completed');
         }
       }
-      
+
       /**
        * Reset all stage indicators
        */
       resetStageIndicators() {
-        const indicators = document.querySelectorAll('.pl-stage-indicator');
+        const shadowContainer = this.getShadowContainer();
+        if (!shadowContainer) return;
+
+        const indicators = shadowContainer.querySelectorAll('.pl-stage-indicator');
         indicators.forEach(ind => {
           ind.classList.remove('active', 'completed');
         });
@@ -162,7 +222,8 @@
       /**
        * Show panel
        */
-      show() {
+      async show() {
+        await this.init();
         if (this.panel) {
           this.panel.classList.add('pl-panel-visible');
           console.log('[Panel] Panel shown');
@@ -182,9 +243,13 @@
       /**
        * Show loading state
        */
-      showLoading() {
+      async showLoading() {
+        await this.init();
         this.hideAllStates();
-        const loading = document.getElementById('pl-loading');
+        const shadowContainer = this.getShadowContainer();
+        if (!shadowContainer) return;
+
+        const loading = shadowContainer.querySelector('#pl-loading');
         if (loading) loading.style.display = 'flex';
         this.show();
       }
@@ -192,12 +257,16 @@
       /**
        * Show error state
        */
-      showError(error) {
+      async showError(error) {
+        await this.init();
         console.error('[Panel] Showing error:', error);
         this.hideAllStates();
 
-        const errorEl = document.getElementById('pl-error');
-        const errorMsg = document.getElementById('pl-error-message');
+        const shadowContainer = this.getShadowContainer();
+        if (!shadowContainer) return;
+
+        const errorEl = shadowContainer.querySelector('#pl-error');
+        const errorMsg = shadowContainer.querySelector('#pl-error-message');
 
         if (errorEl && errorMsg) {
           errorMsg.textContent = error.message || 'An error occurred during analysis';
@@ -213,18 +282,25 @@
        * @param {Object} stageData - Data for this stage
        * @param {Array} perspectives - Perspectives array
        */
-      showAnalysisProgressive(stage, stageData, perspectives) {
+      async showAnalysisProgressive(stage, stageData, perspectives) {
+        await this.init();
         console.log(`[Panel] Stage ${stage} data received:`, stageData);
+
+        const shadowContainer = this.getShadowContainer();
+        if (!shadowContainer) {
+          console.error('[Panel] Shadow container not found');
+          return;
+        }
 
         // Hide loading/error states on first stage
         if (stage === 1) {
           this.hideAllStates();
-          const content = document.getElementById('pl-content');
+          const content = shadowContainer.querySelector('#pl-content');
           if (content) {
             content.style.display = 'block';
             content.innerHTML = ''; // Clear previous content
           }
-          
+
           // Mark first stage as active
           this.updateStageIndicator(1, 'active');
         }
@@ -233,13 +309,13 @@
         const stageHTML = this.renderer.updateStage(stage, stageData, perspectives);
 
         // Append to content
-        const content = document.getElementById('pl-content');
+        const content = shadowContainer.querySelector('#pl-content');
         if (content && stageHTML) {
           content.insertAdjacentHTML('beforeend', stageHTML);
 
           // Mark current stage as completed
           this.updateStageIndicator(stage, 'completed');
-          
+
           // Mark next stage as active (unless it's the last stage)
           if (stage < 4) {
             this.updateStageIndicator(stage + 1, 'active');
@@ -259,8 +335,15 @@
        * Show analysis - Complete mode (all at once)
        * @param {Object} analysis - Complete analysis data
        */
-      showAnalysis(analysis) {
+      async showAnalysis(analysis) {
+        await this.init();
         console.log('[Panel] Raw data received:', analysis);
+
+        const shadowContainer = this.getShadowContainer();
+        if (!shadowContainer) {
+          console.error('[Panel] Shadow container not found');
+          return;
+        }
 
         this.hideAllStates();
 
@@ -268,7 +351,7 @@
         const html = this.renderer.renderComplete(analysis, analysis.perspectives || []);
 
         // Update content
-        const content = document.getElementById('pl-content');
+        const content = shadowContainer.querySelector('#pl-content');
         if (content) {
           content.innerHTML = html;
           content.style.display = 'block';
@@ -287,8 +370,11 @@
        * Attach event listeners for dynamically rendered content
        */
       attachDynamicEventListeners() {
+        const shadowContainer = this.getShadowContainer();
+        if (!shadowContainer) return;
+
         // View perspectives button
-        const viewBtn = document.getElementById('pl-view-perspectives');
+        const viewBtn = shadowContainer.querySelector('#pl-view-perspectives');
         if (viewBtn) {
           viewBtn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -303,8 +389,15 @@
       showPerspectivesModal() {
         console.log('[Panel] Opening perspectives modal');
 
+        // Get shadow container
+        const shadowContainer = this.getShadowContainer();
+        if (!shadowContainer) {
+          console.error('[Panel] Shadow container not available');
+          return;
+        }
+
         // Remove existing modal if any
-        const existingModal = document.getElementById('pl-perspectives-modal');
+        const existingModal = shadowContainer.querySelector('#pl-perspectives-modal');
         if (existingModal) {
           existingModal.remove();
         }
@@ -327,11 +420,12 @@
           </div>
         `;
 
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        // Append to shadow container (instead of document.body)
+        shadowContainer.insertAdjacentHTML('beforeend', modalHTML);
 
-        // Attach close listeners
-        const modal = document.getElementById('pl-perspectives-modal');
-        const closeBtn = document.getElementById('pl-modal-close');
+        // Attach close listeners (query within shadow container)
+        const modal = shadowContainer.querySelector('#pl-perspectives-modal');
+        const closeBtn = shadowContainer.querySelector('#pl-modal-close');
         const overlay = modal?.querySelector('.pl-modal-overlay');
 
         if (closeBtn) {
@@ -365,9 +459,12 @@
        * Hide all state elements
        */
       hideAllStates() {
-        const loading = document.getElementById('pl-loading');
-        const error = document.getElementById('pl-error');
-        const content = document.getElementById('pl-content');
+        const shadowContainer = this.getShadowContainer();
+        if (!shadowContainer) return;
+
+        const loading = shadowContainer.querySelector('#pl-loading');
+        const error = shadowContainer.querySelector('#pl-error');
+        const content = shadowContainer.querySelector('#pl-content');
 
         if (loading) loading.style.display = 'none';
         if (error) error.style.display = 'none';
@@ -381,14 +478,20 @@
         this.renderer.reset();
         this.hideAllStates();
         this.resetStageIndicators();
-        const content = document.getElementById('pl-content');
+
+        const shadowContainer = this.getShadowContainer();
+        if (!shadowContainer) return;
+
+        const content = shadowContainer.querySelector('#pl-content');
         if (content) content.innerHTML = '';
       }
     }
 
     // Create global instance
-    window.PerspectiveLensPanel = new AnalysisPanel();
-    console.log('[PanelLoader] Global instance created successfully');
+    if (typeof window !== 'undefined') {
+      window.PerspectiveLensPanel = new AnalysisPanel();
+      console.log('[PanelLoader] Global instance created successfully');
+    }
 
   } catch (error) {
     console.error('[PanelLoader] Failed to load modular panel system:', error);

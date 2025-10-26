@@ -13,11 +13,26 @@ The extension follows a modern architectural pattern with separation of concerns
 ### Core Components
 - **API Layer** (`api/`): Wrapper modules for Chrome AI APIs (Language Detector, Translator, Summarizer, and Language Model)
 - **Background Service** (`scripts/background.js`): Orchestrates the analysis pipeline and coordinates API calls
-- **Content Script** (`scripts/content.js`): Detects articles on web pages and manages UI components
-- **UI Components** (`ui/`): Modern panel system with toast notifications and progress tracking
+- **Content Script** (`scripts/content.js`): Detects articles on web pages, creates Shadow DOM, and manages UI components
+- **UI Components** (`ui/`): Modern panel system with toast notifications and progress tracking, rendered inside Shadow DOM
 - **Utilities** (`utils/`): Logging, error handling, language utilities, and content validation
 - **Prompts** (`prompts/`): AI prompt templates and JSON schemas for structured output
 - **Offscreen Document** (`offscreen/`): Content extraction using Readability.js in a hidden context
+
+### Shadow DOM Architecture
+**CRITICAL**: The extension uses Shadow DOM for complete style isolation between the extension UI and host websites.
+
+- **Shadow Host**: `<div id="perspective-lens-root">` created in Light DOM
+- **Shadow Root**: Attached in "open" mode for debugging
+- **Shadow Container**: `<div id="pl-shadow-container">` inside Shadow Root where all UI components are injected
+- **Global References**: `window.__PL_SHADOW_ROOT__` and `window.__PL_SHADOW_CONTAINER__` for component access
+
+**Key Implementation Details**:
+1. Shadow DOM is created by `createShadowDOM()` function in `scripts/content.js`
+2. CSS files are fetched and injected as `<style>` elements (not `<link>` tags)
+3. CSS variables use `:host` instead of `:root` (automatic conversion during injection)
+4. Theme selectors use `:host([data-theme='dark'])` instead of `[data-theme='dark']`
+5. Theme changes are synchronized to shadow host element via `themeChanged` event
 
 ### Root Files
 - **`manifest.json`**: Chrome extension manifest with permissions, content scripts, and service worker configuration
@@ -124,6 +139,27 @@ All backend APIs and services must use the configuration system through:
 
 ## UI Component Styling Requirements
 
+### Shadow DOM Integration
+**CRITICAL**: All UI components in content scripts (toast, panel) are rendered inside Shadow DOM for style isolation.
+
+**How to Access Shadow DOM in Components**:
+```javascript
+// Get shadow container reference
+const shadowContainer = window.__PL_SHADOW_CONTAINER__;
+
+// Inject component into shadow container
+shadowContainer.appendChild(this.element);
+
+// Query elements within shadow DOM
+const element = shadowContainer.querySelector('#my-element');
+```
+
+**Important Rules**:
+1. **NEVER** inject UI elements into `document.body` - always use `window.__PL_SHADOW_CONTAINER__`
+2. **NEVER** query the Light DOM for extension UI elements - query within the shadow container
+3. Wait for shadow container to be ready using `window.__PL_SHADOW_CONTAINER__` check
+4. All CSS for content script UI must be loaded into the Shadow Root (handled automatically by `createShadowDOM()`)
+
 ### CSS Variable Usage
 - All color values must use CSS variables defined in `ui/design-system.css`
 - All spacing values must use the spacing system variables (e.g., `var(--spacing-4)`)
@@ -132,17 +168,25 @@ All backend APIs and services must use the configuration system through:
 - All corner radius values must use the shape system variables
 - All shadow values must use elevation variables from the design system
 
+**Shadow DOM CSS Specifics**:
+- CSS variables are automatically converted from `:root` to `:host` during injection
+- Theme selectors are converted from `[data-theme='dark']` to `:host([data-theme='dark'])`
+- All CSS files in `createShadowDOM()` are fetched and injected as inline `<style>` elements
+
 ### Component-Specific Requirements
 - **Popup Interface**: Must use Material Design 3 components with proper Chrome styling
 - **Options Page**: Must follow Material Design 3 layout patterns with proper navigation
-- **Toast Notifications**: Must use Chrome-style notifications with proper Material Design 3 styling
-- **Analysis Panel**: Must follow Chrome's Material 3 Expressive patterns for content display
+- **Toast Notifications**: Must use Chrome-style notifications with proper Material Design 3 styling, rendered in Shadow DOM
+- **Analysis Panel**: Must follow Chrome's Material 3 Expressive patterns for content display, rendered in Shadow DOM
 - **Progress Indicators**: Must use segmented progress indicators as per Chrome Material 3
 - **Buttons and Controls**: Must use Material Design 3 button styles with proper states
 
 ### Dark/Light Theme Support
 - All components must automatically adapt to system theme preferences
-- Use `[data-theme='dark']` and `[data-theme='light']` selectors where needed
+- Theme is managed by `ThemeManager` singleton in `ui/theme-manager.js`
+- Theme is applied to both `document.documentElement` and `#perspective-lens-root` (shadow host)
+- Shadow DOM automatically receives theme updates via `themeChanged` event listener
+- CSS uses `:host([data-theme='dark'])` selector for dark mode styles (auto-converted from `[data-theme='dark']`)
 - Ensure proper contrast ratios in both themes (WCAG AA minimum)
 
 ## Logging System Architecture
@@ -352,11 +396,37 @@ For complete details on the logging system refactoring, see:
 ## Development Workflow
 
 ### New Component Development
+
+**For Content Script UI Components** (Toast, Panel, etc.):
 1. Always start by referencing `ui/design-system.css` for available variables
 2. Use Material Design 3 patterns from `DOCS/material-3/MATERIAL-3-REFERENCE.md`
-3. Access configuration values through `config/configManager.js`
-4. Test in both light and dark modes
-5. Validate accessibility compliance
+3. **CRITICAL**: Inject elements into `window.__PL_SHADOW_CONTAINER__`, NEVER into `document.body`
+4. Wait for Shadow DOM to be ready before creating UI:
+   ```javascript
+   async waitForShadowRoot() {
+     let retries = 0;
+     while (retries < 30) {
+       if (window.__PL_SHADOW_CONTAINER__) {
+         return true;
+       }
+       await new Promise(resolve => setTimeout(resolve, 100));
+       retries++;
+     }
+     return false;
+   }
+   ```
+5. Query elements within shadow container, not Light DOM:
+   ```javascript
+   const element = window.__PL_SHADOW_CONTAINER__.querySelector('#my-element');
+   ```
+6. Access configuration values through `config/configManager.js`
+7. Test in both light and dark modes
+8. Validate accessibility compliance
+
+**For Popup/Options Pages** (outside Shadow DOM):
+1. Use standard DOM methods (`document.body`, `document.querySelector`)
+2. Follow same design system and Material Design 3 patterns
+3. Theme is applied to `document.documentElement`
 
 ### UI Updates
 1. Update `ui/design-system.css` first when changing design tokens
@@ -391,6 +461,16 @@ For complete details on the logging system refactoring, see:
 - Configuration changes must be properly broadcast
 - Default values must be maintained when not overridden
 - Error handling must be implemented for all configuration operations
+
+### Shadow DOM Compliance
+**CRITICAL REQUIREMENTS**:
+- All content script UI components must render inside `window.__PL_SHADOW_CONTAINER__`
+- NEVER inject extension UI into `document.body` or Light DOM
+- NEVER query Light DOM for extension UI elements
+- Wait for `window.__PL_SHADOW_CONTAINER__` to exist before creating UI
+- All CSS for Shadow DOM components is automatically injected by `createShadowDOM()`
+- CSS variables use `:host` (auto-converted from `:root`)
+- Theme selectors use `:host([data-theme='dark'])` (auto-converted from `[data-theme='dark']`)
 
 ### Logging Standards
 - Always set tab context with `logger.startRequest(operation, tabId)` before logging

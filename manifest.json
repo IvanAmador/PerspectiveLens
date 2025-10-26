@@ -28,6 +28,8 @@
         "prompts/*.txt",
         "prompts/*.json",
         "offscreen/offscreen.html",
+        "ui/isolation.css",
+        "ui/shadow-root.css",
         "ui/design-system.css",
         "ui/theme-manager.js",
         "ui/components/toast/single-toast.css",
@@ -64,9 +66,7 @@
         "scripts/content.js"
       ],
       "css": [
-        "ui/design-system.css",
-        "ui/components/toast/single-toast.css",
-        "ui/components/panel/panel-styles.css"
+        "ui/isolation.css"
       ],
       "matches": [
         "https://*.g1.globo.com/*",
@@ -94,7 +94,8 @@
         "https://*.clarin.com/*",
         "https://*.lanacion.com.ar/*"
       ],
-      "run_at": "document_end"
+      "run_at": "document_idle",
+      "all_frames": false
     }
   ]
 }

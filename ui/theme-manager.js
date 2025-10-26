@@ -66,6 +66,13 @@ class ThemeManager {
     this.currentTheme = theme;
     document.documentElement.setAttribute('data-theme', theme);
 
+    // Apply theme to Shadow DOM host element
+    const shadowHost = document.getElementById('perspective-lens-root');
+    if (shadowHost) {
+      shadowHost.setAttribute('data-theme', theme);
+      console.log(`[ThemeManager] Applied theme to Shadow DOM: ${theme}`);
+    }
+
     // Emit custom event for other components that need to react
     window.dispatchEvent(new CustomEvent('themeChanged', {
       detail: { theme }
