@@ -40,19 +40,24 @@ export class ConfigManager {
 
   /**
    * Save user configuration to storage
-   * @param {Object} config - Configuration object to save
+   * @param {Object} config - Configuration object to save (can be partial)
    * @returns {Promise<boolean>} Success status
    */
   static async save(config) {
     try {
-      // Basic validation
+      // Load existing config and merge with incoming changes
+      const existingConfig = await this.load();
+      const mergedConfig = this.deepMerge(existingConfig, config);
+
+      // Validate the merged config
       const errors = [];
 
-      if (!config.articleSelection?.perCountry || Object.keys(config.articleSelection.perCountry).length === 0) {
+      if (!mergedConfig.articleSelection?.perCountry ||
+          Object.keys(mergedConfig.articleSelection.perCountry).length === 0) {
         errors.push('At least one country must be selected');
       }
 
-      if (config.articleSelection?.maxForAnalysis < 1) {
+      if (mergedConfig.articleSelection?.maxForAnalysis < 1) {
         errors.push('Maximum articles for analysis must be at least 1');
       }
 
@@ -64,19 +69,26 @@ export class ConfigManager {
         };
       }
 
-      // Add version and timestamp
+      // Prepare config for storage - exclude large static data
+      // availableCountries is static reference data that shouldn't be saved
       const configToSave = {
-        ...config,
+        ...mergedConfig,
         version: CONFIG_VERSION,
         lastModified: new Date().toISOString()
       };
+
+      // Remove availableCountries from search config to save space
+      // It will be restored from PIPELINE_CONFIG on load
+      if (configToSave.search?.availableCountries) {
+        delete configToSave.search.availableCountries;
+      }
 
       await chrome.storage.sync.set({ [STORAGE_KEY]: configToSave });
 
       console.log('[ConfigManager] Config saved successfully');
 
-      // Notify all contexts about config change
-      await this.notifyConfigChange(configToSave);
+      // Notify all contexts about config change (with full config including availableCountries)
+      await this.notifyConfigChange(mergedConfig);
 
       return { success: true };
     } catch (error) {
