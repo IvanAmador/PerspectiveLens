@@ -511,19 +511,107 @@ async function handleNewArticle(articleData) {
     try {
       const articlesWithContent = perspectivesWithContent.filter(p => p.contentExtracted);
 
+      // Domain-based deduplication - Remove articles from duplicate domains
+      const seenDomains = new Set();
+      const originalArticleUrl = articleData.url;
+
+      // Add original article domain to seen domains
+      if (originalArticleUrl) {
+        try {
+          const originalDomain = new URL(originalArticleUrl).hostname.replace(/^www\./, '');
+          seenDomains.add(originalDomain);
+
+          logger.system.debug('Original article domain added to filter', {
+            category: logger.CATEGORIES.GENERAL,
+            data: { domain: originalDomain }
+          });
+        } catch (error) {
+          logger.system.warn('Could not extract original article domain', {
+            category: logger.CATEGORIES.GENERAL,
+            error,
+            data: { url: originalArticleUrl }
+          });
+        }
+      }
+
+      const uniqueDomainArticles = articlesWithContent.filter(article => {
+        // Try to get domain from extractedContent first (most reliable)
+        let domain = article.extractedContent?.domain;
+
+        // Fallback to finalUrl if domain not in extractedContent
+        if (!domain && article.finalUrl) {
+          try {
+            domain = new URL(article.finalUrl).hostname.replace(/^www\./, '');
+          } catch (error) {
+            logger.system.warn('Invalid finalUrl for domain extraction', {
+              category: logger.CATEGORIES.GENERAL,
+              error,
+              data: {
+                finalUrl: article.finalUrl,
+                source: article.source
+              }
+            });
+            return true; // Keep article if URL parsing fails
+          }
+        }
+
+        // If no domain could be extracted, keep the article
+        if (!domain) {
+          logger.system.debug('No domain found, keeping article', {
+            category: logger.CATEGORIES.GENERAL,
+            data: {
+              source: article.source,
+              title: article.title?.substring(0, 60)
+            }
+          });
+          return true;
+        }
+
+        // Check if domain already seen
+        if (seenDomains.has(domain)) {
+          logger.system.debug('Filtering duplicate domain', {
+            category: logger.CATEGORIES.GENERAL,
+            data: {
+              domain,
+              source: article.source,
+              title: article.title?.substring(0, 60),
+              country: article.countryCode
+            }
+          });
+          return false;
+        }
+
+        // Add domain to seen set and keep article
+        seenDomains.add(domain);
+        return true;
+      });
+
+      const filteredCount = articlesWithContent.length - uniqueDomainArticles.length;
+      if (filteredCount > 0) {
+        logger.system.info('Domain-based deduplication completed', {
+          category: logger.CATEGORIES.GENERAL,
+          data: {
+            originalCount: articlesWithContent.length,
+            filteredCount,
+            remainingCount: uniqueDomainArticles.length,
+            uniqueDomains: seenDomains.size
+          }
+        });
+      }
+
       // Load user selection targets
       const selectionTargets = await getSelectionTargetsAsync();
 
       logger.system.info('Starting intelligent article selection', {
         category: logger.CATEGORIES.GENERAL,
         data: {
-          availableArticles: articlesWithContent.length,
+          availableArticles: uniqueDomainArticles.length,
           selectionTargets: selectionTargets.perCountry
         }
       });
 
       // Validate coverage before selection
-      const coverageValidation = validateCoverage(articlesWithContent);
+      const coverageValidation = validateCoverage(uniqueDomainArticles);
 
       if (!coverageValidation.valid) {
         logger.user.warn('Insufficient articles from some countries', {
@@ -536,7 +624,7 @@ async function handleNewArticle(articleData) {
       }
 
       // Select best articles per country (pass user targets)
-      const selectionResult = selectArticlesByCountry(articlesWithContent, selectionTargets);
+      const selectionResult = selectArticlesByCountry(uniqueDomainArticles, selectionTargets);
       selectedArticles = selectionResult.articles;
 
       logger.progress(logger.CATEGORIES.GENERAL, {

@@ -123,10 +123,10 @@ export async function extractArticlesContentWithTabs(articles, options = {}, onP
           } else {
             logger.system.warn('Article extraction failed', {
               category: logger.CATEGORIES.FETCH,
+              error: result.reason,
               data: {
                 article: batch[index].title.substring(0, 60),
-                source: batch[index].source,
-                error: result.reason?.message
+                source: batch[index].source
               }
             });
 
@@ -829,6 +829,61 @@ function extractContentInPage() {
   }
 
   /**
+   * Extract featured image from page metadata
+   */
+  function extractFeaturedImage() {
+    // Try Open Graph image first
+    const ogImage = document.querySelector('meta[property="og:image"]')?.content;
+    if (ogImage) return ogImage;
+
+    // Try Twitter image
+    const twitterImage = document.querySelector('meta[name="twitter:image"]')?.content;
+    if (twitterImage) return twitterImage;
+
+    // Try article tag
+    const articleImage = document.querySelector('meta[property="article:image"]')?.content;
+    if (articleImage) return articleImage;
+
+    // Try first img in article content
+    const articleElement = document.querySelector('article img, [role="article"] img, .article-content img, .post-content img');
+    if (articleElement?.src) return articleElement.src;
+
+    return null;
+  }
+
+  /**
+   * Extract favicon from page
+   */
+  function extractFavicon() {
+    // Try various favicon link tags
+    const favicon = document.querySelector('link[rel="icon"]')?.href ||
+                    document.querySelector('link[rel="shortcut icon"]')?.href ||
+                    document.querySelector('link[rel="apple-touch-icon"]')?.href;
+
+    if (favicon) return favicon;
+
+    // Fallback to default favicon location
+    try {
+      const url = new URL(window.location.href);
+      return `${url.protocol}//${url.hostname}/favicon.ico`;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Extract domain from current URL
+   */
+  function extractDomain() {
+    try {
+      const url = new URL(window.location.href);
+      return url.hostname.replace(/^www\./, ''); // Normalize domain (remove www.)
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Format extracted content into standard structure
    */
   function formatExtractedContent(article, method) {
@@ -842,6 +897,9 @@ function extractContentInPage() {
       lang: article.lang || document.documentElement?.lang || 'unknown',
       length: article.length || article.textContent?.length || 0,
       url: window.location.href,
+      domain: extractDomain(),
+      featuredImage: extractFeaturedImage(),
+      favicon: extractFavicon(),
       method,
       extractedAt: new Date().toISOString()
     };
