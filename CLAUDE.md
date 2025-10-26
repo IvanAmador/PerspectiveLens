@@ -4,9 +4,14 @@
 
 PerspectiveLens is an advanced Chrome extension that provides comparative news analysis using AI models. The extension helps users understand news stories from multiple international perspectives by automatically finding, extracting, and comparing coverage from diverse news sources around the world.
 
-The extension offers two AI model options:
+The extension offers two AI model providers:
 - **Gemini Nano** (Local): Chrome's built-in AI (available in Chrome 138+) running locally on device - free, private, no API key required
-- **Gemini 2.5 Pro** (API): Google's most capable model via API - requires Google AI Studio API key, supports larger contexts and multi-language processing
+- **API Models** (Cloud): Intelligent multi-model system with automatic fallback:
+  - **Gemini 2.5 Pro**: Most capable model (5 RPM / 100 RPD)
+  - **Gemini 2.5 Flash**: Fast model with good performance (10 RPM / 250 RPD)
+  - **Gemini 2.5 Flash Lite**: High-volume fallback model (15 RPM / 1000 RPD)
+  - Requires Google AI Studio API key, supports larger contexts and multi-language processing
+  - Automatically falls back to next model when rate limits are hit
 
 The extension identifies news articles as users browse, searches for the same story across multiple international sources, extracts clean article content using advanced extraction algorithms, performs comparative analysis using the selected AI model, and presents structured insights highlighting consensus, disputes, and different framing approaches.
 
@@ -17,11 +22,14 @@ The extension follows a modern architectural pattern with separation of concerns
 ### Core Components
 - **API Layer** (`api/`):
   - Chrome AI API wrappers (Language Detector, Translator, Summarizer, Language Model) for Gemini Nano
-  - `api/gemini-2-5-pro.js`: REST API wrapper for Gemini 2.5 Pro with progressive analysis support
+  - `api/geminiAPI.js`: Unified REST API wrapper for Gemini 2.5 Pro/Flash/Flash Lite with progressive analysis support
+  - `api/modelRouter.js`: Intelligent model selection with automatic fallback on rate limits
 - **Config Layer** (`config/`):
-  - `config/pipeline.js`: Default configuration for both AI models
+  - `config/pipeline.js`: Default configuration for all AI models
   - `config/configManager.js`: Configuration management and persistence
-  - `config/apiKeyManager.js`: Secure API key storage and validation for Gemini 2.5 Pro
+  - `config/apiKeyManager.js`: Secure API key storage and validation for API models
+- **Utilities** (`utils/`):
+  - `utils/rateLimitCache.js`: Reactive rate limit tracking based on API 429 responses
 - **Background Service** (`scripts/background.js`): Orchestrates the analysis pipeline, routes between AI models, and coordinates API calls
 - **Content Script** (`scripts/content.js`): Detects articles on web pages, creates Shadow DOM, and manages UI components
 - **UI Components** (`ui/`):
@@ -55,27 +63,44 @@ The extension follows a modern architectural pattern with separation of concerns
 ### AI Model System
 
 #### Model Selection
-Users can choose between two AI models via the popup interface:
-- **Gemini Nano** (Local): Free, private, on-device processing. Requires Chrome 138+ with AI features enabled.
-- **Gemini 2.5 Pro** (API): Cloud-based processing with superior capabilities. Requires Google AI Studio API key.
+Users can choose between two AI model providers via the popup and options interfaces:
+- **Gemini Nano** (`nano`): Free, private, on-device processing. Requires Chrome 138+ with AI features enabled.
+- **API Models** (`api`): Cloud-based processing with automatic fallback. Requires Google AI Studio API key.
 
 #### Model Routing
 The background service (`scripts/background.js`) routes analysis requests to the appropriate model based on `config.analysis.modelProvider`:
-- **Gemini Nano path**: Uses Chrome AI APIs (translation → compression → analysis with Language Model API)
-- **Gemini 2.5 Pro path**: Direct API call with full article content (no translation or compression needed due to larger context window)
+- **Gemini Nano path** (`nano`): Uses Chrome AI APIs (translation → compression → analysis with Language Model API)
+- **API Models path** (`api`): Intelligent model selection with automatic fallback:
+  1. `ModelRouter` checks `preferredModels` array (default: Pro → Flash → Flash Lite)
+  2. Queries `RateLimitCache` to find first available model
+  3. Creates `GeminiAPI` instance with selected model
+  4. On 429 error, records rate limit and retries with next available model
+  5. Full article content processing (no translation/compression needed due to larger context window)
+
+#### Rate Limit Management
+- **Reactive System**: Rate limits tracked based on API 429 responses (not local counters)
+- **RateLimitCache** (`utils/rateLimitCache.js`):
+  - Extracts `retryDelay` from API error response
+  - Stores block in `chrome.storage.local` with expiration time
+  - Provides `isModelAvailable()` check before each request
+- **Automatic Fallback**: When a model hits rate limit, automatically uses next preferred model
+- **User Notification**: Toast shows which models are rate limited and which fallback is being used
 
 #### API Key Management
 - Stored securely in `chrome.storage.sync` (encrypted by Chrome)
 - Managed by `config/apiKeyManager.js`
 - Validated against Google AI Studio API before saving
-- User can add/remove API key via popup interface
+- User can add/remove API key via popup and options interfaces
+- Single API key shared across all API models (Pro, Flash, Flash Lite)
 
 ### AI Pipeline
 1. **Article Detection**: Content script identifies news articles using scoring algorithms
 2. **Content Extraction**: Extracts clean content using Readability.js and Chrome tabs
 3. **Perspective Search**: Finds related articles globally using Google News RSS feeds
 4. **Content Processing**: Extracts content from perspective articles
-5. **Comparative Analysis**: Routes to selected AI model (Gemini Nano or Gemini 2.5 Pro) for multi-stage analysis
+5. **Comparative Analysis**: Routes to selected AI provider with automatic fallback:
+   - **Nano**: Translation → Compression → Analysis
+   - **API**: Model selection → Rate limit check → Analysis (with fallback on 429 errors)
 6. **Result Presentation**: Displays structured analysis in user-friendly format
 
 ### Progressive Analysis
@@ -160,14 +185,17 @@ The configuration system consists of:
 
 ### Configuration Sections
 The system provides configuration for:
-- **Model Selection**: `analysis.modelProvider` - Choose between 'gemini-nano' or 'gemini-2.5-pro'
+- **Model Selection**: `analysis.modelProvider` - Choose between `'nano'` or `'api'`
+- **Preferred Models**: `analysis.preferredModels` - Array defining fallback order for API models (default: `['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite']`)
+- **Model Configs**: `analysis.models` - Per-model configuration object:
+  - `gemini-nano`: temperature, topK
+  - `gemini-2.5-pro`: temperature, topK, topP, thinkingBudget, includeThoughts
+  - `gemini-2.5-flash`: temperature, topK, topP, thinkingBudget (0), includeThoughts
+  - `gemini-2.5-flash-lite`: temperature, topK, topP, thinkingBudget (0), includeThoughts
 - **Article Selection**: Number of articles to analyze per country, buffer settings, maximum analysis limits
 - **Search Settings**: Google News RSS configuration, timeout settings, retry attempts
 - **Content Extraction**: Quality thresholds, timeout values, parallel processing settings
-- **AI Analysis**:
-  - Model parameters for both models (temperature, topK, topP)
-  - Gemini Nano: Compression levels, translation settings
-  - Gemini 2.5 Pro: Thinking budget, context window optimization, skip translation/compression flags
+- **AI Analysis**: Compression levels for Nano, thinking budget for Pro
 
 ### API Integration
 All backend APIs and services must use the configuration system through:
@@ -196,7 +224,7 @@ The extension popup (`popup.html`) provides model selection and status monitorin
 
 **Status States**:
 - **Gemini Nano**: Ready, Download Required, Downloading, Unavailable
-- **Gemini 2.5 Pro**: Connected, Not Configured, Invalid API Key
+- **API Models**: Connected, Not Configured, Invalid API Key
 
 **Implementation Details**:
 - Managed by `PopupManager` class in `ui/pages/popup/popup.js`
@@ -468,19 +496,32 @@ When integrating new AI models or modifying existing ones:
 - Requires translation and compression due to context window limits
 - Availability states: 'readily', 'ready', 'available', 'after-download', 'downloading', 'no', 'unavailable'
 - Free and private, runs on-device
+- Config key: `models['gemini-nano']`
 
-**Gemini 2.5 Pro (REST API)**:
-- Implemented in `api/gemini-2-5-pro.js`
+**API Models (REST API)**:
+- Implemented in `api/geminiAPI.js` (unified client)
+- Supports three models:
+  - `gemini-2.5-pro`: 2M token context, dynamic thinking, 5 RPM / 100 RPD
+  - `gemini-2.5-flash`: 2M token context, no thinking, 10 RPM / 250 RPD
+  - `gemini-2.5-flash-lite`: 2M token context, no thinking, 15 RPM / 1000 RPD
 - Direct full-text processing (no translation/compression needed)
-- 2M token context window with dynamic thinking capabilities
-- Requires API key stored via `APIKeyManager`
 - Progressive analysis with `onStageComplete` callback support
 - JSON schema validation for structured output
+- Requires API key stored via `APIKeyManager`
+- Config keys: `models['gemini-2.5-pro']`, `models['gemini-2.5-flash']`, `models['gemini-2.5-flash-lite']`
 
 **Model Routing**:
-- Background service checks `config.analysis.modelProvider`
-- Routes to appropriate model implementation
-- Each model should implement consistent interface for `compareArticlesProgressive()`
+- Background service checks `config.analysis.modelProvider` (`'nano'` or `'api'`)
+- For `'api'`, `ModelRouter` selects best available model from `preferredModels` array
+- Rate limit handling via `RateLimitCache` with automatic fallback
+- Each model implements consistent interface for `compareArticlesProgressive()`
+
+**Rate Limit Flow**:
+1. Request starts → `ModelRouter.selectBestAvailableModel()`
+2. Check each model in `preferredModels` order via `RateLimitCache.isModelAvailable()`
+3. Use first available model
+4. On 429 error → `ModelRouter.handleRateLimitError()` records block
+5. Retry with next available model via `ModelRouter.getNextAvailableModel()`
 
 ## Development Workflow
 

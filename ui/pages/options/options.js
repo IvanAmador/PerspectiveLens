@@ -260,7 +260,7 @@ class OptionsPage {
     this.elements.timeout.value = this.currentConfig.extraction?.timeout || 20000;
 
     // Model Provider
-    const modelProvider = this.currentConfig.analysis?.modelProvider || 'gemini-nano';
+    const modelProvider = this.currentConfig.analysis?.modelProvider || 'nano';
     this.switchModel(modelProvider, false);
 
     // Gemini Nano Settings
@@ -269,16 +269,18 @@ class OptionsPage {
       radio.checked = radio.value === compression;
     });
 
-    const nanoTemp = this.currentConfig.analysis?.model?.temperature || 0.7;
+    // Get Nano settings from models.gemini-nano
+    const nanoConfig = this.currentConfig.analysis?.models?.['gemini-nano'] || {};
+    const nanoTemp = nanoConfig.temperature || 0.7;
     this.elements.nanoTemperature.value = nanoTemp;
     this.elements.nanoTemperatureValue.textContent = nanoTemp;
 
-    const nanoTopK = this.currentConfig.analysis?.model?.topK || 3;
+    const nanoTopK = nanoConfig.topK || 3;
     this.elements.nanoTopK.value = nanoTopK;
     this.elements.nanoTopKValue.textContent = nanoTopK;
 
-    // Gemini 2.5 Pro Settings
-    const proConfig = this.currentConfig.analysis?.gemini25Pro || {};
+    // API Models Settings - use gemini-2.5-pro config
+    const proConfig = this.currentConfig.analysis?.models?.['gemini-2.5-pro'] || {};
 
     const proTemp = proConfig.temperature || 0.7;
     this.elements.proTemperature.value = proTemp;
@@ -508,8 +510,8 @@ class OptionsPage {
       perCountry[countryCode] = parseInt(articleInput.value) || 2;
     });
 
-    // Get selected model provider
-    let modelProvider = 'gemini-nano';
+    // Get selected model provider (new values: 'nano' or 'api')
+    let modelProvider = 'nano';
     this.elements.modelOptions.forEach(option => {
       if (option.classList.contains('active')) {
         modelProvider = option.dataset.model;
@@ -521,6 +523,15 @@ class OptionsPage {
     this.elements.compressionRadios.forEach(radio => {
       if (radio.checked) compressionLevel = radio.value;
     });
+
+    // Gather settings for all models
+    const nanoTemperature = parseFloat(this.elements.nanoTemperature.value) || 0.7;
+    const nanoTopK = parseInt(this.elements.nanoTopK.value) || 3;
+
+    const proTemperature = parseFloat(this.elements.proTemperature.value) || 0.7;
+    const proTopK = parseInt(this.elements.proTopK.value) || 40;
+    const proTopP = parseFloat(this.elements.proTopP.value) || 0.95;
+    const thinkingBudget = parseInt(this.elements.proThinkingBudget.value) ?? -1;
 
     return {
       articleSelection: {
@@ -542,16 +553,43 @@ class OptionsPage {
       analysis: {
         modelProvider,
         compressionLevel,
-        model: {
-          temperature: parseFloat(this.elements.nanoTemperature.value) || 0.7,
-          topK: parseInt(this.elements.nanoTopK.value) || 3
-        },
-        gemini25Pro: {
-          model: 'gemini-2.5-pro',
-          temperature: parseFloat(this.elements.proTemperature.value) || 0.7,
-          topK: parseInt(this.elements.proTopK.value) || 40,
-          topP: parseFloat(this.elements.proTopP.value) || 0.95,
-          thinkingBudget: parseInt(this.elements.proThinkingBudget.value) || -1
+        // Preserve preferredModels from current config (or use defaults)
+        preferredModels: this.currentConfig.analysis?.preferredModels || [
+          'gemini-2.5-pro',
+          'gemini-2.5-flash',
+          'gemini-2.5-flash-lite'
+        ],
+        // New models structure with per-model configs
+        models: {
+          'gemini-nano': {
+            displayName: 'Gemini Nano',
+            temperature: nanoTemperature,
+            topK: nanoTopK
+          },
+          'gemini-2.5-pro': {
+            displayName: 'Gemini 2.5 Pro',
+            temperature: proTemperature,
+            topK: proTopK,
+            topP: proTopP,
+            thinkingBudget: thinkingBudget,
+            includeThoughts: false
+          },
+          'gemini-2.5-flash': {
+            displayName: 'Gemini 2.5 Flash',
+            temperature: proTemperature,
+            topK: proTopK,
+            topP: proTopP,
+            thinkingBudget: 0,  // Flash doesn't use thinking
+            includeThoughts: false
+          },
+          'gemini-2.5-flash-lite': {
+            displayName: 'Gemini 2.5 Flash Lite',
+            temperature: proTemperature,
+            topK: proTopK,
+            topP: proTopP,
+            thinkingBudget: 0,  // Flash Lite doesn't use thinking
+            includeThoughts: false
+          }
         }
       }
     };
@@ -568,11 +606,11 @@ class OptionsPage {
     });
 
     // Show/hide appropriate sections
-    if (model === 'gemini-nano') {
+    if (model === 'nano') {
       this.elements.nanoSettings.style.display = 'block';
       this.elements.proSettings.style.display = 'none';
       this.elements.apiKeySection.style.display = 'none';
-    } else if (model === 'gemini-2.5-pro') {
+    } else if (model === 'api') {
       this.elements.nanoSettings.style.display = 'none';
       this.elements.proSettings.style.display = 'block';
       this.elements.apiKeySection.style.display = 'block';
@@ -635,7 +673,7 @@ class OptionsPage {
   }
 
   async removeApiKey() {
-    const confirm = window.confirm('Are you sure you want to remove the API key? You will need to add it again to use Gemini 2.5 Pro.');
+    const confirm = window.confirm('Are you sure you want to remove the API key? You will need to add it again to use API models.');
 
     if (!confirm) return;
 
