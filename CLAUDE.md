@@ -2,19 +2,31 @@
 
 ## Project Overview
 
-PerspectiveLens is an advanced Chrome extension that provides comparative news analysis using Chrome's built-in AI APIs. The extension helps users understand news stories from multiple international perspectives by automatically finding, extracting, and comparing coverage from diverse news sources around the world.
+PerspectiveLens is an advanced Chrome extension that provides comparative news analysis using AI models. The extension helps users understand news stories from multiple international perspectives by automatically finding, extracting, and comparing coverage from diverse news sources around the world.
 
-The extension works seamlessly with Chrome's AI capabilities (available in Chrome 138+) to provide on-demand analysis of news coverage without requiring external APIs or services. It identifies news articles as users browse, searches for the same story across multiple international sources, extracts clean article content using advanced extraction algorithms, performs comparative analysis using Chrome's Gemini Nano AI, and presents structured insights highlighting consensus, disputes, and different framing approaches.
+The extension offers two AI model options:
+- **Gemini Nano** (Local): Chrome's built-in AI (available in Chrome 138+) running locally on device - free, private, no API key required
+- **Gemini 2.5 Pro** (API): Google's most capable model via API - requires Google AI Studio API key, supports larger contexts and multi-language processing
+
+The extension identifies news articles as users browse, searches for the same story across multiple international sources, extracts clean article content using advanced extraction algorithms, performs comparative analysis using the selected AI model, and presents structured insights highlighting consensus, disputes, and different framing approaches.
 
 ## Architecture
 
 The extension follows a modern architectural pattern with separation of concerns across multiple folders:
 
 ### Core Components
-- **API Layer** (`api/`): Wrapper modules for Chrome AI APIs (Language Detector, Translator, Summarizer, and Language Model)
-- **Background Service** (`scripts/background.js`): Orchestrates the analysis pipeline and coordinates API calls
+- **API Layer** (`api/`):
+  - Chrome AI API wrappers (Language Detector, Translator, Summarizer, Language Model) for Gemini Nano
+  - `api/gemini-2-5-pro.js`: REST API wrapper for Gemini 2.5 Pro with progressive analysis support
+- **Config Layer** (`config/`):
+  - `config/pipeline.js`: Default configuration for both AI models
+  - `config/configManager.js`: Configuration management and persistence
+  - `config/apiKeyManager.js`: Secure API key storage and validation for Gemini 2.5 Pro
+- **Background Service** (`scripts/background.js`): Orchestrates the analysis pipeline, routes between AI models, and coordinates API calls
 - **Content Script** (`scripts/content.js`): Detects articles on web pages, creates Shadow DOM, and manages UI components
-- **UI Components** (`ui/`): Modern panel system with toast notifications and progress tracking, rendered inside Shadow DOM
+- **UI Components** (`ui/`):
+  - Modern panel system with toast notifications and progress tracking, rendered inside Shadow DOM
+  - Popup interface (`popup.html`, `ui/pages/popup/popup.js`, `ui/pages/popup/popup.css`) for model selection and status
 - **Utilities** (`utils/`): Logging, error handling, language utilities, and content validation
 - **Prompts** (`prompts/`): AI prompt templates and JSON schemas for structured output
 - **Offscreen Document** (`offscreen/`): Content extraction using Readability.js in a hidden context
@@ -36,16 +48,34 @@ The extension follows a modern architectural pattern with separation of concerns
 
 ### Root Files
 - **`manifest.json`**: Chrome extension manifest with permissions, content scripts, and service worker configuration
-- **`popup.html`**: Extension popup UI for checking AI model status
-- **`popup.css`**: Styling for the popup UI using Material Design 3
-- **`popup.js`**: JavaScript for popup functionality and AI model status management
+- **`popup.html`**: Extension popup UI for model selection and status checking
+- **`ui/pages/popup/popup.css`**: Styling for the popup UI using Material Design 3
+- **`ui/pages/popup/popup.js`**: JavaScript for popup functionality, model switching, and AI model status management
+
+### AI Model System
+
+#### Model Selection
+Users can choose between two AI models via the popup interface:
+- **Gemini Nano** (Local): Free, private, on-device processing. Requires Chrome 138+ with AI features enabled.
+- **Gemini 2.5 Pro** (API): Cloud-based processing with superior capabilities. Requires Google AI Studio API key.
+
+#### Model Routing
+The background service (`scripts/background.js`) routes analysis requests to the appropriate model based on `config.analysis.modelProvider`:
+- **Gemini Nano path**: Uses Chrome AI APIs (translation → compression → analysis with Language Model API)
+- **Gemini 2.5 Pro path**: Direct API call with full article content (no translation or compression needed due to larger context window)
+
+#### API Key Management
+- Stored securely in `chrome.storage.sync` (encrypted by Chrome)
+- Managed by `config/apiKeyManager.js`
+- Validated against Google AI Studio API before saving
+- User can add/remove API key via popup interface
 
 ### AI Pipeline
 1. **Article Detection**: Content script identifies news articles using scoring algorithms
 2. **Content Extraction**: Extracts clean content using Readability.js and Chrome tabs
 3. **Perspective Search**: Finds related articles globally using Google News RSS feeds
 4. **Content Processing**: Extracts content from perspective articles
-5. **Comparative Analysis**: Uses Chrome's Language Model API for multi-stage analysis
+5. **Comparative Analysis**: Routes to selected AI model (Gemini Nano or Gemini 2.5 Pro) for multi-stage analysis
 6. **Result Presentation**: Displays structured analysis in user-friendly format
 
 ### Progressive Analysis
@@ -120,15 +150,24 @@ The configuration system consists of:
 1. **Default Values**: All default configuration values are defined in `config/pipeline.js` in the `PIPELINE_CONFIG` object
 2. **User Preferences**: Users can override any default value through the options page, with values stored in chrome.storage.sync
 3. **Merging Logic**: The ConfigManager uses deep merge functionality to combine user preferences with defaults
-4. **Validation**: All configuration changes must be validated before saving
-5. **Broadcasting**: Configuration changes are automatically broadcast to all extension contexts (content scripts, service worker, popup)
+   - **Partial Updates**: The `save()` method accepts partial config objects and merges them with existing saved config
+   - **Validation on Merged Config**: Validation runs on the final merged configuration, not just the update
+4. **Storage Optimization**: Large static reference data (like `availableCountries`) is excluded from storage to stay within Chrome's 8,192 byte quota per item
+   - Static data is always loaded from `PIPELINE_CONFIG` defaults on every `load()` call
+   - Only user preferences are persisted to storage
+5. **Validation**: All configuration changes must be validated before saving
+6. **Broadcasting**: Configuration changes are automatically broadcast to all extension contexts (content scripts, service worker, popup)
 
 ### Configuration Sections
 The system provides configuration for:
+- **Model Selection**: `analysis.modelProvider` - Choose between 'gemini-nano' or 'gemini-2.5-pro'
 - **Article Selection**: Number of articles to analyze per country, buffer settings, maximum analysis limits
 - **Search Settings**: Google News RSS configuration, timeout settings, retry attempts
 - **Content Extraction**: Quality thresholds, timeout values, parallel processing settings
-- **AI Analysis**: Model parameters (temperature, topK), compression levels, analysis stages
+- **AI Analysis**:
+  - Model parameters for both models (temperature, topK, topP)
+  - Gemini Nano: Compression levels, translation settings
+  - Gemini 2.5 Pro: Thinking budget, context window optimization, skip translation/compression flags
 
 ### API Integration
 All backend APIs and services must use the configuration system through:
@@ -138,6 +177,34 @@ All backend APIs and services must use the configuration system through:
 - Listening for 'CONFIG_UPDATED' messages to respond to configuration changes
 
 ## UI Component Styling Requirements
+
+### Popup Interface
+The extension popup (`popup.html`) provides model selection and status monitoring:
+
+**Layout Structure**:
+- Header with title and settings button
+- Model selector tabs (Gemini Nano / Gemini 2.5 Pro)
+- Status cards showing current model state
+- Footer with GitHub link
+
+**Design Principles**:
+- Cards are fixed width (340px) and centered horizontally and vertically
+- Tab-based model switching with "Local" and "API" badges
+- Status indicators use Material Design 3 icons (check, warning, error)
+- Clean, minimal layout with consistent spacing
+- Remove API key button appears inline with status when connected
+
+**Status States**:
+- **Gemini Nano**: Ready, Download Required, Downloading, Unavailable
+- **Gemini 2.5 Pro**: Connected, Not Configured, Invalid API Key
+
+**Implementation Details**:
+- Managed by `PopupManager` class in `ui/pages/popup/popup.js`
+- Uses `ConfigManager` for model selection persistence
+- Uses `APIKeyManager` for secure API key storage
+- All elements use `box-sizing: border-box` for consistent sizing
+- Vertical centering via `.content { justify-content: center }`
+- Horizontal centering via `.section { max-width: 340px; align-items: center }`
 
 ### Shadow DOM Integration
 **CRITICAL**: All UI components in content scripts (toast, panel) are rendered inside Shadow DOM for style isolation.
@@ -392,6 +459,28 @@ For complete details on the logging system refactoring, see:
 - Implement proper caching for configuration values
 - Follow Chrome extension performance best practices
 - Use logger's retry logic instead of implementing custom retry mechanisms
+
+### AI Model Integration
+When integrating new AI models or modifying existing ones:
+
+**Gemini Nano (Chrome AI)**:
+- Located in `api/` folder with individual API wrappers
+- Requires translation and compression due to context window limits
+- Availability states: 'readily', 'ready', 'available', 'after-download', 'downloading', 'no', 'unavailable'
+- Free and private, runs on-device
+
+**Gemini 2.5 Pro (REST API)**:
+- Implemented in `api/gemini-2-5-pro.js`
+- Direct full-text processing (no translation/compression needed)
+- 2M token context window with dynamic thinking capabilities
+- Requires API key stored via `APIKeyManager`
+- Progressive analysis with `onStageComplete` callback support
+- JSON schema validation for structured output
+
+**Model Routing**:
+- Background service checks `config.analysis.modelProvider`
+- Routes to appropriate model implementation
+- Each model should implement consistent interface for `compareArticlesProgressive()`
 
 ## Development Workflow
 

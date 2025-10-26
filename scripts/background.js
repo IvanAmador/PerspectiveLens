@@ -11,6 +11,8 @@
 
 import { logger } from '../utils/logger.js';
 import { checkAvailability, createSession, compareArticlesProgressive } from '../api/languageModel.js';
+import { Gemini25ProAPI } from '../api/gemini-2-5-pro.js';
+import { APIKeyManager } from '../config/apiKeyManager.js';
 import { handleError } from '../utils/errors.js';
 import { normalizeLanguageCode } from '../utils/languages.js';
 import { fetchPerspectives } from '../api/newsFetcher.js';
@@ -170,6 +172,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'VALIDATE_API_KEY') {
+    validateApiKey(message.apiKey)
+      .then(result => sendResponse({ success: true, ...result }))
+      .catch(error => {
+        const errorInfo = handleError(error, 'validateApiKey');
+        sendResponse({ success: false, error: errorInfo });
+      });
+
+    return true;
+  }
+
   if (message.type === 'START_MODEL_DOWNLOAD') {
     startModelDownload()
       .then(() => sendResponse({ success: true }))
@@ -210,6 +223,15 @@ async function handleNewArticle(articleData) {
   });
 
   try {
+    // Load configuration to determine model provider
+    const config = await ConfigManager.load();
+    const modelProvider = config.analysis.modelProvider;
+
+    logger.system.info('Model provider selected', {
+      category: logger.CATEGORIES.GENERAL,
+      data: { modelProvider }
+    });
+
     // Step 1: Content already extracted by content script
     logger.progress(logger.CATEGORIES.EXTRACT, {
       status: 'completed',
@@ -532,12 +554,14 @@ async function handleNewArticle(articleData) {
 
       if (selectedArticles.length >= 2) {
         // FASE 5: COMPRESSÃO (66-85%) - Logs via callback em languageModel.js
+        // NOTE: For Gemini 2.5 Pro, compression is skipped (handled in API wrapper)
 
         logger.system.info('Starting progressive multi-stage analysis', {
           category: logger.CATEGORIES.ANALYZE,
           data: {
             articlesCount: selectedArticles.length,
             stages: 4,
+            modelProvider,
             note: 'Using centralized config for analysis parameters'
           }
         });
@@ -545,12 +569,108 @@ async function handleNewArticle(articleData) {
         logger.progress(logger.CATEGORIES.ANALYZE, {
           status: 'active',
           userMessage: `Starting analysis of ${selectedArticles.length} articles...`,
-          systemMessage: `Running progressive 4-stage analysis`,
+          systemMessage: `Running progressive 4-stage analysis with ${modelProvider === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini Nano'}`,
           progress: 10,
-          data: { articlesCount: selectedArticles.length }
+          data: { articlesCount: selectedArticles.length, modelProvider }
         });
 
-        const analysisResult = await compareArticlesProgressive(
+        // ===== MODEL ROUTING =====
+        let analysisResult;
+
+        if (modelProvider === 'gemini-2.5-pro') {
+          // GEMINI 2.5 PRO PIPELINE
+          logger.system.info('Using Gemini 2.5 Pro for analysis', {
+            category: logger.CATEGORIES.ANALYZE
+          });
+
+          const apiKey = await APIKeyManager.load();
+          if (!apiKey) {
+            throw new Error('Gemini 2.5 Pro selected but no API key configured');
+          }
+
+          const proAPI = new Gemini25ProAPI(apiKey, config.analysis.gemini25Pro);
+
+          // Check availability before proceeding
+          const availability = await proAPI.checkAvailability();
+          if (availability !== 'ready') {
+            throw new Error(`Gemini 2.5 Pro not available: ${availability}`);
+          }
+
+          // Pro can handle full articles directly (no compression needed)
+          logger.logUserProgress('analysis', 70, 'Analyzing with Gemini 2.5 Pro...', {
+            icon: 'AI',
+            metadata: { model: config.analysis.gemini25Pro.model }
+          });
+
+          analysisResult = await proAPI.compareArticlesProgressive(
+            selectedArticles,
+            // Stage callback - same signature as Nano
+            async (stageInfo) => {
+              const { stage, name, success, duration } = stageInfo;
+
+              if (success) {
+                logger.system.info(`Stage ${stage}/4 completed with Pro`, {
+                  category: logger.CATEGORIES.ANALYZE,
+                  data: { stage, name, duration }
+                });
+
+                // Stage start messages
+                const stageStartProgress = [86, 90, 94, 97];
+                const stageStartMessages = [
+                  'AI analyzing context & trust with Pro...',
+                  'AI finding consensus with Pro...',
+                  'AI detecting disputes with Pro...',
+                  'AI analyzing perspectives with Pro...'
+                ];
+
+                logger.logUserAI('analysis', {
+                  phase: 'analysis',
+                  progress: stageStartProgress[stage - 1],
+                  message: stageStartMessages[stage - 1],
+                  metadata: { stage, model: 'gemini-2.5-pro' }
+                });
+
+                // Send progressive update to content script
+                try {
+                  const tabs = await chrome.tabs.query({ url: articleData.url });
+                  if (tabs.length > 0) {
+                    await chrome.tabs.sendMessage(tabs[0].id, {
+                      type: 'ANALYSIS_STAGE_COMPLETE',
+                      data: {
+                        stage,
+                        stageData: stageInfo.result,
+                        perspectives: selectedArticles,
+                        articleData
+                      }
+                    });
+                  }
+                } catch (error) {
+                  logger.system.warn('Failed to send stage update to UI', {
+                    category: logger.CATEGORIES.ANALYZE,
+                    error,
+                    data: { stage }
+                  });
+                }
+
+                // Update progress bar
+                const progress = 10 + (stage / 4) * 80;
+                const stageNames = ['Context & Trust', 'Consensus', 'Disputes', 'Perspectives'];
+                logger.progress(logger.CATEGORIES.ANALYZE, {
+                  status: 'active',
+                  userMessage: `Stage ${stage}/4: ${stageNames[stage - 1]} complete`,
+                  progress
+                });
+              }
+            }
+          );
+
+        } else {
+          // GEMINI NANO PIPELINE (existing code)
+          logger.system.info('Using Gemini Nano for analysis', {
+            category: logger.CATEGORIES.ANALYZE
+          });
+
+          analysisResult = await compareArticlesProgressive(
           selectedArticles,
           // Stage callback - called BEFORE starting and AFTER completing each stage
           async (stageNumber, stageData) => {
@@ -623,8 +743,10 @@ async function handleNewArticle(articleData) {
             });
           }
           // Options from PIPELINE_CONFIG are used as defaults
-        );
+          );
+        } // End of model routing if/else
 
+        // ===== COMMON PROCESSING (both Nano and Pro) =====
         logger.system.debug('Raw analysis result from compareArticlesProgressive', {
           category: logger.CATEGORIES.ANALYZE,
           data: {
@@ -905,59 +1027,115 @@ async function handleNewArticle(articleData) {
 
 /**
  * Get extension status for popup (with caching to reduce API calls)
+ * Now supports both Gemini Nano and Gemini 2.5 Pro
  */
 async function getExtensionStatus() {
   try {
+    // Load current configuration to determine which model is selected
+    const config = await ConfigManager.load();
+    const modelProvider = config.analysis.modelProvider;
+
     let aiStatus = {
+      modelProvider,
       availability: 'unavailable',
       downloadProgress: 0
     };
 
-    // Check if LanguageModel API is available (official way)
-    if (typeof self.LanguageModel !== 'undefined') {
-      try {
-        const now = Date.now();
-        const cacheValid = aiAvailabilityCache.status &&
-          aiAvailabilityCache.timestamp &&
-          (now - aiAvailabilityCache.timestamp) < aiAvailabilityCache.cacheDuration;
+    // Check status based on selected model
+    if (modelProvider === 'gemini-2.5-pro') {
+      // Gemini 2.5 Pro status
+      const apiKey = await APIKeyManager.load();
 
-        let availability;
-        if (cacheValid) {
-          availability = aiAvailabilityCache.status;
-          logger.system.trace('Using cached AI availability', {
-            category: logger.CATEGORIES.GENERAL,
-            data: { availability }
+      if (!apiKey) {
+        aiStatus.availability = 'api-key-required';
+        aiStatus.message = 'API key not configured';
+      } else {
+        try {
+          const proAPI = new Gemini25ProAPI(apiKey, config.analysis.gemini25Pro);
+          const proStatus = await proAPI.checkAvailability();
+
+          aiStatus.availability = proStatus;
+          aiStatus.apiKeyMasked = APIKeyManager.mask(apiKey);
+          aiStatus.model = config.analysis.gemini25Pro.model;
+
+          if (proStatus === 'ready') {
+            aiStatus.message = 'Gemini 2.5 Pro connected';
+          } else if (proStatus === 'invalid-key') {
+            aiStatus.message = 'Invalid or expired API key';
+          } else {
+            aiStatus.message = 'Network error connecting to API';
+          }
+        } catch (error) {
+          logger.system.error('Failed to check Gemini 2.5 Pro availability', {
+            category: logger.CATEGORIES.ERROR,
+            error
           });
-        } else {
-          availability = await checkAvailability();
-          aiAvailabilityCache.status = availability;
-          aiAvailabilityCache.timestamp = now;
-          logger.system.debug('AI availability checked', {
-            category: logger.CATEGORIES.GENERAL,
-            data: { availability }
-          });
+          aiStatus.availability = 'error';
+          aiStatus.message = 'Error checking API status';
         }
-
-        aiStatus.availability = availability;
-
-        if (availability === 'downloading' && downloadState.inProgress) {
-          aiStatus.downloadProgress = downloadState.progress;
-        }
-      } catch (error) {
-        logger.system.error('Failed to check AI availability', {
-          category: logger.CATEGORIES.ERROR,
-          error
-        });
       }
     } else {
-      logger.system.warn('LanguageModel API not available in environment', {
-        category: logger.CATEGORIES.GENERAL,
-        data: { 
-          hasLanguageModel: typeof self.LanguageModel !== 'undefined',
-          chromeVersion: navigator.userAgent.match(/Chrome\/(\d+)/)?.[1] || 'unknown',
-          recommendation: 'Enable chrome://flags/#prompt-api-for-gemini-nano'
+      // Gemini Nano status (existing logic)
+      if (typeof self.LanguageModel !== 'undefined') {
+        try {
+          const now = Date.now();
+          const cacheValid = aiAvailabilityCache.status &&
+            aiAvailabilityCache.timestamp &&
+            (now - aiAvailabilityCache.timestamp) < aiAvailabilityCache.cacheDuration;
+
+          let availability;
+          if (cacheValid) {
+            availability = aiAvailabilityCache.status;
+            logger.system.trace('Using cached AI availability', {
+              category: logger.CATEGORIES.GENERAL,
+              data: { availability }
+            });
+          } else {
+            availability = await checkAvailability();
+            aiAvailabilityCache.status = availability;
+            aiAvailabilityCache.timestamp = now;
+            logger.system.debug('AI availability checked', {
+              category: logger.CATEGORIES.GENERAL,
+              data: { availability }
+            });
+          }
+
+          aiStatus.availability = availability;
+
+          if (availability === 'downloading' && downloadState.inProgress) {
+            aiStatus.downloadProgress = downloadState.progress;
+          }
+
+          // Set message based on Nano status
+          if (availability === 'ready') {
+            aiStatus.message = 'Gemini Nano ready';
+          } else if (availability === 'download') {
+            aiStatus.message = 'Model download required';
+          } else if (availability === 'downloading') {
+            aiStatus.message = `Downloading model (${aiStatus.downloadProgress}%)`;
+          } else {
+            aiStatus.message = 'Gemini Nano unavailable';
+          }
+        } catch (error) {
+          logger.system.error('Failed to check AI availability', {
+            category: logger.CATEGORIES.ERROR,
+            error
+          });
+          aiStatus.availability = 'error';
+          aiStatus.message = 'Error checking Gemini Nano';
         }
-      });
+      } else {
+        logger.system.warn('LanguageModel API not available in environment', {
+          category: logger.CATEGORIES.GENERAL,
+          data: {
+            hasLanguageModel: typeof self.LanguageModel !== 'undefined',
+            chromeVersion: navigator.userAgent.match(/Chrome\/(\d+)/)?.[1] || 'unknown',
+            recommendation: 'Enable chrome://flags/#prompt-api-for-gemini-nano'
+          }
+        });
+        aiStatus.availability = 'unavailable';
+        aiStatus.message = 'Gemini Nano not available in this Chrome version';
+      }
     }
 
     const storage = await chrome.storage.local.get(['cache', 'stats']);
@@ -988,12 +1166,14 @@ async function getExtensionStatus() {
       category: logger.CATEGORIES.ERROR,
       error
     });
-    
+
     // Return fallback status instead of throwing
     return {
       aiStatus: {
+        modelProvider: 'gemini-nano',
         availability: 'unavailable',
-        downloadProgress: 0
+        downloadProgress: 0,
+        message: 'Error retrieving status'
       },
       stats: {
         articlesAnalyzed: 0,
@@ -1001,6 +1181,38 @@ async function getExtensionStatus() {
         perspectivesFound: 0
       },
       timestamp: new Date().toISOString(),
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Validate Gemini API key
+ * @param {string} apiKey - API key to validate
+ * @returns {Promise<{isValid: boolean, error?: string}>}
+ */
+async function validateApiKey(apiKey) {
+  try {
+    logger.system.info('Validating API key', {
+      category: logger.CATEGORIES.VALIDATE
+    });
+
+    const result = await APIKeyManager.validate(apiKey);
+
+    logger.system.info('API key validation completed', {
+      category: logger.CATEGORIES.VALIDATE,
+      data: { isValid: result.isValid }
+    });
+
+    return result;
+  } catch (error) {
+    logger.system.error('API key validation failed', {
+      category: logger.CATEGORIES.ERROR,
+      error
+    });
+
+    return {
+      isValid: false,
       error: error.message
     };
   }

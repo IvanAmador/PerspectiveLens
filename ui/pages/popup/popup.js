@@ -1,193 +1,506 @@
 /**
  * PerspectiveLens Popup Script
- * Handles UI interactions and AI model status
+ * Manages model selection and status for Gemini Nano and Gemini 2.5 Pro
  */
 
-// ===== DOM Elements =====
-const modelsStatus = document.getElementById('models-status');
-const aiStatusCard = document.getElementById('ai-status-card');
-const downloadProgress = document.getElementById('download-progress');
-const progressFill = document.getElementById('progress-fill');
-const progressPercent = document.getElementById('progress-percent');
-const progressSize = document.getElementById('progress-size');
-const downloadModelBtn = document.getElementById('download-model');
-const refreshStatusBtn = document.getElementById('refresh-status');
-const settingsBtn = document.getElementById('settings-btn');
+console.log('[Popup] Script loading...');
 
-// ===== AI Model Status Check =====
-async function checkAIStatus() {
-  try {
-    // Show loading state
-    modelsStatus.innerHTML = `
-      <span class="spinner"></span>
-      <span>Checking...</span>
-    `;
-    aiStatusCard.className = 'status-card';
+import { APIKeyManager } from '../../../config/apiKeyManager.js';
+import { ConfigManager } from '../../../config/configManager.js';
 
-    // Request status from background script
-    const response = await chrome.runtime.sendMessage({ type: 'GET_STATUS' });
-    
-    if (!response.success) {
-      console.error('[PerspectiveLens] Failed to get status:', response.error);
-      updateStatus('error', 'Error checking status');
-      return;
+console.log('[Popup] Imports loaded successfully');
+
+class PopupManager {
+  constructor() {
+    this.selectedModel = 'gemini-nano';
+    this.elements = this.getElements();
+    this.init();
+  }
+
+  /**
+   * Get all DOM elements
+   */
+  getElements() {
+    return {
+      // Model tabs
+      tabNano: document.getElementById('tab-nano'),
+      tabPro: document.getElementById('tab-pro'),
+
+      // Common
+      refreshStatus: document.getElementById('refresh-status'),
+      settingsBtn: document.getElementById('settings-btn'),
+
+      // Nano card
+      nanoCard: document.getElementById('nano-card'),
+      nanoStatus: document.getElementById('nano-status'),
+      nanoProgress: document.getElementById('nano-progress'),
+      nanoProgressFill: document.getElementById('nano-progress-fill'),
+      nanoProgressPercent: document.getElementById('nano-progress-percent'),
+      nanoProgressSize: document.getElementById('nano-progress-size'),
+      nanoDownloadBtn: document.getElementById('nano-download-btn'),
+
+      // Pro card
+      proCard: document.getElementById('pro-card'),
+      proStatus: document.getElementById('pro-status'),
+      proKeyInput: document.getElementById('pro-key-input'),
+      apiKeyInput: document.getElementById('api-key'),
+      toggleVisibility: document.getElementById('toggle-visibility'),
+      saveKeyBtn: document.getElementById('save-key-btn'),
+      validationMsg: document.getElementById('validation-msg'),
+      removeKeyBtn: document.getElementById('remove-key-btn')
+    };
+  }
+
+  /**
+   * Initialize popup
+   */
+  async init() {
+    console.log('[PerspectiveLens] Initializing popup...');
+
+    try {
+      // Load selected model from config
+      const config = await ConfigManager.load();
+      this.selectedModel = config.analysis.modelProvider;
+
+      // Setup event listeners
+      this.setupEventListeners();
+
+      // Update UI
+      await this.updateUI();
+
+      // Auto-refresh every 30s
+      setInterval(() => this.updateUI(), 30000);
+
+      console.log('[PerspectiveLens] Popup initialized successfully');
+    } catch (error) {
+      console.error('[PerspectiveLens] Failed to initialize popup:', error);
     }
+  }
 
-    const { aiStatus } = response.status;
-    console.log('[PerspectiveLens] AI Status:', aiStatus);
-    
-    // Update UI based on availability
-    if (aiStatus.availability === 'available') {
-      updateStatus('ready', 'Ready');
-    } else if (aiStatus.availability === 'downloadable') {
-      updateStatus('download', 'Download Required');
-      showDownloadButton();
-    } else if (aiStatus.availability === 'downloading') {
-      updateStatus('downloading', 'Downloading...');
-      if (aiStatus.downloadProgress > 0) {
-        showDownloadProgress(aiStatus.downloadProgress);
+  /**
+   * Setup all event listeners
+   */
+  setupEventListeners() {
+    // Model tabs
+    this.elements.tabNano?.addEventListener('click', () => this.switchModel('gemini-nano'));
+    this.elements.tabPro?.addEventListener('click', () => this.switchModel('gemini-2.5-pro'));
+
+    // Refresh status
+    this.elements.refreshStatus?.addEventListener('click', () => this.updateUI());
+
+    // Settings button
+    this.elements.settingsBtn?.addEventListener('click', () => {
+      chrome.tabs.create({ url: chrome.runtime.getURL('ui/pages/options/options.html') });
+    });
+
+    // Nano download
+    this.elements.nanoDownloadBtn?.addEventListener('click', () => this.startNanoDownload());
+
+    // API key handlers
+    this.elements.toggleVisibility?.addEventListener('click', () => this.toggleApiKeyVisibility());
+    this.elements.saveKeyBtn?.addEventListener('click', () => this.saveApiKey());
+    this.elements.removeKeyBtn?.addEventListener('click', () => this.removeApiKey());
+
+    // Enter key to save API key
+    this.elements.apiKeyInput?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        this.saveApiKey();
       }
-    } else {
-      updateStatus('unavailable', 'Not Available');
-    }
-  } catch (error) {
-    console.error('[PerspectiveLens] Error checking AI status:', error);
-    updateStatus('error', 'Error checking status');
+    });
   }
-}
 
-// ===== Update Status Display =====
-function updateStatus(state, message) {
-  const icons = {
-    ready: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    error: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M12 8V12M12 16H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-    download: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15M7 10L12 15M12 15L17 10M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    downloading: '<span class="spinner"></span>',
-    unavailable: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M15 9L9 15M9 9L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
-  };
+  /**
+   * Switch between models
+   */
+  async switchModel(model) {
+    console.log(`[PerspectiveLens] Switching to ${model}...`);
 
-  modelsStatus.innerHTML = `
-    ${icons[state] || ''}
-    <span>${message}</span>
-  `;
+    this.selectedModel = model;
 
-  // Update card state
-  aiStatusCard.className = 'status-card';
-  if (state === 'ready') {
-    aiStatusCard.classList.add('success');
-  } else if (state === 'error' || state === 'unavailable') {
-    aiStatusCard.classList.add('error');
-  } else if (state === 'downloading' || state === 'download') {
-    aiStatusCard.classList.add('downloading');
-  }
-}
+    try {
+      // Save to config
+      await ConfigManager.set('analysis.modelProvider', model);
 
-// ===== Show Download Button =====
-function showDownloadButton() {
-  downloadModelBtn.style.display = 'inline-flex';
-  downloadProgress.style.display = 'none';
-}
+      // Update UI
+      await this.updateUI();
 
-// ===== Show Download Progress =====
-function showDownloadProgress(percent) {
-  downloadModelBtn.style.display = 'none';
-  downloadProgress.style.display = 'flex';
-  
-  progressFill.style.width = `${percent}%`;
-  progressPercent.textContent = `${percent}%`;
-  
-  // Estimate size (Gemini Nano is ~1.7GB)
-  const totalMB = 1700;
-  const loadedMB = Math.round((percent / 100) * totalMB);
-  progressSize.textContent = `${loadedMB} MB / ${(totalMB / 1024).toFixed(1)} GB`;
-}
-
-// ===== Handle Model Download =====
-async function downloadModel() {
-  try {
-    console.log('[PerspectiveLens] Starting model download via background...');
-    
-    downloadModelBtn.style.display = 'none';
-    downloadProgress.style.display = 'flex';
-    aiStatusCard.classList.add('downloading');
-    updateStatus('downloading', 'Starting download...');
-
-    // Request download from background script
-    const response = await chrome.runtime.sendMessage({ type: 'START_MODEL_DOWNLOAD' });
-    
-    if (!response.success) {
-      console.error('[PerspectiveLens] Download failed:', response.error);
-      updateStatus('error', 'Download failed');
-      downloadProgress.style.display = 'none';
-      downloadModelBtn.style.display = 'inline-flex';
-      aiStatusCard.classList.remove('downloading');
-      return;
+      console.log(`[PerspectiveLens] Switched to ${model}`);
+    } catch (error) {
+      console.error('[PerspectiveLens] Failed to switch model:', error);
     }
+  }
 
-    // Start polling for progress
-    const progressInterval = setInterval(async () => {
-      try {
-        const statusResponse = await chrome.runtime.sendMessage({ type: 'GET_STATUS' });
-        
-        if (statusResponse.success) {
-          const { aiStatus } = statusResponse.status;
-          
-          if (aiStatus.availability === 'downloading' && aiStatus.downloadProgress > 0) {
-            showDownloadProgress(aiStatus.downloadProgress);
-          } else if (aiStatus.availability === 'available') {
-            // Download complete
-            clearInterval(progressInterval);
-            downloadProgress.style.display = 'none';
-            updateStatus('ready', 'Ready');
-            console.log('[PerspectiveLens] Model downloaded successfully');
+  /**
+   * Update entire UI
+   */
+  async updateUI() {
+    try {
+      console.log('[Popup] Updating UI for model:', this.selectedModel);
+
+      // Update model tabs
+      this.updateModelTabs();
+
+      // Show/hide status cards
+      this.elements.nanoCard.style.display =
+        this.selectedModel === 'gemini-nano' ? 'flex' : 'none';
+      this.elements.proCard.style.display =
+        this.selectedModel === 'gemini-2.5-pro' ? 'flex' : 'none';
+
+      console.log('[Popup] Cards visibility - Nano:', this.elements.nanoCard.style.display, 'Pro:', this.elements.proCard.style.display);
+
+      // Update status for selected model
+      if (this.selectedModel === 'gemini-nano') {
+        console.log('[Popup] Calling updateNanoStatus...');
+        await this.updateNanoStatus();
+      } else {
+        console.log('[Popup] Calling updateProStatus...');
+        await this.updateProStatus();
+      }
+    } catch (error) {
+      console.error('[PerspectiveLens] Failed to update UI:', error);
+    }
+  }
+
+  /**
+   * Update model tabs
+   */
+  updateModelTabs() {
+    const tabs = [this.elements.tabNano, this.elements.tabPro];
+
+    tabs.forEach(tab => {
+      if (tab) {
+        const isActive = tab.dataset.model === this.selectedModel;
+        tab.classList.toggle('active', isActive);
+      }
+    });
+  }
+
+  /**
+   * Update Gemini Nano status
+   */
+  async updateNanoStatus() {
+    try {
+      console.log('[Popup] Requesting Nano status from background...');
+      const response = await chrome.runtime.sendMessage({ type: 'GET_STATUS' });
+
+      console.log('[Popup] Nano status response:', response);
+
+      if (!response || !response.success) {
+        console.error('[Popup] Failed to get status:', response);
+        this.setNanoStatus('error', 'Error checking status');
+        return;
+      }
+
+      const { aiStatus } = response.status;
+
+      console.log('[Popup] AI status:', aiStatus);
+      console.log('[Popup] AI availability:', aiStatus.availability);
+
+      // Handle different availability states
+      switch (aiStatus.availability) {
+        case 'readily':
+        case 'ready':
+        case 'available':
+          this.setNanoStatus('success', 'Ready');
+          this.elements.nanoDownloadBtn.style.display = 'none';
+          this.elements.nanoProgress.style.display = 'none';
+          break;
+
+        case 'after-download':
+        case 'download':
+        case 'downloadable':
+          this.setNanoStatus('warning', 'Download required');
+          this.elements.nanoDownloadBtn.style.display = 'block';
+          this.elements.nanoProgress.style.display = 'none';
+          break;
+
+        case 'downloading':
+          this.setNanoStatus('info', 'Downloading...');
+          this.elements.nanoDownloadBtn.style.display = 'none';
+          this.elements.nanoProgress.style.display = 'flex';
+          if (aiStatus.downloadProgress) {
+            this.updateNanoProgress(aiStatus.downloadProgress);
+          }
+          break;
+
+        case 'no':
+        case 'unavailable':
+          this.setNanoStatus('error', 'Unavailable');
+          this.elements.nanoDownloadBtn.style.display = 'none';
+          this.elements.nanoProgress.style.display = 'none';
+          break;
+
+        default:
+          this.setNanoStatus('error', `Unknown status: ${aiStatus.availability}`);
+          this.elements.nanoDownloadBtn.style.display = 'none';
+          this.elements.nanoProgress.style.display = 'none';
+      }
+    } catch (error) {
+      console.error('[PerspectiveLens] Failed to update Nano status:', error);
+      this.setNanoStatus('error', 'Error checking status');
+    }
+  }
+
+  /**
+   * Set Nano status
+   */
+  setNanoStatus(type, message) {
+    const statusEl = this.elements.nanoStatus;
+
+    const types = {
+      success: {
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>',
+        class: 'success'
+      },
+      warning: {
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>',
+        class: 'warning'
+      },
+      info: {
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
+        class: 'info'
+      },
+      error: {
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg>',
+        class: 'error'
+      }
+    };
+
+    const config = types[type] || types.error;
+
+    // Update status display
+    statusEl.innerHTML = `
+      <span class="status-icon ${config.class}">${config.icon}</span>
+      <span>${message}</span>
+    `;
+  }
+
+  /**
+   * Update Nano download progress
+   */
+  updateNanoProgress(percent) {
+    this.elements.nanoProgressFill.style.width = `${percent}%`;
+    this.elements.nanoProgressPercent.textContent = `${percent}%`;
+  }
+
+  /**
+   * Start Nano model download
+   */
+  async startNanoDownload() {
+    console.log('[PerspectiveLens] Starting Nano download...');
+
+    try {
+      this.elements.nanoDownloadBtn.style.display = 'none';
+      this.elements.nanoProgress.style.display = 'flex';
+      this.setNanoStatus('info', 'Starting download...');
+
+      const response = await chrome.runtime.sendMessage({ type: 'START_MODEL_DOWNLOAD' });
+
+      if (!response || !response.success) {
+        throw new Error(response?.error || 'Download failed');
+      }
+
+      // Poll for progress
+      const pollInterval = setInterval(async () => {
+        const status = await chrome.runtime.sendMessage({ type: 'GET_STATUS' });
+
+        if (status && status.success) {
+          const { aiStatus } = status.status;
+
+          if (aiStatus.availability === 'downloading' && aiStatus.downloadProgress) {
+            this.updateNanoProgress(aiStatus.downloadProgress);
+          } else if (aiStatus.availability === 'ready' || aiStatus.availability === 'available') {
+            clearInterval(pollInterval);
+            await this.updateNanoStatus();
           }
         }
-      } catch (error) {
-        console.error('[PerspectiveLens] Error polling status:', error);
-      }
-    }, 1000); // Poll every second
+      }, 1000);
 
-    // Timeout after 30 minutes
-    setTimeout(() => {
-      clearInterval(progressInterval);
-    }, 30 * 60 * 1000);
-    
-  } catch (error) {
-    console.error('[PerspectiveLens] Error downloading model:', error);
-    downloadProgress.style.display = 'none';
-    downloadModelBtn.style.display = 'inline-flex';
-    updateStatus('error', 'Download failed');
-    aiStatusCard.classList.remove('downloading');
+      // Timeout after 30 minutes
+      setTimeout(() => clearInterval(pollInterval), 30 * 60 * 1000);
+
+    } catch (error) {
+      console.error('[PerspectiveLens] Download failed:', error);
+      this.setNanoStatus('error', 'Download failed');
+      this.elements.nanoDownloadBtn.style.display = 'block';
+      this.elements.nanoProgress.style.display = 'none';
+    }
+  }
+
+  /**
+   * Update Gemini 2.5 Pro status
+   */
+  async updateProStatus() {
+    try {
+      const apiKey = await APIKeyManager.load();
+
+      console.log('[Popup] Pro status - has API key:', !!apiKey);
+
+      if (!apiKey) {
+        // No API key configured
+        this.setProStatus('warning', 'Not configured');
+        this.elements.proKeyInput.style.display = 'flex';
+        this.elements.removeKeyBtn.style.display = 'none';
+        return;
+      }
+
+      // Validate API key
+      const response = await chrome.runtime.sendMessage({ type: 'GET_STATUS' });
+
+      console.log('[Popup] Pro status response:', response);
+
+      if (!response || !response.success) {
+        this.setProStatus('error', 'Error checking API status');
+        this.elements.proKeyInput.style.display = 'flex';
+        this.elements.removeKeyBtn.style.display = 'none';
+        return;
+      }
+
+      const { aiStatus } = response.status;
+
+      console.log('[Popup] Pro AI status:', aiStatus);
+
+      if (aiStatus.availability === 'ready') {
+        // API key valid
+        this.setProStatus('success', 'Connected');
+        this.elements.proKeyInput.style.display = 'none';
+        this.elements.removeKeyBtn.style.display = 'inline-flex';
+      } else {
+        // API key invalid
+        this.setProStatus('error', 'Invalid API key');
+        this.elements.proKeyInput.style.display = 'flex';
+        this.elements.removeKeyBtn.style.display = 'none';
+      }
+    } catch (error) {
+      console.error('[PerspectiveLens] Failed to update Pro status:', error);
+      this.setProStatus('error', 'Error checking status');
+    }
+  }
+
+  /**
+   * Set Pro status
+   */
+  setProStatus(type, message) {
+    const statusEl = this.elements.proStatus;
+
+    const types = {
+      success: {
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>',
+        class: 'success'
+      },
+      warning: {
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>',
+        class: 'warning'
+      },
+      error: {
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg>',
+        class: 'error'
+      }
+    };
+
+    const config = types[type] || types.error;
+
+    // Update status display
+    statusEl.innerHTML = `
+      <span class="status-icon ${config.class}">${config.icon}</span>
+      <span>${message}</span>
+    `;
+  }
+
+  /**
+   * Toggle API key visibility
+   */
+  toggleApiKeyVisibility() {
+    const input = this.elements.apiKeyInput;
+    const isPassword = input.type === 'password';
+
+    input.type = isPassword ? 'text' : 'password';
+
+    // Update icon (optional - would need different SVG)
+  }
+
+  /**
+   * Save API key
+   */
+  async saveApiKey() {
+    const apiKey = this.elements.apiKeyInput.value.trim();
+
+    if (!apiKey) {
+      this.showValidation('error', 'Please enter an API key');
+      return;
+    }
+
+    this.showValidation('validating', 'Validating API key...');
+
+    try {
+      // Validate with background service
+      const response = await chrome.runtime.sendMessage({
+        type: 'VALIDATE_API_KEY',
+        apiKey
+      });
+
+      if (!response || !response.success) {
+        throw new Error(response?.error || 'Validation failed');
+      }
+
+      if (response.isValid) {
+        // Save the key
+        await APIKeyManager.save(apiKey);
+
+        this.showValidation('success', 'API key saved successfully!');
+
+        // Clear input
+        this.elements.apiKeyInput.value = '';
+
+        // Update UI after short delay
+        setTimeout(() => this.updateUI(), 1500);
+      } else {
+        this.showValidation('error', response.error || 'Invalid API key');
+      }
+    } catch (error) {
+      console.error('[PerspectiveLens] API key validation failed:', error);
+      this.showValidation('error', `Validation failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Show validation status
+   */
+  showValidation(type, message) {
+    const msgEl = this.elements.validationMsg;
+
+    msgEl.className = `validation-message ${type}`;
+    msgEl.style.display = 'block';
+    msgEl.textContent = message;
+
+    // Hide after 5 seconds (except for validating state)
+    if (type !== 'validating') {
+      setTimeout(() => {
+        msgEl.style.display = 'none';
+      }, 5000);
+    }
+  }
+
+  /**
+   * Remove API key
+   */
+  async removeApiKey() {
+    if (!confirm('Remove API key? You will need to enter it again to use Gemini 2.5 Pro.')) {
+      return;
+    }
+
+    try {
+      await APIKeyManager.remove();
+      await this.updateUI();
+      console.log('[PerspectiveLens] API key removed');
+    } catch (error) {
+      console.error('[PerspectiveLens] Failed to remove API key:', error);
+    }
   }
 }
 
-// ===== Open Settings =====
-function openSettings() {
-  // Open options page in new tab
-  chrome.tabs.create({ url: chrome.runtime.getURL('options.html') });
-}
-
-// ===== Event Listeners =====
-refreshStatusBtn?.addEventListener('click', () => {
-  console.log('[PerspectiveLens] Refresh status clicked');
-  checkAIStatus();
-});
-
-downloadModelBtn?.addEventListener('click', () => {
-  console.log('[PerspectiveLens] Download model clicked');
-  downloadModel();
-});
-
-settingsBtn?.addEventListener('click', () => {
-  console.log('[PerspectiveLens] Settings clicked');
-  openSettings();
-});
-
-// ===== Initialize =====
+// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('[PerspectiveLens] Popup loaded, checking AI status...');
-  checkAIStatus();
-  
-  // Refresh status every 30 seconds while popup is open
-  setInterval(checkAIStatus, 30000);
+  console.log('[PerspectiveLens] Popup DOM loaded, initializing...');
+  new PopupManager();
 });

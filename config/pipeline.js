@@ -124,12 +124,21 @@ export const PIPELINE_CONFIG = {
    */
   analysis: {
     /**
-     * Use content compression before analysis
+     * Model Provider Selection
+     * Options: 'gemini-nano' | 'gemini-2.5-pro'
+     * - gemini-nano: Chrome's built-in AI (free, requires download)
+     * - gemini-2.5-pro: Google AI Studio API (requires API key)
+     */
+    modelProvider: 'gemini-nano',
+
+    /**
+     * Use content compression before analysis (Gemini Nano only)
+     * Gemini 2.5 Pro has larger context window and doesn't need compression
      */
     useCompression: true,
 
     /**
-     * Compression level: 'short', 'medium', 'long'
+     * Compression level: 'short', 'medium', 'long' (Gemini Nano only)
      */
     compressionLevel: 'long',
 
@@ -139,11 +148,67 @@ export const PIPELINE_CONFIG = {
     validateContent: true,
 
     /**
-     * AI model parameters
+     * AI model parameters (Gemini Nano)
      */
     model: {
       temperature: 0.7,  // Balance between creativity and consistency
       topK: 3,           // Consider top 3 tokens for diversity
+    },
+
+    /**
+     * Gemini 2.5 Pro Configuration
+     * Used when modelProvider is 'gemini-2.5-pro'
+     */
+    gemini25Pro: {
+      /**
+       * Model variant to use
+       * Options: 'gemini-2.5-pro' (best quality) | 'gemini-2.5-flash' (faster)
+       */
+      model: 'gemini-2.5-pro',
+
+      /**
+       * Temperature for generation (0.0 - 1.0)
+       * Lower = more deterministic, Higher = more creative
+       */
+      temperature: 0.7,
+
+      /**
+       * Top-K sampling parameter (1-40)
+       * Number of top tokens to consider
+       */
+      topK: 40,
+
+      /**
+       * Top-P (nucleus) sampling parameter (0.0 - 1.0)
+       * Cumulative probability threshold
+       */
+      topP: 0.95,
+
+      /**
+       * Thinking Budget (token count for reasoning)
+       * -1 = dynamic (model decides)
+       * 0 = disabled (fastest, no thinking)
+       * 128-32768 = fixed token budget for thinking
+       */
+      thinkingBudget: -1,
+
+      /**
+       * Include thought summaries in response
+       * Shows model's reasoning process (increases latency and costs)
+       */
+      includeThoughts: false,
+
+      /**
+       * Skip translation step
+       * Pro can process multi-language content directly
+       */
+      skipTranslation: true,
+
+      /**
+       * Skip compression step
+       * Pro has large context window (2M tokens) and can handle full articles
+       */
+      skipCompression: true,
     },
 
     /**

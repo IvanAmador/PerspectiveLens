@@ -43,6 +43,8 @@
         "ui/pages/options/settings-modal.js",
         "config/configManager.js",
         "config/pipeline.js",
+        "config/apiKeyManager.js",
+        "api/gemini-2-5-pro.js",
         "images/*.png",
         "icons/flags/*.svg"
       ],
