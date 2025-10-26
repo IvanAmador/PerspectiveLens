@@ -4,6 +4,7 @@
  */
 
 import { ConfigManager } from '../../../config/configManager.js';
+import { APIKeyManager } from '../../../config/apiKeyManager.js';
 import { availableCountries } from '../../../config/availableCountries.js';
 
 // Use centralized country data
@@ -102,22 +103,38 @@ class OptionsPage {
       minWordCount: document.getElementById('min-word-count'),
       timeout: document.getElementById('timeout'),
 
-      // Analysis
+      // Model Selection
+      modelOptions: document.querySelectorAll('.model-option'),
+
+      // API Key Section
+      apiKeySection: document.getElementById('api-key-section'),
+      apiKeyStatus: document.getElementById('api-key-status'),
+      apiKeyInput: document.getElementById('api-key-input'),
+      btnValidateKey: document.getElementById('btn-validate-key'),
+      btnRemoveKey: document.getElementById('btn-remove-key'),
+
+      // Gemini Nano Settings
+      nanoSettings: document.getElementById('nano-settings'),
       compressionRadios: document.querySelectorAll('input[name="compression"]'),
-      temperature: document.getElementById('temperature'),
-      temperatureValue: document.getElementById('temperature-value'),
-      topK: document.getElementById('top-k'),
-      topKValue: document.getElementById('top-k-value'),
+      nanoTemperature: document.getElementById('nano-temperature'),
+      nanoTemperatureValue: document.getElementById('nano-temperature-value'),
+      nanoTopK: document.getElementById('nano-top-k'),
+      nanoTopKValue: document.getElementById('nano-top-k-value'),
+
+      // Gemini 2.5 Pro Settings
+      proSettings: document.getElementById('pro-settings'),
+      proTemperature: document.getElementById('pro-temperature'),
+      proTemperatureValue: document.getElementById('pro-temperature-value'),
+      proTopK: document.getElementById('pro-top-k'),
+      proTopKValue: document.getElementById('pro-top-k-value'),
+      proTopP: document.getElementById('pro-top-p'),
+      proTopPValue: document.getElementById('pro-top-p-value'),
+      proThinkingBudget: document.getElementById('pro-thinking-budget'),
 
       // Footer
       resetBtn: document.getElementById('reset-defaults'),
       saveBtn: document.getElementById('save-settings'),
-      saveIndicator: document.getElementById('save-indicator'),
-
-      // Toast
-      toast: document.getElementById('settings-toast'),
-      toastTitle: document.getElementById('toast-title'),
-      toastMessage: document.getElementById('toast-message')
+      saveIndicator: document.getElementById('save-indicator')
     };
   }
 
@@ -148,14 +165,42 @@ class OptionsPage {
       this.filterCountries(e.target.value);
     });
 
-    // Range sliders
-    this.elements.temperature?.addEventListener('input', (e) => {
-      this.elements.temperatureValue.textContent = e.target.value;
+    // Model selection
+    this.elements.modelOptions.forEach(option => {
+      option.addEventListener('click', () => {
+        const model = option.dataset.model;
+        this.switchModel(model);
+      });
+    });
+
+    // API Key management
+    this.elements.btnValidateKey?.addEventListener('click', () => this.validateAndSaveApiKey());
+    this.elements.btnRemoveKey?.addEventListener('click', () => this.removeApiKey());
+
+    // Nano range sliders
+    this.elements.nanoTemperature?.addEventListener('input', (e) => {
+      this.elements.nanoTemperatureValue.textContent = e.target.value;
       this.markDirty();
     });
 
-    this.elements.topK?.addEventListener('input', (e) => {
-      this.elements.topKValue.textContent = e.target.value;
+    this.elements.nanoTopK?.addEventListener('input', (e) => {
+      this.elements.nanoTopKValue.textContent = e.target.value;
+      this.markDirty();
+    });
+
+    // Pro range sliders
+    this.elements.proTemperature?.addEventListener('input', (e) => {
+      this.elements.proTemperatureValue.textContent = e.target.value;
+      this.markDirty();
+    });
+
+    this.elements.proTopK?.addEventListener('input', (e) => {
+      this.elements.proTopKValue.textContent = e.target.value;
+      this.markDirty();
+    });
+
+    this.elements.proTopP?.addEventListener('input', (e) => {
+      this.elements.proTopPValue.textContent = e.target.value;
       this.markDirty();
     });
 
@@ -199,7 +244,7 @@ class OptionsPage {
     });
   }
 
-  populateUI() {
+  async populateUI() {
     // Countries - render selected countries on main page
     this.renderSelectedCountries();
 
@@ -214,19 +259,44 @@ class OptionsPage {
     this.elements.minWordCount.value = this.currentConfig.extraction?.qualityThresholds?.minWordCount || 500;
     this.elements.timeout.value = this.currentConfig.extraction?.timeout || 20000;
 
-    // Analysis
+    // Model Provider
+    const modelProvider = this.currentConfig.analysis?.modelProvider || 'gemini-nano';
+    this.switchModel(modelProvider, false);
+
+    // Gemini Nano Settings
     const compression = this.currentConfig.analysis?.compressionLevel || 'long';
     this.elements.compressionRadios.forEach(radio => {
       radio.checked = radio.value === compression;
     });
 
-    const temperature = this.currentConfig.analysis?.model?.temperature || 0.7;
-    this.elements.temperature.value = temperature;
-    this.elements.temperatureValue.textContent = temperature;
+    const nanoTemp = this.currentConfig.analysis?.model?.temperature || 0.7;
+    this.elements.nanoTemperature.value = nanoTemp;
+    this.elements.nanoTemperatureValue.textContent = nanoTemp;
 
-    const topK = this.currentConfig.analysis?.model?.topK || 3;
-    this.elements.topK.value = topK;
-    this.elements.topKValue.textContent = topK;
+    const nanoTopK = this.currentConfig.analysis?.model?.topK || 3;
+    this.elements.nanoTopK.value = nanoTopK;
+    this.elements.nanoTopKValue.textContent = nanoTopK;
+
+    // Gemini 2.5 Pro Settings
+    const proConfig = this.currentConfig.analysis?.gemini25Pro || {};
+
+    const proTemp = proConfig.temperature || 0.7;
+    this.elements.proTemperature.value = proTemp;
+    this.elements.proTemperatureValue.textContent = proTemp;
+
+    const proTopK = proConfig.topK || 40;
+    this.elements.proTopK.value = proTopK;
+    this.elements.proTopKValue.textContent = proTopK;
+
+    const proTopP = proConfig.topP || 0.95;
+    this.elements.proTopP.value = proTopP;
+    this.elements.proTopPValue.textContent = proTopP;
+
+    const thinkingBudget = proConfig.thinkingBudget ?? -1;
+    this.elements.proThinkingBudget.value = thinkingBudget;
+
+    // API Key Status
+    await this.updateApiKeyStatus();
   }
 
   renderSelectedCountries() {
@@ -438,6 +508,15 @@ class OptionsPage {
       perCountry[countryCode] = parseInt(articleInput.value) || 2;
     });
 
+    // Get selected model provider
+    let modelProvider = 'gemini-nano';
+    this.elements.modelOptions.forEach(option => {
+      if (option.classList.contains('active')) {
+        modelProvider = option.dataset.model;
+      }
+    });
+
+    // Gemini Nano settings
     let compressionLevel = 'long';
     this.elements.compressionRadios.forEach(radio => {
       if (radio.checked) compressionLevel = radio.value;
@@ -461,18 +540,128 @@ class OptionsPage {
         }
       },
       analysis: {
+        modelProvider,
         compressionLevel,
         model: {
-          temperature: parseFloat(this.elements.temperature.value) || 0.7,
-          topK: parseInt(this.elements.topK.value) || 3
+          temperature: parseFloat(this.elements.nanoTemperature.value) || 0.7,
+          topK: parseInt(this.elements.nanoTopK.value) || 3
+        },
+        gemini25Pro: {
+          model: 'gemini-2.5-pro',
+          temperature: parseFloat(this.elements.proTemperature.value) || 0.7,
+          topK: parseInt(this.elements.proTopK.value) || 40,
+          topP: parseFloat(this.elements.proTopP.value) || 0.95,
+          thinkingBudget: parseInt(this.elements.proThinkingBudget.value) || -1
         }
       }
     };
   }
 
+  switchModel(model, markDirty = true) {
+    // Update active state on buttons
+    this.elements.modelOptions.forEach(option => {
+      if (option.dataset.model === model) {
+        option.classList.add('active');
+      } else {
+        option.classList.remove('active');
+      }
+    });
+
+    // Show/hide appropriate sections
+    if (model === 'gemini-nano') {
+      this.elements.nanoSettings.style.display = 'block';
+      this.elements.proSettings.style.display = 'none';
+      this.elements.apiKeySection.style.display = 'none';
+    } else if (model === 'gemini-2.5-pro') {
+      this.elements.nanoSettings.style.display = 'none';
+      this.elements.proSettings.style.display = 'block';
+      this.elements.apiKeySection.style.display = 'block';
+    }
+
+    if (markDirty) {
+      this.markDirty();
+    }
+  }
+
+  async updateApiKeyStatus() {
+    const hasKey = await APIKeyManager.exists();
+
+    if (hasKey) {
+      this.elements.apiKeyStatus.dataset.status = 'connected';
+      this.elements.apiKeyStatus.querySelector('.status-text').textContent = 'API key configured';
+      this.elements.btnRemoveKey.style.display = 'inline-block';
+      this.elements.apiKeyInput.value = '';
+      this.elements.apiKeyInput.placeholder = 'API key is saved (hidden for security)';
+    } else {
+      this.elements.apiKeyStatus.dataset.status = 'not-configured';
+      this.elements.apiKeyStatus.querySelector('.status-text').textContent = 'API key not configured';
+      this.elements.btnRemoveKey.style.display = 'none';
+      this.elements.apiKeyInput.placeholder = 'Enter your API key...';
+    }
+  }
+
+  async validateAndSaveApiKey() {
+    const apiKey = this.elements.apiKeyInput.value.trim();
+
+    if (!apiKey) {
+      alert('Please enter an API key');
+      return;
+    }
+
+    // Disable button and show loading state
+    this.elements.btnValidateKey.disabled = true;
+    this.elements.btnValidateKey.textContent = 'Validating...';
+
+    try {
+      // Use validateAndSave which combines validation + save
+      const result = await APIKeyManager.validateAndSave(apiKey);
+
+      if (result.success) {
+        await this.updateApiKeyStatus();
+        this.showSaveIndicator();
+      } else {
+        this.elements.apiKeyStatus.dataset.status = 'invalid';
+        this.elements.apiKeyStatus.querySelector('.status-text').textContent = 'Invalid API key';
+        alert('Invalid API key: ' + (result.error || 'Validation failed'));
+      }
+    } catch (error) {
+      console.error('[Options] Error saving API key:', error);
+      alert('Error saving API key: ' + error.message);
+    } finally {
+      // Re-enable button
+      this.elements.btnValidateKey.disabled = false;
+      this.elements.btnValidateKey.textContent = 'Validate & Save';
+    }
+  }
+
+  async removeApiKey() {
+    const confirm = window.confirm('Are you sure you want to remove the API key? You will need to add it again to use Gemini 2.5 Pro.');
+
+    if (!confirm) return;
+
+    try {
+      await APIKeyManager.remove();
+      await this.updateApiKeyStatus();
+      this.showSaveIndicator();
+    } catch (error) {
+      console.error('[Options] Error removing API key:', error);
+      alert('Error removing API key: ' + error.message);
+    }
+  }
+
   async save() {
     try {
       const config = this.gatherConfig();
+
+      // Validate if Gemini 2.5 Pro is selected but no API key
+      if (config.analysis.modelProvider === 'gemini-2.5-pro') {
+        const hasKey = await APIKeyManager.exists();
+        if (!hasKey) {
+          alert('Please configure an API key before using Gemini 2.5 Pro. Add your API key in the API Configuration section above.');
+          return;
+        }
+      }
+
       const result = await ConfigManager.save(config);
 
       if (result.success) {
