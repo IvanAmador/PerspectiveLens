@@ -12,6 +12,7 @@
   --color-text-secondary: #5F6368;
   --color-text-tertiary: #80868B;
   --color-text-disabled: #DADCE0;
+  --color-icon: #5F6368;
 
   /* ===== BACKGROUND COLORS ===== */
   --color-background-primary: #FFFFFF;
@@ -125,6 +126,7 @@
   --color-text-secondary: #9AA0A6;
   --color-text-tertiary: #80868B;
   --color-text-disabled: #5F6368;
+  --color-icon: #9AA0A6;
 
   /* ===== BACKGROUND COLORS ===== */
   --color-background-primary: #202124;
@@ -323,11 +325,12 @@
   --z-sticky: 1020;
   --z-fixed: 1030;
   --z-backdrop: 1040;
-  --z-modal: 1050;
-  --z-popover: 1060;
-  --z-tooltip: 1070;
-  --z-toast: 2147483647;
-  --z-maximum: 2147483647;
+  --z-panel: 2147483645; /* Analysis panel */
+  --z-modal: 2147483646; /* Modal above panel */
+  --z-popover: 2147483647; /* Popover/dropdown */
+  --z-tooltip: 2147483648; /* Tooltip above all */
+  --z-toast: 2147483649; /* Toast notifications */
+  --z-maximum: 2147483650;
 }
 
 /* ===== OPACITY LEVELS ===== */

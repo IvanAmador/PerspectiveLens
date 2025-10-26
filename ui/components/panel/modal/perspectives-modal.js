@@ -241,7 +241,7 @@ class PerspectivesModal {
 
           <div class="pl-card-footer">
             <span class="pl-card-country" title="${safeCountry}">
-              ${countryFlag} ${safeCountry}
+              ${safeCountry}
             </span>
             ${timeAgo ? `
               <span class="pl-card-time">${timeAgo}</span>

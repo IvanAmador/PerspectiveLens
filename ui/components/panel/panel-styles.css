@@ -17,7 +17,7 @@
   height: 100vh;
   background: var(--md-sys-color-surface);
   box-shadow: var(--md-elevation-4);
-  z-index: 2147483645 !important;
+  z-index: var(--z-panel);
   font-family: var(--font-family-base);
   font-size: var(--font-size-base);
   line-height: var(--line-height-normal);
@@ -803,7 +803,7 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  z-index: 2147483647;
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;
