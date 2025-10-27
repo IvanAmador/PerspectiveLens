@@ -299,16 +299,8 @@ function showDetectionToast() {
 
   // Show article detection notification with action button
   singleToast.show('Article Detected', {
-    message: 'Analyze this article from multiple international perspectives',
+    showProgress: false, // Don't show progress bar for detection notification
     actions: [
-      {
-        label: 'Dismiss',
-        callback: () => {
-          console.log('[PerspectiveLens] User dismissed detection');
-        },
-        primary: false,
-        dismiss: true
-      },
       {
         label: 'Analyze',
         callback: () => {
@@ -317,6 +309,14 @@ function showDetectionToast() {
         },
         primary: true,
         dismiss: false // Don't dismiss - will show progress
+      },
+      {
+        label: 'Dismiss',
+        callback: () => {
+          console.log('[PerspectiveLens] User dismissed detection');
+        },
+        primary: false,
+        dismiss: true
       }
     ]
   });

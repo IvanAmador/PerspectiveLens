@@ -76,6 +76,7 @@ class SingleToast {
    * @param {Object} options - Optional configuration
    * @param {Array} options.actions - Array of action buttons [{label, callback, primary}]
    * @param {string} options.message - Optional message text
+   * @param {boolean} options.showProgress - Whether to show progress bar (default: true)
    */
   async show(title = 'Processing...', options = {}) {
     // Wait for shadow root to be ready
@@ -95,6 +96,17 @@ class SingleToast {
     this.clearFlags();
     this.hideAIIndicator();
     this.clearActions();
+
+    // Show/hide progress bar based on options
+    const showProgress = options.showProgress !== false;
+    this.setProgressVisibility(showProgress);
+
+    // Control logo animation based on whether we're analyzing
+    if (options.showProgress !== false) {
+      this.startLogoAnimation();
+    } else {
+      this.stopLogoAnimation();
+    }
 
     // Set message if provided
     if (options.message) {
@@ -128,24 +140,29 @@ class SingleToast {
     this.container = document.createElement('div');
     this.container.className = 'perspective-single-toast';
     this.container.innerHTML = `
-      <div class="toast-header">
-        <div class="toast-title">Processing...</div>
-        <div class="toast-ai-indicator" style="display: none;">
-          <svg class="ai-icon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2L9.19 8.63L2 11.44l7.19 2.81L12 22l2.81-7.75L22 11.44l-7.19-2.81z"/>
-          </svg>
+      <img class="toast-logo" src="${chrome.runtime.getURL('images/icon-32.png')}" alt="PerspectiveLens">
+
+      <div class="toast-content">
+        <div class="toast-header">
+          <div class="toast-title">Processing...</div>
         </div>
+
+        <div class="toast-progress">
+          <div class="toast-progress-fill"></div>
+        </div>
+
+        <div class="toast-message"></div>
+
+        <div class="toast-flags"></div>
+
+        <div class="toast-actions"></div>
       </div>
 
-      <div class="toast-progress">
-        <div class="toast-progress-fill"></div>
+      <div class="toast-ai-indicator" style="display: none;">
+        <svg class="ai-icon" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2L9.19 8.63L2 11.44l7.19 2.81L12 22l2.81-7.75L22 11.44l-7.19-2.81z"/>
+        </svg>
       </div>
-
-      <div class="toast-message"></div>
-
-      <div class="toast-flags"></div>
-
-      <div class="toast-actions"></div>
     `;
 
     // Get element references
@@ -156,6 +173,7 @@ class SingleToast {
     this.flagsContainer = this.container.querySelector('.toast-flags');
     this.aiIndicator = this.container.querySelector('.toast-ai-indicator');
     this.actionsContainer = this.container.querySelector('.toast-actions');
+    this.logoElement = this.container.querySelector('.toast-logo');
 
     // Append to shadow container
     shadowContainer.appendChild(this.container);
@@ -192,6 +210,16 @@ class SingleToast {
 
     // Update aria for accessibility
     this.progressBar.setAttribute('aria-valuenow', this.currentProgress);
+  }
+
+  /**
+   * Set progress bar visibility
+   * @param {boolean} visible - Whether to show progress bar
+   */
+  setProgressVisibility(visible) {
+    if (!this.progressBar) return;
+
+    this.progressBar.style.display = visible ? 'block' : 'none';
   }
 
   /**
@@ -276,6 +304,9 @@ class SingleToast {
 
     this.dismissTimeout = setTimeout(() => {
       if (!this.container) return;
+
+      // Stop logo animation before dismissing
+      this.stopLogoAnimation();
 
       this.container.classList.remove('visible');
 
@@ -406,6 +437,24 @@ class SingleToast {
       this.actionsContainer.style.display = 'none';
     }
     this.actionCallbacks = {};
+  }
+
+  /**
+   * Start logo rotation animation
+   */
+  startLogoAnimation() {
+    if (this.logoElement) {
+      this.logoElement.classList.add('spinning');
+    }
+  }
+
+  /**
+   * Stop logo rotation animation
+   */
+  stopLogoAnimation() {
+    if (this.logoElement) {
+      this.logoElement.classList.remove('spinning');
+    }
   }
 }
 

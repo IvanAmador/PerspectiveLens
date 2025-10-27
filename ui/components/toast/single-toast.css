@@ -26,6 +26,13 @@
 
   /* Spacing */
   padding: var(--spacing-4);
+  padding-top: var(--spacing-3);
+
+  /* Layout - Grid for positioning logo and AI indicator in corners */
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto 1fr;
+  gap: 0;
 
   /* Typography */
   font-family: var(--font-family-base);
@@ -59,13 +66,47 @@
               opacity var(--duration-slow) var(--easing-standard);
 }
 
+/* Logo - Top Right Corner */
+.toast-logo {
+  grid-column: 3;
+  grid-row: 1;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  object-fit: contain;
+  margin-left: var(--spacing-2);
+  align-self: start;
+  justify-self: end;
+}
+
+/* Logo animation - only when spinning class is active */
+.toast-logo.spinning {
+  animation: rotate-logo 4s linear infinite;
+}
+
+@keyframes rotate-logo {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Content area - spans middle columns */
+.toast-content {
+  grid-column: 1 / 3;
+  grid-row: 1 / 3;
+  display: flex;
+  flex-direction: column;
+  padding-right: var(--spacing-2);
+}
+
 /* Toast Header */
 .toast-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   margin-bottom: var(--spacing-3);
-  gap: var(--spacing-2);
 }
 
 .toast-title {
@@ -76,21 +117,26 @@
   flex: 1;
 }
 
-/* AI Indicator */
+/* AI Indicator - Bottom Right Corner */
 .toast-ai-indicator {
   display: none;
+  grid-column: 3;
+  grid-row: 2;
   align-items: center;
   justify-content: center;
   width: 20px;
   height: 20px;
   flex-shrink: 0;
+  align-self: end;
+  justify-self: end;
+  margin-bottom: var(--spacing-1);
 }
 
 .ai-icon {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   color: var(--md-sys-color-primary);
-  animation: pulse-ai var(--duration-slower) var(--easing-standard) infinite;
+  animation: pulse-ai 2s var(--easing-standard) infinite;
 }
 
 @keyframes pulse-ai {
@@ -99,8 +145,8 @@
     transform: scale(1);
   }
   50% {
-    opacity: 0.7;
-    transform: scale(1.1);
+    opacity: 0.5;
+    transform: scale(1.05);
   }
 }
 
@@ -119,6 +165,12 @@
   aria-valuemax: 100;
 }
 
+/* When progress bar is hidden, remove spacing */
+.toast-progress[style*="display: none"] {
+  margin-bottom: 0;
+  height: 0;
+}
+
 .toast-progress-fill {
   height: 100%;
   background: var(--progress-fill);
@@ -133,11 +185,12 @@
   line-height: var(--line-height-tight);
   color: var(--md-sys-color-on-surface-variant);
   margin-bottom: var(--spacing-2);
-  min-height: 18px;
 }
 
 .toast-message:empty {
   margin-bottom: 0;
+  min-height: 0;
+  display: none;
 }
 
 /* Flags Container */
@@ -197,13 +250,15 @@
 /* Action Buttons */
 .toast-actions {
   display: none;
-  gap: var(--spacing-2);
-  margin-top: var(--spacing-3);
-  justify-content: flex-end;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-4);
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .toast-btn {
-  padding: var(--spacing-2) var(--spacing-4);
+  padding: var(--spacing-2) var(--spacing-5);
   border: none;
   border-radius: var(--radius-button);
   font-family: var(--font-family-base);
@@ -211,16 +266,21 @@
   font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: background-color var(--duration-fast) var(--easing-standard),
-              transform var(--duration-fast) var(--easing-standard);
+              transform var(--duration-fast) var(--easing-standard),
+              box-shadow var(--duration-fast) var(--easing-standard);
   outline: none;
+  min-height: 36px;
+  line-height: 1.2;
 }
 
 .toast-btn:hover {
   transform: scale(1.02);
+  box-shadow: var(--shadow-01);
 }
 
 .toast-btn:active {
   transform: scale(0.98);
+  box-shadow: none;
 }
 
 .toast-btn:focus-visible {
@@ -231,14 +291,17 @@
 .toast-btn-primary {
   background: var(--button-primary-background);
   color: var(--button-primary-text);
+  box-shadow: var(--shadow-01);
 }
 
 .toast-btn-primary:hover {
   background: var(--button-primary-background-hover);
+  box-shadow: var(--shadow-02);
 }
 
 .toast-btn-primary:active {
   background: var(--button-primary-background-active);
+  box-shadow: none;
 }
 
 .toast-btn-secondary {
@@ -249,6 +312,7 @@
 
 .toast-btn-secondary:hover {
   background: var(--button-secondary-background-hover);
+  border-color: var(--md-sys-color-outline);
 }
 
 .toast-btn-secondary:active {
@@ -269,11 +333,19 @@
     transition: none;
   }
 
+  .toast-logo.spinning {
+    animation: none;
+  }
+
   .ai-icon {
     animation: none;
   }
 
   .toast-flag {
     animation: none;
+  }
+
+  .toast-btn {
+    transition: background-color var(--duration-fast) var(--easing-standard);
   }
 }
