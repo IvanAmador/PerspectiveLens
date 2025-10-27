@@ -11,7 +11,8 @@ const CONFIG_VERSION = 1;
 export class ConfigManager {
   /**
    * Load configuration from storage, merged with defaults
-   * @returns {Promise<Object>} Merged configuration
+   * CRITICAL: Always restores static reference data (availableCountries) from defaults
+   * @returns {Promise<Object>} Merged configuration (defaults + user overrides)
    */
   static async load() {
     try {
@@ -23,12 +24,14 @@ export class ConfigManager {
         return { ...PIPELINE_CONFIG };
       }
 
-      // Deep merge user config with defaults
+      // Deep merge: defaults FIRST, then user overrides
+      // This ensures availableCountries is always present from PIPELINE_CONFIG
       const merged = this.deepMerge(PIPELINE_CONFIG, userConfig);
 
       console.log('[ConfigManager] Config loaded and merged', {
         hasUserConfig: !!userConfig,
-        version: userConfig?.version || 'none'
+        version: userConfig?.version || 'none',
+        countriesRestored: !!merged.search?.availableCountries
       });
 
       return merged;
@@ -40,24 +43,36 @@ export class ConfigManager {
 
   /**
    * Save user configuration to storage
+   * CRITICAL: Only saves user overrides, NOT defaults
+   * Validation happens on final merged config (userConfig + defaults)
+   *
    * @param {Object} config - Configuration object to save (can be partial)
-   * @returns {Promise<boolean>} Success status
+   * @returns {Promise<Object>} { success: boolean, errors?: string[] }
    */
   static async save(config) {
     try {
-      // Load existing config and merge with incoming changes
-      const existingConfig = await this.load();
-      const mergedConfig = this.deepMerge(existingConfig, config);
+      // Step 1: Load ONLY existing userConfig from storage (WITHOUT defaults)
+      // Do NOT use this.load() because it merges with defaults
+      const result = await chrome.storage.sync.get(STORAGE_KEY);
+      const existingUserConfig = result[STORAGE_KEY] || {};
 
-      // Validate the merged config
+      // Step 2: Merge ONLY userConfigs (supports partial updates)
+      // This preserves existing user customizations while adding new ones
+      const mergedUserConfig = this.deepMerge(existingUserConfig, config);
+
+      // Step 3: Create FINAL config by merging with defaults FOR VALIDATION ONLY
+      // This temporary config is used to validate completeness but NOT saved
+      const finalConfig = this.deepMerge(PIPELINE_CONFIG, mergedUserConfig);
+
+      // Step 4: Validate the FINAL merged config (must be complete and valid)
       const errors = [];
 
-      if (!mergedConfig.articleSelection?.perCountry ||
-          Object.keys(mergedConfig.articleSelection.perCountry).length === 0) {
+      if (!finalConfig.articleSelection?.perCountry ||
+          Object.keys(finalConfig.articleSelection.perCountry).length === 0) {
         errors.push('At least one country must be selected');
       }
 
-      if (mergedConfig.articleSelection?.maxForAnalysis < 1) {
+      if (finalConfig.articleSelection?.maxForAnalysis < 1) {
         errors.push('Maximum articles for analysis must be at least 1');
       }
 
@@ -69,26 +84,33 @@ export class ConfigManager {
         };
       }
 
-      // Prepare config for storage - exclude large static data
-      // availableCountries is static reference data that shouldn't be saved
+      // Step 5: Prepare ONLY userConfig for storage (exclude defaults and static data)
       const configToSave = {
-        ...mergedConfig,
+        ...mergedUserConfig,
         version: CONFIG_VERSION,
         lastModified: new Date().toISOString()
       };
 
-      // Remove availableCountries from search config to save space
-      // It will be restored from PIPELINE_CONFIG on load
+      // Step 6: Remove static reference data to stay under chrome.storage.sync quota
+      // QUOTA_BYTES_PER_ITEM = 8,192 bytes per item (see chrome.storage.sync docs)
+      // availableCountries (~3KB) is static data - always loaded from PIPELINE_CONFIG
       if (configToSave.search?.availableCountries) {
         delete configToSave.search.availableCountries;
       }
 
+      // Step 7: Save ONLY userConfig to storage
       await chrome.storage.sync.set({ [STORAGE_KEY]: configToSave });
 
-      console.log('[ConfigManager] Config saved successfully');
+      const savedSize = JSON.stringify(configToSave).length;
+      console.log('[ConfigManager] Config saved successfully', {
+        userConfigSize: savedSize,
+        quotaUsage: `${savedSize}/8192 bytes`,
+        hasDefaultsInStorage: false, // Should always be false
+        hasCountriesInStorage: !!configToSave.search?.availableCountries // Should always be false
+      });
 
-      // Notify all contexts about config change (with full config including availableCountries)
-      await this.notifyConfigChange(mergedConfig);
+      // Step 8: Notify all contexts with FINAL config (includes defaults + availableCountries)
+      await this.notifyConfigChange(finalConfig);
 
       return { success: true };
     } catch (error) {
@@ -134,14 +156,27 @@ export class ConfigManager {
 
   /**
    * Update specific configuration value by path
-   * @param {string} path - Dot-notation path
+   * CRITICAL: Only updates user overrides, uses save() which preserves defaults
+   *
+   * @param {string} path - Dot-notation path (e.g., 'analysis.modelProvider')
    * @param {any} value - New value
-   * @returns {Promise<boolean>} Success status
+   * @returns {Promise<Object>} { success: boolean, errors?: string[] }
    */
   static async set(path, value) {
-    const config = await this.load();
-    this.setNestedValue(config, path, value);
-    return await this.save(config);
+    try {
+      // Create a partial config update object from the path
+      const partialUpdate = {};
+      this.setNestedValue(partialUpdate, path, value);
+
+      // Use save() which handles merging userConfig correctly
+      return await this.save(partialUpdate);
+    } catch (error) {
+      console.error('[ConfigManager] Error in set():', error);
+      return {
+        success: false,
+        errors: [error.message]
+      };
+    }
   }
 
 
