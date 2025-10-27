@@ -27,6 +27,7 @@
   /* Spacing */
   padding: var(--spacing-4);
   padding-top: var(--spacing-3);
+  padding-bottom: var(--spacing-3);
 
   /* Layout - Grid for positioning logo and AI indicator in corners */
   display: grid;
@@ -54,6 +55,12 @@
 .perspective-single-toast.visible {
   transform: translateX(0);
   opacity: 1;
+}
+
+/* Dismissing - slide out to the left */
+.perspective-single-toast.dismissing {
+  transform: translateX(-450px);
+  opacity: 0;
 }
 
 /* Panel is open - move toast to the LEFT side of screen */
@@ -115,6 +122,40 @@
   line-height: var(--line-height-tight);
   color: var(--md-sys-color-on-surface);
   flex: 1;
+  transition: font-size var(--duration-fast) var(--easing-standard),
+              padding var(--duration-fast) var(--easing-standard);
+}
+
+/* When toast has no progress bar (e.g., Article Detected) */
+.perspective-single-toast.no-progress {
+  padding-top: var(--spacing-3);
+  padding-bottom: var(--spacing-3);
+}
+
+.perspective-single-toast.no-progress .toast-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  padding-top: 0;
+  line-height: 1.3;
+  margin-bottom: 0;
+}
+
+.perspective-single-toast.no-progress .toast-header {
+  margin-bottom: 0;
+  padding-bottom: var(--spacing-2);
+}
+
+.perspective-single-toast.no-progress .toast-content {
+  padding-right: var(--spacing-6);
+  padding-top: var(--spacing-1);
+}
+
+/* Remove all spacing from progress bar when hidden */
+.perspective-single-toast.no-progress .toast-progress {
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 0 !important;
 }
 
 /* AI Indicator - Bottom Right Corner */
@@ -251,14 +292,19 @@
 .toast-actions {
   display: none;
   gap: var(--spacing-3);
-  margin-top: var(--spacing-4);
+  margin-top: var(--spacing-3);
   justify-content: flex-start;
   flex-wrap: wrap;
   align-items: center;
 }
 
+/* Tighter spacing for no-progress state */
+.perspective-single-toast.no-progress .toast-actions {
+  margin-top: var(--spacing-2);
+}
+
 .toast-btn {
-  padding: var(--spacing-2) var(--spacing-5);
+  padding: 10px var(--spacing-5);
   border: none;
   border-radius: var(--radius-button);
   font-family: var(--font-family-base);
@@ -269,8 +315,9 @@
               transform var(--duration-fast) var(--easing-standard),
               box-shadow var(--duration-fast) var(--easing-standard);
   outline: none;
-  min-height: 36px;
-  line-height: 1.2;
+  min-height: 38px;
+  line-height: 1.3;
+  letter-spacing: 0.015em;
 }
 
 .toast-btn:hover {

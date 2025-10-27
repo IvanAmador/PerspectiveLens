@@ -101,11 +101,13 @@ class SingleToast {
     const showProgress = options.showProgress !== false;
     this.setProgressVisibility(showProgress);
 
-    // Control logo animation based on whether we're analyzing
+    // Control logo animation and styling based on whether we're analyzing
     if (options.showProgress !== false) {
       this.startLogoAnimation();
+      this.container.classList.remove('no-progress');
     } else {
       this.stopLogoAnimation();
+      this.container.classList.add('no-progress');
     }
 
     // Set message if provided
@@ -308,6 +310,8 @@ class SingleToast {
       // Stop logo animation before dismissing
       this.stopLogoAnimation();
 
+      // Add dismissing class for exit animation (slides left)
+      this.container.classList.add('dismissing');
       this.container.classList.remove('visible');
 
       // Remove from DOM after animation completes
