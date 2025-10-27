@@ -12,7 +12,7 @@
 import { logger } from '../utils/logger.js';
 import { checkAvailability, createSession, compareArticlesProgressive } from '../api/languageModel.js';
 import { GeminiAPI } from '../api/geminiAPI.js';
-import { ModelRouter } from '../api/modelRouter.js';
+import { ModelRouter, MODEL_DISPLAY_NAMES } from '../api/modelRouter.js';
 import { APIKeyManager } from '../config/apiKeyManager.js';
 import { handleError } from '../utils/errors.js';
 import { normalizeLanguageCode } from '../utils/languages.js';
@@ -21,6 +21,7 @@ import { extractArticlesContentWithTabs } from '../api/contentExtractor.js';
 import { getSearchConfigAsync, getSelectionTargetsAsync } from '../config/pipeline.js';
 import { selectArticlesByCountry, validateCoverage } from '../api/articleSelector.js';
 import { ConfigManager } from '../config/configManager.js';
+import { rateLimitCache } from '../utils/rateLimitCache.js';
 
 // Initialize background service
 logger.system.info('Background service worker started', {
@@ -762,213 +763,217 @@ async function handleNewArticle(articleData) {
           // Create model router
           const modelRouter = new ModelRouter(preferredModels);
 
-          // Select best available model (not rate limited)
-          const { model, wasFallback, blockedModels, preferredModel, displayName } =
-            await modelRouter.selectBestAvailableModel();
+          // Track retry state
+          let lastError = null;
+          const attemptedModels = [];
+          const blockedModels = [];
 
-          // Notify user about fallback
-          if (wasFallback) {
-            const blockedNames = blockedModels.map(b => b.displayName).join(', ');
-            logger.logUserProgress('analysis', 68,
-              `${blockedNames} rate limited. Using ${displayName}...`,
-              { icon: 'AI' }
-            );
-          }
+          // Create reusable stage callback factory
+          const createStageCallback = (currentModel, currentDisplayName, isFallback = false) => {
+            return async (stageInfo) => {
+              const { stage, name, success, duration } = stageInfo;
 
-          // Get model-specific configuration
-          const modelConfig = config.analysis.models?.[model] || config.analysis.gemini25Pro || {};
+              if (success) {
+                logger.system.info(`Stage ${stage}/4 completed with ${currentModel}${isFallback ? ' (fallback)' : ''}`, {
+                  category: logger.CATEGORIES.ANALYZE,
+                  data: { stage, name, duration, model: currentModel, wasFallback: isFallback }
+                });
 
-          // Create API client for selected model
-          const apiClient = new GeminiAPI(apiKey, model, modelConfig);
+                // Stage start messages
+                const stageStartProgress = [86, 90, 94, 97];
+                const stageStartMessages = [
+                  `AI analyzing context & trust with ${currentDisplayName}...`,
+                  `AI finding consensus with ${currentDisplayName}...`,
+                  `AI detecting disputes with ${currentDisplayName}...`,
+                  `AI analyzing perspectives with ${currentDisplayName}...`
+                ];
 
-          // Check availability
-          const availability = await apiClient.checkAvailability();
-          if (availability !== 'ready') {
-            throw new Error(`${displayName} not available: ${availability}`);
-          }
+                logger.logUserAI('analysis', {
+                  phase: 'analysis',
+                  progress: stageStartProgress[stage - 1],
+                  message: stageStartMessages[stage - 1],
+                  metadata: { stage, model: currentModel, wasFallback: isFallback }
+                });
 
-          // Start analysis
-          logger.logUserProgress('analysis', 70, `Analyzing with ${displayName}...`, {
-            icon: 'AI',
-            metadata: { model, wasFallback }
-          });
+                // Send progressive update to content script using logger's tab context
+                try {
+                  if (activeAnalysis.tabId) {
+                    await chrome.tabs.sendMessage(activeAnalysis.tabId, {
+                      type: 'ANALYSIS_STAGE_COMPLETE',
+                      data: {
+                        stage,
+                        stageData: stageInfo.result,
+                        perspectives: selectedArticles,
+                        articleData
+                      }
+                    });
 
-          try {
-            analysisResult = await apiClient.compareArticlesProgressive(
-              selectedArticles,
-              // Stage callback
-              async (stageInfo) => {
-                const { stage, name, success, duration } = stageInfo;
-
-                if (success) {
-                  logger.system.info(`Stage ${stage}/4 completed with ${model}`, {
-                    category: logger.CATEGORIES.ANALYZE,
-                    data: { stage, name, duration, model }
-                  });
-
-                  // Stage start messages
-                  const stageStartProgress = [86, 90, 94, 97];
-                  const stageStartMessages = [
-                    `AI analyzing context & trust with ${displayName}...`,
-                    `AI finding consensus with ${displayName}...`,
-                    `AI detecting disputes with ${displayName}...`,
-                    `AI analyzing perspectives with ${displayName}...`
-                  ];
-
-                  logger.logUserAI('analysis', {
-                    phase: 'analysis',
-                    progress: stageStartProgress[stage - 1],
-                    message: stageStartMessages[stage - 1],
-                    metadata: { stage, model }
-                  });
-
-                  // Send progressive update to content script using logger's tab context
-                  try {
-                    // Use activeAnalysis.tabId which was set at the start of handleNewArticle
-                    if (activeAnalysis.tabId) {
-                      await chrome.tabs.sendMessage(activeAnalysis.tabId, {
-                        type: 'ANALYSIS_STAGE_COMPLETE',
-                        data: {
-                          stage,
-                          stageData: stageInfo.result,
-                          perspectives: selectedArticles,
-                          articleData
-                        }
-                      });
-
-                      logger.system.debug(`Stage ${stage} update sent to UI`, {
-                        category: logger.CATEGORIES.ANALYZE,
-                        data: { tabId: activeAnalysis.tabId, stage }
-                      });
-                    } else {
-                      logger.system.warn('No active tab ID for stage update', {
-                        category: logger.CATEGORIES.ANALYZE,
-                        data: { stage }
-                      });
-                    }
-                  } catch (error) {
-                    logger.system.warn('Failed to send stage update to UI', {
+                    logger.system.debug(`Stage ${stage} update sent to UI${isFallback ? ' (fallback model)' : ''}`, {
                       category: logger.CATEGORIES.ANALYZE,
-                      error,
-                      data: { stage, tabId: activeAnalysis.tabId }
+                      data: { tabId: activeAnalysis.tabId, stage, model: currentModel }
+                    });
+                  } else {
+                    logger.system.warn('No active tab ID for stage update', {
+                      category: logger.CATEGORIES.ANALYZE,
+                      data: { stage }
                     });
                   }
-
-                  // Update progress bar
-                  const progress = 10 + (stage / 4) * 80;
-                  const stageNames = ['Context & Trust', 'Consensus', 'Disputes', 'Perspectives'];
-                  logger.progress(logger.CATEGORIES.ANALYZE, {
-                    status: 'active',
-                    userMessage: `Stage ${stage}/4: ${stageNames[stage - 1]} complete`,
-                    progress
+                } catch (error) {
+                  logger.system.warn('Failed to send stage update to UI', {
+                    category: logger.CATEGORIES.ANALYZE,
+                    error,
+                    data: { stage, tabId: activeAnalysis.tabId }
                   });
                 }
-              }
-            );
 
-            // Add fallback metadata to results
-            if (wasFallback) {
-              analysisResult.metadata.wasFallback = true;
-              analysisResult.metadata.preferredModel = preferredModel;
-              analysisResult.metadata.blockedModels = blockedModels;
+                // Update progress bar
+                const progress = 10 + (stage / 4) * 80;
+                const stageNames = ['Context & Trust', 'Consensus', 'Disputes', 'Perspectives'];
+                logger.progress(logger.CATEGORIES.ANALYZE, {
+                  status: 'active',
+                  userMessage: `Stage ${stage}/4: ${stageNames[stage - 1]} complete`,
+                  progress
+                });
+              }
+            };
+          };
+
+          // Try each model in sequence until one succeeds
+          for (let i = 0; i < preferredModels.length; i++) {
+            const currentModel = preferredModels[i];
+            const currentDisplayName = MODEL_DISPLAY_NAMES[currentModel] || currentModel;
+
+            // Check if model is already blocked before attempting
+            const isAvailable = await rateLimitCache.isModelAvailable(currentModel);
+
+            if (!isAvailable) {
+              const timeRemaining = await rateLimitCache.getBlockedTimeRemaining(currentModel);
+              const blockInfo = await rateLimitCache.getBlockInfo(currentModel);
+
+              blockedModels.push({
+                model: currentModel,
+                displayName: currentDisplayName,
+                timeRemaining,
+                quotaMetric: blockInfo?.quotaMetric,
+                quotaId: blockInfo?.quotaId
+              });
+
+              logger.system.debug('Skipping blocked model', {
+                category: logger.CATEGORIES.ANALYZE,
+                model: currentModel,
+                timeRemaining
+              });
+
+              continue; // Skip to next model
             }
 
-          } catch (error) {
-            // Check if it's a rate limit error
-            if (error.status === 429) {
-              // Record the rate limit hit
-              await modelRouter.handleRateLimitError(model, error.errorData);
+            // Notify user about fallback if we've already tried other models
+            const isFallback = attemptedModels.length > 0;
+            if (isFallback) {
+              logger.logUserProgress('analysis', 70,
+                `${attemptedModels[attemptedModels.length - 1].displayName} rate limited. Switching to ${currentDisplayName}...`,
+                { icon: 'AI' }
+              );
+            }
 
-              // Try to get next available model
-              const nextModel = await modelRouter.getNextAvailableModel(model);
+            // Get model-specific configuration
+            const modelConfig = config.analysis.models?.[currentModel] || config.analysis.gemini25Pro || {};
 
-              if (nextModel) {
-                logger.logUserProgress('analysis', 70,
-                  `${displayName} rate limited. Switching to ${nextModel.displayName}...`,
-                  { icon: 'AI' }
-                );
+            // Create API client for current model
+            const apiClient = new GeminiAPI(apiKey, currentModel, modelConfig);
 
-                // Retry with next model (recursive call with same articles)
-                const nextConfig = config.analysis.models?.[nextModel.model] || {};
-                const nextClient = new GeminiAPI(apiKey, nextModel.model, nextConfig);
+            // Check availability
+            const availability = await apiClient.checkAvailability();
+            if (availability !== 'ready') {
+              logger.system.warn('Model not ready, skipping', {
+                category: logger.CATEGORIES.ANALYZE,
+                model: currentModel,
+                availability
+              });
+              continue; // Skip to next model
+            }
 
-                analysisResult = await nextClient.compareArticlesProgressive(
-                  selectedArticles,
-                  async (stageInfo) => {
-                    // Same callback logic as above
-                    const { stage, name, success, duration } = stageInfo;
+            // Start analysis with current model
+            logger.logUserProgress('analysis', 70, `Analyzing with ${currentDisplayName}...`, {
+              icon: 'AI',
+              metadata: { model: currentModel, wasFallback: isFallback }
+            });
 
-                    if (success) {
-                      logger.system.info(`Stage ${stage}/4 completed with ${nextModel.model} (fallback)`, {
-                        category: logger.CATEGORIES.ANALYZE,
-                        data: { stage, name, duration, model: nextModel.model, wasFallback: true }
-                      });
+            try {
+              // Attempt analysis with current model
+              analysisResult = await apiClient.compareArticlesProgressive(
+                selectedArticles,
+                createStageCallback(currentModel, currentDisplayName, isFallback)
+              );
 
-                      const stageStartProgress = [86, 90, 94, 97];
-                      const stageStartMessages = [
-                        `AI analyzing context & trust with ${nextModel.displayName}...`,
-                        `AI finding consensus with ${nextModel.displayName}...`,
-                        `AI detecting disputes with ${nextModel.displayName}...`,
-                        `AI analyzing perspectives with ${nextModel.displayName}...`
-                      ];
+              // SUCCESS! Add metadata and exit loop
+              logger.system.info('Analysis completed successfully', {
+                category: logger.CATEGORIES.ANALYZE,
+                model: currentModel,
+                wasFallback: isFallback,
+                attemptedModels: attemptedModels.length
+              });
 
-                      logger.logUserAI('analysis', {
-                        phase: 'analysis',
-                        progress: stageStartProgress[stage - 1],
-                        message: stageStartMessages[stage - 1],
-                        metadata: { stage, model: nextModel.model, wasFallback: true }
-                      });
-
-                      // Send progressive update to content script
-                      try {
-                        if (activeAnalysis.tabId) {
-                          await chrome.tabs.sendMessage(activeAnalysis.tabId, {
-                            type: 'ANALYSIS_STAGE_COMPLETE',
-                            data: {
-                              stage,
-                              stageData: stageInfo.result,
-                              perspectives: selectedArticles,
-                              articleData
-                            }
-                          });
-
-                          logger.system.debug(`Stage ${stage} update sent to UI (fallback model)`, {
-                            category: logger.CATEGORIES.ANALYZE,
-                            data: { tabId: activeAnalysis.tabId, stage, model: nextModel.model }
-                          });
-                        }
-                      } catch (error) {
-                        logger.system.warn('Failed to send stage update to UI (fallback)', {
-                          category: logger.CATEGORIES.ANALYZE,
-                          error,
-                          data: { stage, tabId: activeAnalysis.tabId }
-                        });
-                      }
-
-                      // Update progress bar
-                      const progress = 10 + (stage / 4) * 80;
-                      const stageNames = ['Context & Trust', 'Consensus', 'Disputes', 'Perspectives'];
-                      logger.progress(logger.CATEGORIES.ANALYZE, {
-                        status: 'active',
-                        userMessage: `Stage ${stage}/4: ${stageNames[stage - 1]} complete`,
-                        progress
-                      });
-                    }
-                  }
-                );
-
-                // Add fallback metadata
+              // Add fallback metadata to results
+              if (isFallback) {
                 analysisResult.metadata.wasFallback = true;
-                analysisResult.metadata.preferredModel = model;
-                analysisResult.metadata.actualModel = nextModel.model;
-              } else {
-                // No models available
-                throw new Error('All API models are rate limited. Please try again later.');
+                analysisResult.metadata.preferredModel = preferredModels[0];
+                analysisResult.metadata.actualModel = currentModel;
+                analysisResult.metadata.blockedModels = blockedModels;
+                analysisResult.metadata.attemptedModels = attemptedModels.map(m => m.model);
               }
-            } else {
-              // Other error - propagate
-              throw error;
+
+              break; // Exit loop on success
+
+            } catch (error) {
+              // Check if it's a rate limit error
+              if (error.status === 429) {
+                logger.system.warn('Rate limit hit, recording and trying next model', {
+                  category: logger.CATEGORIES.ERROR,
+                  model: currentModel,
+                  attemptedSoFar: attemptedModels.length + 1
+                });
+
+                // Record the rate limit hit
+                await modelRouter.handleRateLimitError(currentModel, error.errorData);
+
+                // Track this attempt
+                attemptedModels.push({
+                  model: currentModel,
+                  displayName: currentDisplayName,
+                  error: error.message
+                });
+
+                // Store last error for final error message
+                lastError = error;
+
+                // Continue to next model in loop
+                continue;
+
+              } else {
+                // Non-rate-limit error: propagate immediately
+                logger.system.error('Non-rate-limit error during analysis', {
+                  category: logger.CATEGORIES.ERROR,
+                  model: currentModel,
+                  error: error.message
+                });
+                throw error;
+              }
             }
+          }
+
+          // If we exited the loop without a result, all models failed
+          if (!analysisResult) {
+            const allModels = [...attemptedModels, ...blockedModels];
+            const modelsList = allModels.map(m => m.displayName).join(', ');
+
+            logger.system.error('All API models exhausted', {
+              category: logger.CATEGORIES.ERROR,
+              attemptedModels: attemptedModels.map(m => m.model),
+              blockedModels: blockedModels.map(m => m.model)
+            });
+
+            throw new Error(`All API models are rate limited (${modelsList}). Please try again later.`);
           }
 
         } else {

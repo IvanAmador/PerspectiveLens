@@ -53,7 +53,7 @@
   padding: var(--spacing-6) var(--spacing-5);
   background: linear-gradient(135deg, var(--panel-header-gradient-start), var(--panel-header-gradient-end));
   border-bottom: 1px solid var(--panel-border-color);
-  min-height: 64px;
+  min-height: 48px;
   flex-shrink: 0;
   position: relative;
 }
