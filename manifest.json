@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PerspectiveLens",
-  "version": "1.0",
+  "version": "0.1",
   "description": "Reveals how the same news is reported globally, using AI for translation, summarization, and comparative analysis.",
   "permissions": [
     "storage",
@@ -52,7 +52,8 @@
         "config/apiKeyManager.js",
         "api/gemini-2-5-pro.js",
         "images/*.png",
-        "icons/flags/*.svg"
+        "icons/flags/*.svg",
+        "fonts/*.ttf"
       ],
       "matches": [
         "<all_urls>"

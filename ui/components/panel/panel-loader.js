@@ -112,7 +112,6 @@
                   </button>
                 </div>
               </div>
-              <div class="pl-panel-subtitle">Comparative news analysis</div>
             </div>
 
             <div class="pl-panel-body">

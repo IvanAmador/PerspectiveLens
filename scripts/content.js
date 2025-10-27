@@ -47,6 +47,20 @@ async function createShadowDOM() {
   ];
 
   try {
+    // CRITICAL: Load custom fonts using FontFace API (required for Shadow DOM)
+    // @font-face in CSS doesn't work reliably in Shadow DOM
+    const fontUrl = chrome.runtime.getURL('fonts/Lenteroos.ttf');
+    const lenteroosFontFace = new FontFace('Lenteroos', `url('${fontUrl}')`, {
+      weight: 'normal',
+      style: 'normal',
+      display: 'swap'
+    });
+
+    // Load and add font to document fonts
+    await lenteroosFontFace.load();
+    document.fonts.add(lenteroosFontFace);
+    console.log('[PerspectiveLens] Custom font "Lenteroos" loaded via FontFace API');
+
     // Fetch and inject each CSS file
     for (const cssFile of cssFiles) {
       const url = chrome.runtime.getURL(cssFile);

@@ -4,6 +4,10 @@
  * Single Source of Truth for Design Tokens
  */
 
+/* ===== CUSTOM FONTS ===== */
+/* Note: Custom fonts are loaded via FontFace API in content.js (required for Shadow DOM) */
+/* Font family 'Lenteroos' will be available after document.fonts.add() */
+
 /* ===== LIGHT MODE (Default Theme) ===== */
 :root {
   /* ===== TYPOGRAPHY COLORS ===== */
@@ -224,6 +228,7 @@
   /* Font Families */
   --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-family-mono: 'Roboto Mono', 'Courier New', Courier, monospace;
+  --font-family-title: 'Lenteroos', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   /* Font Sizes */
   --font-size-xs: 11px;

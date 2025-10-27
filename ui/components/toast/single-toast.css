@@ -133,8 +133,8 @@
 }
 
 .perspective-single-toast.no-progress .toast-title {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
   padding-top: 0;
   line-height: 1.3;
   margin-bottom: 0;
@@ -301,6 +301,14 @@
 /* Tighter spacing for no-progress state */
 .perspective-single-toast.no-progress .toast-actions {
   margin-top: var(--spacing-2);
+}
+
+/* Smaller buttons for no-progress state */
+.perspective-single-toast.no-progress .toast-btn {
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  min-height: 32px;
+  letter-spacing: 0.01em;
 }
 
 .toast-btn {

@@ -103,10 +103,10 @@ class SingleToast {
 
     // Control logo animation and styling based on whether we're analyzing
     if (options.showProgress !== false) {
-      this.startLogoAnimation();
+      if (this.startLogoAnimation) this.startLogoAnimation();
       this.container.classList.remove('no-progress');
     } else {
-      this.stopLogoAnimation();
+      if (this.stopLogoAnimation) this.stopLogoAnimation();
       this.container.classList.add('no-progress');
     }
 
