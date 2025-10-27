@@ -511,12 +511,29 @@
   overflow: hidden;
 }
 
+/* Stage 2: pl-list-item is the final small card */
+.pl-stage[data-stage="2"] .pl-list-item {
+  background: var(--md-sys-color-surface);
+}
+
+/* Stages 3 & 4: pl-list-item is the intermediate container */
+.pl-stage[data-stage="3"] .pl-list-item,
+.pl-stage[data-stage="4"] .pl-list-item {
+  background: var(--md-sys-color-surface-container-high);
+}
+
 .pl-list-item-title {
   font-weight: var(--visual-hierarchy-2);
   color: var(--md-sys-color-on-surface);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-relaxed);
   margin-bottom: var(--spacing-2);
+}
+
+/* Stages 3 & 4: pl-list-item-title is the intermediate container title (blue) */
+.pl-stage[data-stage="3"] .pl-list-item-title,
+.pl-stage[data-stage="4"] .pl-list-item-title {
+  color: var(--md-sys-color-primary);
 }
 
 .pl-list-item-meta {
@@ -627,7 +644,7 @@
 .pl-difference-group,
 .pl-claim,
 .pl-perspective-group {
-  background: var(--md-sys-color-surface-container-high);
+  background: var(--md-sys-color-surface);
   border-radius: var(--radius-md);
   padding: var(--spacing-3);
   border: 1px solid var(--panel-section-divider);
