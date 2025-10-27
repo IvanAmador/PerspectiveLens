@@ -363,7 +363,7 @@
 .pl-trust-signal {
   margin-top: var(--spacing-4);
   padding: var(--spacing-4);
-  background: var(--md-sys-color-surface-container-high);
+  background: var(--md-sys-color-surface);
   border-radius: var(--radius-md);
   border-left: 3px solid var(--md-sys-color-primary);
   border: 1px solid var(--panel-section-divider);
@@ -386,7 +386,7 @@
 
 .pl-trust-description {
   font-size: var(--font-size-sm);
-  color: var(--md-sys-color-on-surface-variant);
+  color: var(--md-sys-color-on-surface);
   line-height: var(--line-height-relaxed);
   margin: 0;
 }

@@ -204,6 +204,47 @@ class OptionsPage {
       this.markDirty();
     });
 
+    this.elements.proThinkingBudget?.addEventListener('change', () => {
+      this.markDirty();
+    });
+
+    // Article selection fields
+    this.elements.bufferPerCountry?.addEventListener('change', () => {
+      this.markDirty();
+    });
+
+    this.elements.maxForAnalysis?.addEventListener('change', () => {
+      this.markDirty();
+    });
+
+    this.elements.allowFallback?.addEventListener('change', () => {
+      this.markDirty();
+    });
+
+    // Extraction fields
+    this.elements.minContentLength?.addEventListener('change', () => {
+      this.markDirty();
+    });
+
+    this.elements.maxContentLength?.addEventListener('change', () => {
+      this.markDirty();
+    });
+
+    this.elements.minWordCount?.addEventListener('change', () => {
+      this.markDirty();
+    });
+
+    this.elements.timeout?.addEventListener('change', () => {
+      this.markDirty();
+    });
+
+    // Compression level radios
+    this.elements.compressionRadios?.forEach(radio => {
+      radio.addEventListener('change', () => {
+        this.markDirty();
+      });
+    });
+
     // Footer buttons
     this.elements.resetBtn?.addEventListener('click', () => this.resetToDefaults());
     this.elements.saveBtn?.addEventListener('click', () => this.save());
@@ -224,6 +265,12 @@ class OptionsPage {
 
   async loadConfiguration() {
     this.currentConfig = await ConfigManager.load();
+    console.log('[Options] Configuration loaded:', {
+      bufferPerCountry: this.currentConfig.articleSelection?.bufferPerCountry,
+      maxForAnalysis: this.currentConfig.articleSelection?.maxForAnalysis,
+      countries: Object.keys(this.currentConfig.articleSelection?.perCountry || {}),
+      modelProvider: this.currentConfig.analysis?.modelProvider
+    });
   }
 
   switchSection(sectionName) {
@@ -249,8 +296,17 @@ class OptionsPage {
     this.renderSelectedCountries();
 
     // Advanced options
-    this.elements.bufferPerCountry.value = this.currentConfig.articleSelection?.bufferPerCountry || 2;
-    this.elements.maxForAnalysis.value = this.currentConfig.articleSelection?.maxForAnalysis || 10;
+    const bufferValue = this.currentConfig.articleSelection?.bufferPerCountry || 2;
+    const maxAnalysisValue = this.currentConfig.articleSelection?.maxForAnalysis || 10;
+
+    console.log('[Options] Populating UI fields:', {
+      bufferPerCountry: bufferValue,
+      maxForAnalysis: maxAnalysisValue,
+      element: this.elements.bufferPerCountry ? 'exists' : 'null'
+    });
+
+    this.elements.bufferPerCountry.value = bufferValue;
+    this.elements.maxForAnalysis.value = maxAnalysisValue;
     this.elements.allowFallback.checked = this.currentConfig.articleSelection?.allowFallback !== false;
 
     // Extraction
@@ -503,12 +559,9 @@ class OptionsPage {
   }
 
   gatherConfig() {
-    const perCountry = {};
-    this.elements.countryList.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
-      const countryCode = checkbox.value;
-      const articleInput = this.elements.countryList.querySelector(`input[data-country="${countryCode}"]`);
-      perCountry[countryCode] = parseInt(articleInput.value) || 2;
-    });
+    // Get perCountry from current config (already set by modal)
+    // DO NOT try to read from countryList - it's only populated when modal is open
+    const perCountry = this.currentConfig.articleSelection?.perCountry || {};
 
     // Get selected model provider (new values: 'nano' or 'api')
     let modelProvider = 'nano';
@@ -703,8 +756,13 @@ class OptionsPage {
       const result = await ConfigManager.save(config);
 
       if (result.success) {
+        // Reload config from storage to ensure currentConfig is in sync
+        await this.loadConfiguration();
+
         this.isDirty = false;
         this.showSaveIndicator();
+
+        console.log('[Options] Config saved and reloaded successfully');
       } else {
         console.error('[Options] Validation failed:', result.errors.join(', '));
         alert('Validation failed: ' + result.errors.join(', '));
@@ -756,4 +814,7 @@ class OptionsPage {
 document.addEventListener('DOMContentLoaded', () => {
   const optionsPage = new OptionsPage();
   optionsPage.init();
+
+  // Export for debugging
+  window.optionsPage = optionsPage;
 });
