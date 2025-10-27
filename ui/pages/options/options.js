@@ -578,27 +578,28 @@ class OptionsPage {
     });
 
     // Gather settings for all models
-    const nanoTemperature = parseFloat(this.elements.nanoTemperature.value) || 0.7;
-    const nanoTopK = parseInt(this.elements.nanoTopK.value) || 3;
+    // Use ?? instead of || to allow 0 values
+    const nanoTemperature = parseFloat(this.elements.nanoTemperature.value ?? 0.7);
+    const nanoTopK = parseInt(this.elements.nanoTopK.value ?? 3);
 
-    const proTemperature = parseFloat(this.elements.proTemperature.value) || 0.7;
-    const proTopK = parseInt(this.elements.proTopK.value) || 40;
-    const proTopP = parseFloat(this.elements.proTopP.value) || 0.95;
-    const thinkingBudget = parseInt(this.elements.proThinkingBudget.value) ?? -1;
+    const proTemperature = parseFloat(this.elements.proTemperature.value ?? 0.7);
+    const proTopK = parseInt(this.elements.proTopK.value ?? 40);
+    const proTopP = parseFloat(this.elements.proTopP.value ?? 0.95);
+    const thinkingBudget = parseInt(this.elements.proThinkingBudget.value ?? -1);
 
     return {
       articleSelection: {
         perCountry,
-        bufferPerCountry: parseInt(this.elements.bufferPerCountry.value) || 2,
-        maxForAnalysis: parseInt(this.elements.maxForAnalysis.value) || 10,
+        bufferPerCountry: parseInt(this.elements.bufferPerCountry.value ?? 2),
+        maxForAnalysis: parseInt(this.elements.maxForAnalysis.value ?? 10),
         allowFallback: this.elements.allowFallback.checked
       },
       extraction: {
-        timeout: parseInt(this.elements.timeout.value) || 20000,
+        timeout: parseInt(this.elements.timeout.value ?? 20000),
         qualityThresholds: {
-          minContentLength: parseInt(this.elements.minContentLength.value) || 3000,
-          maxContentLength: parseInt(this.elements.maxContentLength.value) || 10000,
-          minWordCount: parseInt(this.elements.minWordCount.value) || 500,
+          minContentLength: parseInt(this.elements.minContentLength.value ?? 3000),
+          maxContentLength: parseInt(this.elements.maxContentLength.value ?? 10000),
+          minWordCount: parseInt(this.elements.minWordCount.value ?? 500),
           maxHtmlRatio: this.currentConfig.extraction?.qualityThresholds?.maxHtmlRatio || 0.4,
           minQualityScore: this.currentConfig.extraction?.qualityThresholds?.minQualityScore || 60
         }
