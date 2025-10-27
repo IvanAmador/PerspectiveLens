@@ -65,6 +65,47 @@ let aiAvailabilityCache = {
 };
 
 /**
+ * Cache for configuration (updated when CONFIG_UPDATED message received)
+ * This avoids reloading from storage on every operation
+ */
+let configCache = null;
+
+/**
+ * Load configuration into cache
+ */
+async function reloadConfigCache() {
+  try {
+    configCache = await ConfigManager.load();
+    logger.system.info('Configuration cache reloaded', {
+      category: logger.CATEGORIES.GENERAL,
+      data: {
+        modelProvider: configCache.analysis.modelProvider,
+        countries: Object.keys(configCache.articleSelection?.perCountry || {}),
+        cacheTimestamp: new Date().toISOString()
+      }
+    });
+    return configCache;
+  } catch (error) {
+    logger.system.error('Failed to reload config cache', {
+      category: logger.CATEGORIES.GENERAL,
+      error
+    });
+    // Return existing cache or null
+    return configCache;
+  }
+}
+
+/**
+ * Get configuration (from cache if available, otherwise load)
+ */
+async function getConfig() {
+  if (!configCache) {
+    await reloadConfigCache();
+  }
+  return configCache;
+}
+
+/**
  * Active analysis tracker for request correlation
  */
 let activeAnalysis = {
@@ -77,10 +118,22 @@ let activeAnalysis = {
  */
 chrome.runtime.onMessage.addListener((message) => {
   if (message.type === 'CONFIG_UPDATED') {
-    logger.system.info('Configuration updated, reloading pipeline config', {
+    logger.system.info('Configuration updated, invalidating cache', {
       category: logger.CATEGORIES.GENERAL
     });
-    // Configuration will be loaded fresh on next analysis
+
+    // Reload config cache immediately
+    reloadConfigCache().then(() => {
+      logger.system.info('Configuration cache updated successfully', {
+        category: logger.CATEGORIES.GENERAL
+      });
+    }).catch(error => {
+      logger.system.error('Failed to update config cache', {
+        category: logger.CATEGORIES.GENERAL,
+        error
+      });
+    });
+
     return;
   }
 });
@@ -246,8 +299,8 @@ async function handleNewArticle(articleData) {
   });
 
   try {
-    // Load configuration to determine model provider
-    const config = await ConfigManager.load();
+    // Load configuration from cache
+    const config = await getConfig();
     const modelProvider = config.analysis.modelProvider;
 
     logger.system.info('Model provider selected', {
@@ -769,11 +822,11 @@ async function handleNewArticle(articleData) {
                     metadata: { stage, model }
                   });
 
-                  // Send progressive update to content script
+                  // Send progressive update to content script using logger's tab context
                   try {
-                    const tabs = await chrome.tabs.query({ url: articleData.url });
-                    if (tabs.length > 0) {
-                      await chrome.tabs.sendMessage(tabs[0].id, {
+                    // Use activeAnalysis.tabId which was set at the start of handleNewArticle
+                    if (activeAnalysis.tabId) {
+                      await chrome.tabs.sendMessage(activeAnalysis.tabId, {
                         type: 'ANALYSIS_STAGE_COMPLETE',
                         data: {
                           stage,
@@ -782,12 +835,22 @@ async function handleNewArticle(articleData) {
                           articleData
                         }
                       });
+
+                      logger.system.debug(`Stage ${stage} update sent to UI`, {
+                        category: logger.CATEGORIES.ANALYZE,
+                        data: { tabId: activeAnalysis.tabId, stage }
+                      });
+                    } else {
+                      logger.system.warn('No active tab ID for stage update', {
+                        category: logger.CATEGORIES.ANALYZE,
+                        data: { stage }
+                      });
                     }
                   } catch (error) {
                     logger.system.warn('Failed to send stage update to UI', {
                       category: logger.CATEGORIES.ANALYZE,
                       error,
-                      data: { stage }
+                      data: { stage, tabId: activeAnalysis.tabId }
                     });
                   }
 
@@ -833,8 +896,14 @@ async function handleNewArticle(articleData) {
                   selectedArticles,
                   async (stageInfo) => {
                     // Same callback logic as above
-                    const { stage, success } = stageInfo;
+                    const { stage, name, success, duration } = stageInfo;
+
                     if (success) {
+                      logger.system.info(`Stage ${stage}/4 completed with ${nextModel.model} (fallback)`, {
+                        category: logger.CATEGORIES.ANALYZE,
+                        data: { stage, name, duration, model: nextModel.model, wasFallback: true }
+                      });
+
                       const stageStartProgress = [86, 90, 94, 97];
                       const stageStartMessages = [
                         `AI analyzing context & trust with ${nextModel.displayName}...`,
@@ -848,6 +917,41 @@ async function handleNewArticle(articleData) {
                         progress: stageStartProgress[stage - 1],
                         message: stageStartMessages[stage - 1],
                         metadata: { stage, model: nextModel.model, wasFallback: true }
+                      });
+
+                      // Send progressive update to content script
+                      try {
+                        if (activeAnalysis.tabId) {
+                          await chrome.tabs.sendMessage(activeAnalysis.tabId, {
+                            type: 'ANALYSIS_STAGE_COMPLETE',
+                            data: {
+                              stage,
+                              stageData: stageInfo.result,
+                              perspectives: selectedArticles,
+                              articleData
+                            }
+                          });
+
+                          logger.system.debug(`Stage ${stage} update sent to UI (fallback model)`, {
+                            category: logger.CATEGORIES.ANALYZE,
+                            data: { tabId: activeAnalysis.tabId, stage, model: nextModel.model }
+                          });
+                        }
+                      } catch (error) {
+                        logger.system.warn('Failed to send stage update to UI (fallback)', {
+                          category: logger.CATEGORIES.ANALYZE,
+                          error,
+                          data: { stage, tabId: activeAnalysis.tabId }
+                        });
+                      }
+
+                      // Update progress bar
+                      const progress = 10 + (stage / 4) * 80;
+                      const stageNames = ['Context & Trust', 'Consensus', 'Disputes', 'Perspectives'];
+                      logger.progress(logger.CATEGORIES.ANALYZE, {
+                        status: 'active',
+                        userMessage: `Stage ${stage}/4: ${stageNames[stage - 1]} complete`,
+                        progress
                       });
                     }
                   }
@@ -1234,8 +1338,8 @@ async function handleNewArticle(articleData) {
  */
 async function getExtensionStatus() {
   try {
-    // Load current configuration to determine which model is selected
-    const config = await ConfigManager.load();
+    // Load current configuration from cache
+    const config = await getConfig();
     const modelProvider = config.analysis.modelProvider;
 
     let aiStatus = {
@@ -1506,7 +1610,7 @@ async function clearCache() {
  */
 async function getRateLimitStatus() {
   try {
-    const config = await ConfigManager.load();
+    const config = await getConfig();
     const preferredModels = config.analysis.preferredModels || [
       'gemini-2.5-pro',
       'gemini-2.5-flash',
@@ -1542,7 +1646,7 @@ async function getRateLimitStatus() {
  */
 async function clearRateLimits() {
   try {
-    const config = await ConfigManager.load();
+    const config = await getConfig();
     const preferredModels = config.analysis.preferredModels || [
       'gemini-2.5-pro',
       'gemini-2.5-flash',
