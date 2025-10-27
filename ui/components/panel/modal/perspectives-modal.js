@@ -96,10 +96,9 @@ class PerspectivesModal {
    */
   render() {
     const modalHTML = `
-      <div id="pl-perspectives-modal" class="pl-perspectives-modal" role="dialog" aria-modal="true" aria-labelledby="pl-modal-title">
+      <div id="pl-perspectives-modal" class="pl-perspectives-modal" role="dialog" aria-modal="true" aria-label="All Perspectives">
         <div class="pl-perspectives-overlay"></div>
         <div class="pl-perspectives-content">
-          ${this.renderHeader()}
           ${this.renderGrid()}
         </div>
       </div>
@@ -143,6 +142,9 @@ class PerspectivesModal {
   renderGrid() {
     if (!this.perspectives || this.perspectives.length === 0) {
       return `
+        <button class="pl-btn-icon pl-modal-close" id="pl-modal-close-btn" aria-label="Close modal" type="button">
+          ${icons.close}
+        </button>
         <div class="pl-modal-body">
           <div class="pl-empty-state">
             <p>No perspectives available</p>
@@ -152,6 +154,9 @@ class PerspectivesModal {
     }
 
     return `
+      <button class="pl-btn-icon pl-modal-close" id="pl-modal-close-btn" aria-label="Close modal" type="button">
+        ${icons.close}
+      </button>
       <div class="pl-modal-body">
         <div class="pl-perspectives-grid">
           ${this.perspectives.map(p => this.renderCard(p)).join('')}
@@ -213,7 +218,7 @@ class PerspectivesModal {
         ` : `
           <div class="pl-card-image-container pl-card-image-placeholder">
             <div class="pl-image-placeholder-content">
-              ${icons.article || '📰'}
+              ${icons.article}
             </div>
           </div>
         `}
