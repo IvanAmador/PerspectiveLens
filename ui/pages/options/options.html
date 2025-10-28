@@ -163,59 +163,128 @@
           </div>
 
           <!-- Model Provider Selection -->
-          <div class="settings-card">
-            <h3 class="card-title">AI Model Provider</h3>
+          <div class="settings-card model-selection-card">
+            <div class="card-header">
+              <h3 class="card-title">AI Model Provider</h3>
+              <p class="setting-hint" style="margin: 0;">Choose between local on-device AI or cloud-based API</p>
+            </div>
 
-            <div class="setting-row">
-              <div class="setting-info">
-                <label class="setting-label">Select AI Model</label>
-                <p class="setting-hint">Choose between local on-device AI or cloud-based API</p>
-              </div>
-              <div class="model-selector">
-                <button class="model-option" data-model="nano">
-                  <div class="model-option-header">
-                    <span class="model-option-title">Gemini Nano</span>
-                    <span class="model-badge local">Local</span>
-                  </div>
-                  <p class="model-option-desc">Chrome's Built-in AI</p>
-                </button>
-                <button class="model-option" data-model="api">
-                  <div class="model-option-header">
-                    <span class="model-option-title">API Models</span>
-                    <span class="model-badge api">Cloud</span>
-                  </div>
-                  <p class="model-option-desc">Gemini 2.5 Pro/Flash/Lite with fallback</p>
-                </button>
-              </div>
+            <div class="model-selector-grid">
+              <button class="model-card" data-model="nano">
+                <div class="model-card-header">
+                  <h4 class="model-card-title">Gemini Nano</h4>
+                  <span class="model-badge local">Local</span>
+                </div>
+                <p class="model-card-desc">Chrome's built-in AI running locally on your device</p>
+                <div class="model-card-features">
+                  <span class="feature-tag">Free</span>
+                  <span class="feature-tag">Private</span>
+                  <span class="feature-tag">No API Key</span>
+                </div>
+              </button>
+
+              <button class="model-card" data-model="api">
+                <div class="model-card-header">
+                  <h4 class="model-card-title">API Models</h4>
+                  <span class="model-badge api">Cloud</span>
+                </div>
+                <p class="model-card-desc">Gemini 2.5 Pro/Flash/Lite with intelligent fallback</p>
+                <div class="model-card-features">
+                  <span class="feature-tag">Powerful</span>
+                  <span class="feature-tag">Fallback</span>
+                  <span class="feature-tag">API Key Required</span>
+                </div>
+              </button>
             </div>
           </div>
 
-          <!-- API Key Configuration (for Gemini 2.5 Pro) -->
-          <div class="settings-card" id="api-key-section" style="display: none;">
-            <h3 class="card-title">API Configuration</h3>
+          <!-- API Key Configuration (for API Models) -->
+          <div class="settings-card api-config-card" id="api-key-section" style="display: none;">
+            <div class="card-header">
+              <h3 class="card-title">API Configuration</h3>
+              <p class="setting-hint" style="margin: 0;">Manage your Google AI Studio API key for cloud models</p>
+            </div>
 
-            <div class="api-key-status" id="api-key-status">
-              <div class="status-indicator">
-                <svg class="status-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <!-- Status Banner -->
+            <div class="api-status-banner" id="api-key-status" data-status="not-configured">
+              <div class="status-content">
+                <svg class="status-icon status-icon-info" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                </svg>
+                <svg class="status-icon status-icon-success" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                 </svg>
-                <span class="status-text">API key not configured</span>
+                <svg class="status-icon status-icon-error" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                </svg>
+                <div class="status-info">
+                  <span class="status-title">API key not configured</span>
+                  <span class="status-subtitle">Add your API key to use cloud models</span>
+                </div>
               </div>
-              <button class="btn-remove-key" id="btn-remove-key" style="display: none;" title="Remove API key">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <button class="btn-icon-remove" id="btn-remove-key" style="display: none;" title="Remove API key">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
                 </svg>
               </button>
             </div>
 
-            <div class="setting-row">
-              <div class="setting-info">
-                <label for="api-key-input" class="setting-label">Google AI Studio API Key</label>
-                <p class="setting-hint">Get your free API key at <a href="https://aistudio.google.com/apikey" target="_blank" style="color: var(--accent-text-color);">aistudio.google.com/apikey</a></p>
+            <!-- API Key Input -->
+            <div class="api-key-input-container">
+              <div class="input-field-label">
+                <label for="api-key-input" class="field-label">Google AI Studio API Key</label>
+                <a href="https://aistudio.google.com/apikey" target="_blank" class="help-link">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+                  </svg>
+                  Get free API key
+                </a>
               </div>
-              <div class="api-key-input-group">
-                <input type="password" id="api-key-input" class="api-key-input" placeholder="Enter your API key...">
-                <button class="btn-validate-key" id="btn-validate-key">Validate & Save</button>
+              <div class="input-with-button">
+                <div class="input-with-icon">
+                  <input type="password" id="api-key-input" class="text-input" placeholder="Enter your API key...">
+                  <button type="button" class="btn-toggle-visibility" id="btn-toggle-visibility" title="Show/hide API key">
+                    <svg class="icon-show" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                    </svg>
+                    <svg class="icon-hide" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+                      <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46A11.804 11.804 0 0 0 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78 3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
+                    </svg>
+                  </button>
+                </div>
+                <button class="btn-primary-inline" id="btn-validate-key">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                  </svg>
+                  Validate & Save
+                </button>
+              </div>
+            </div>
+
+            <!-- API Models Info -->
+            <div class="api-models-info">
+              <div class="info-header">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                </svg>
+                <span class="info-title">Available Models</span>
+              </div>
+              <div class="models-grid">
+                <div class="model-info-item">
+                  <span class="model-info-name">Gemini 2.5 Pro</span>
+                  <span class="model-info-badge primary">Primary</span>
+                  <span class="model-info-desc">Most capable, with thinking</span>
+                </div>
+                <div class="model-info-item">
+                  <span class="model-info-name">Gemini 2.5 Flash</span>
+                  <span class="model-info-badge fallback">Fallback</span>
+                  <span class="model-info-desc">Fast and efficient</span>
+                </div>
+                <div class="model-info-item">
+                  <span class="model-info-name">Gemini 2.5 Flash Lite</span>
+                  <span class="model-info-badge fallback">Fallback</span>
+                  <span class="model-info-desc">High volume usage</span>
+                </div>
               </div>
             </div>
           </div>

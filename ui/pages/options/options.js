@@ -104,7 +104,7 @@ class OptionsPage {
       timeout: document.getElementById('timeout'),
 
       // Model Selection
-      modelOptions: document.querySelectorAll('.model-option'),
+      modelOptions: document.querySelectorAll('.model-card'),
 
       // API Key Section
       apiKeySection: document.getElementById('api-key-section'),
@@ -112,6 +112,7 @@ class OptionsPage {
       apiKeyInput: document.getElementById('api-key-input'),
       btnValidateKey: document.getElementById('btn-validate-key'),
       btnRemoveKey: document.getElementById('btn-remove-key'),
+      btnToggleVisibility: document.getElementById('btn-toggle-visibility'),
 
       // Gemini Nano Settings
       nanoSettings: document.getElementById('nano-settings'),
@@ -176,6 +177,7 @@ class OptionsPage {
     // API Key management
     this.elements.btnValidateKey?.addEventListener('click', () => this.validateAndSaveApiKey());
     this.elements.btnRemoveKey?.addEventListener('click', () => this.removeApiKey());
+    this.elements.btnToggleVisibility?.addEventListener('click', () => this.togglePasswordVisibility());
 
     // Nano range sliders
     this.elements.nanoTemperature?.addEventListener('input', (e) => {
@@ -678,17 +680,34 @@ class OptionsPage {
   async updateApiKeyStatus() {
     const hasKey = await APIKeyManager.exists();
 
+    // Get all status icons
+    const iconInfo = this.elements.apiKeyStatus.querySelector('.status-icon-info');
+    const iconSuccess = this.elements.apiKeyStatus.querySelector('.status-icon-success');
+    const iconError = this.elements.apiKeyStatus.querySelector('.status-icon-error');
+
     if (hasKey) {
       this.elements.apiKeyStatus.dataset.status = 'connected';
-      this.elements.apiKeyStatus.querySelector('.status-text').textContent = 'API key configured';
-      this.elements.btnRemoveKey.style.display = 'inline-block';
+      this.elements.apiKeyStatus.querySelector('.status-title').textContent = 'API key configured';
+      this.elements.apiKeyStatus.querySelector('.status-subtitle').textContent = 'Ready to use cloud models';
+      this.elements.btnRemoveKey.style.display = 'inline-flex';
       this.elements.apiKeyInput.value = '';
       this.elements.apiKeyInput.placeholder = 'API key is saved (hidden for security)';
+
+      // Show success icon
+      iconInfo.style.display = 'none';
+      iconSuccess.style.display = 'block';
+      iconError.style.display = 'none';
     } else {
       this.elements.apiKeyStatus.dataset.status = 'not-configured';
-      this.elements.apiKeyStatus.querySelector('.status-text').textContent = 'API key not configured';
+      this.elements.apiKeyStatus.querySelector('.status-title').textContent = 'API key not configured';
+      this.elements.apiKeyStatus.querySelector('.status-subtitle').textContent = 'Add your API key to use cloud models';
       this.elements.btnRemoveKey.style.display = 'none';
       this.elements.apiKeyInput.placeholder = 'Enter your API key...';
+
+      // Show info icon
+      iconInfo.style.display = 'block';
+      iconSuccess.style.display = 'none';
+      iconError.style.display = 'none';
     }
   }
 
@@ -712,8 +731,20 @@ class OptionsPage {
         await this.updateApiKeyStatus();
         this.showSaveIndicator();
       } else {
+        // Get all status icons
+        const iconInfo = this.elements.apiKeyStatus.querySelector('.status-icon-info');
+        const iconSuccess = this.elements.apiKeyStatus.querySelector('.status-icon-success');
+        const iconError = this.elements.apiKeyStatus.querySelector('.status-icon-error');
+
         this.elements.apiKeyStatus.dataset.status = 'invalid';
-        this.elements.apiKeyStatus.querySelector('.status-text').textContent = 'Invalid API key';
+        this.elements.apiKeyStatus.querySelector('.status-title').textContent = 'Invalid API key';
+        this.elements.apiKeyStatus.querySelector('.status-subtitle').textContent = 'Please check your API key and try again';
+
+        // Show error icon
+        iconInfo.style.display = 'none';
+        iconSuccess.style.display = 'none';
+        iconError.style.display = 'block';
+
         alert('Invalid API key: ' + (result.error || 'Validation failed'));
       }
     } catch (error) {
@@ -738,6 +769,22 @@ class OptionsPage {
     } catch (error) {
       console.error('[Options] Error removing API key:', error);
       alert('Error removing API key: ' + error.message);
+    }
+  }
+
+  togglePasswordVisibility() {
+    const input = this.elements.apiKeyInput;
+    const iconShow = this.elements.btnToggleVisibility.querySelector('.icon-show');
+    const iconHide = this.elements.btnToggleVisibility.querySelector('.icon-hide');
+
+    if (input.type === 'password') {
+      input.type = 'text';
+      iconShow.style.display = 'none';
+      iconHide.style.display = 'block';
+    } else {
+      input.type = 'password';
+      iconShow.style.display = 'block';
+      iconHide.style.display = 'none';
     }
   }
 
