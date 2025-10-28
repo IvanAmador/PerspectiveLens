@@ -1,5 +1,80 @@
 # PerspectiveLens - Development Guidelines
 
+## CRITICAL CODING RULES
+
+### No Emojis Policy
+**NEVER** use emojis in any code, comments, console logs, documentation, or user-facing messages. This is strictly prohibited.
+
+**Wrong:**
+```javascript
+console.log('✅ Success!');
+singleToast.show('🎯 Article detected');
+// ❌ Don't do this
+```
+
+**Correct:**
+```javascript
+console.log('[Success] Operation completed');
+singleToast.show('[Detected] Article found');
+// NOTE: Don't do this
+```
+
+### JavaScript Module System
+**CRITICAL**: Content scripts do NOT support ES6 modules (import/export). All content script code must use one of these patterns:
+
+#### Pattern 1: IIFE with Global Exposure (Recommended)
+```javascript
+(function() {
+  'use strict';
+
+  function myFunction() {
+    // code here
+  }
+
+  // Expose to global scope
+  window.MyModule = {
+    myFunction
+  };
+
+  console.log('[MyModule] Loaded');
+})();
+```
+
+#### Pattern 2: Direct Global Assignment
+```javascript
+window.MyUtility = {
+  doSomething: function() {
+    // code here
+  }
+};
+```
+
+#### Pattern 3: Service Worker / Background Scripts (ES6 Modules OK)
+```javascript
+// Only in background.js or imported by background.js
+import { something } from './module.js';
+export function myFunction() { }
+```
+
+**Files that MUST use IIFE pattern (no import/export):**
+- `scripts/content.js`
+- `utils/articleDetector.js`
+- `ui/components/**/*.js` (when loaded in content scripts)
+- `ui/theme-manager.js`
+
+**Files that CAN use ES6 modules:**
+- `scripts/background.js`
+- Any module imported by `background.js`
+- Offscreen documents
+
+### Common ES Module Errors to Avoid
+```
+Uncaught SyntaxError: Cannot use import statement outside a module
+Uncaught SyntaxError: Unexpected token 'export'
+```
+
+These errors mean you're using `import`/`export` in a content script. Fix by converting to IIFE pattern.
+
 ## Project Overview
 
 PerspectiveLens is an advanced Chrome extension that provides comparative news analysis using AI models. The extension helps users understand news stories from multiple international perspectives by automatically finding, extracting, and comparing coverage from diverse news sources around the world.
@@ -30,8 +105,10 @@ The extension follows a modern architectural pattern with separation of concerns
   - `config/apiKeyManager.js`: Secure API key storage and validation for API models
 - **Utilities** (`utils/`):
   - `utils/rateLimitCache.js`: Reactive rate limit tracking based on API 429 responses
+  - `utils/articleDetector.js`: Universal language-agnostic article detection system (see below)
+  - `utils/contentValidator.js`: Content quality validation and sanitization
 - **Background Service** (`scripts/background.js`): Orchestrates the analysis pipeline, routes between AI models, and coordinates API calls
-- **Content Script** (`scripts/content.js`): Detects articles on web pages, creates Shadow DOM, and manages UI components
+- **Content Script** (`scripts/content.js`): Detects articles on web pages using universal detector, creates Shadow DOM, and manages UI components
 - **UI Components** (`ui/`):
   - Modern panel system with toast notifications and progress tracking, rendered inside Shadow DOM
   - Popup interface (`popup.html`, `ui/pages/popup/popup.js`, `ui/pages/popup/popup.css`) for model selection and status
@@ -93,8 +170,39 @@ The background service (`scripts/background.js`) routes analysis requests to the
 - User can add/remove API key via popup and options interfaces
 - Single API key shared across all API models (Pro, Flash, Flash Lite)
 
+### Universal Article Detection System
+
+**CRITICAL**: The extension uses a language-agnostic multi-layer detection system that works on news sites worldwide, regardless of language or location.
+
+#### Detection Architecture (5 Layers)
+The system scores each page using 5 independent detection layers:
+- **Layer 1: Schema.org JSON-LD** (40 points) - Structured data like NewsArticle, Article, BlogPosting
+- **Layer 2: Open Graph Tags** (35 points) - og:type="article", article:published_time, etc.
+- **Layer 3: Semantic HTML5** (25 points) - `<article>`, `<time>`, `[role="article"]`, etc.
+- **Layer 4: Content Heuristics** (20 points) - Text length, paragraph count, text density (language-agnostic)
+- **Layer 5: URL Patterns** (15 points) - Multilingual patterns: /news/, /noticia/, /新闻/, /خبر/, etc.
+
+**Threshold**: 50+ points = Article detected
+
+#### Global API
+```javascript
+// Exposed as window.ArticleDetector (IIFE pattern)
+const detection = window.ArticleDetector.detectArticle();
+const metadata = window.ArticleDetector.extractArticleMetadata();
+const report = window.ArticleDetector.getDetectionReport();
+```
+
+#### Language Support
+Works on ALL languages automatically:
+- Latin alphabet (English, Spanish, Portuguese, French, German, etc.)
+- Asian (Chinese: 新闻/新聞, Japanese: ニュース, Korean: 뉴스, Thai, Vietnamese, Indonesian)
+- RTL languages (Arabic: خبر, Hebrew: חדשות, Persian: خبرها, Urdu)
+- Any other language with modern web standards
+
+**Documentation**: See `DOCS/UNIVERSAL-ARTICLE-DETECTION.md` for complete details.
+
 ### AI Pipeline
-1. **Article Detection**: Content script identifies news articles using scoring algorithms
+1. **Article Detection**: Universal multi-layer detection system (see above)
 2. **Content Extraction**: Extracts clean content using Readability.js and Chrome tabs
 3. **Perspective Search**: Finds related articles globally using Google News RSS feeds
 4. **Content Processing**: Extracts content from perspective articles

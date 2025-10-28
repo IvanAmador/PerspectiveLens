@@ -1,6 +1,7 @@
 /**
  * PerspectiveLens Content Script
  * Detects news articles and handles user interaction
+ * Uses universal language-agnostic detection system
  */
 
 console.log('[PerspectiveLens] Content script loaded');
@@ -149,54 +150,23 @@ function waitForDependencies() {
 }
 
 /**
- * Extract article data from the page
+ * Extract article data from the page using universal detector
  */
 function extractArticleData() {
-  const data = {
-    url: window.location.href,
-    title: '',
-    source: window.location.hostname,
-    content: '',
-    publishedDate: null,
-    author: null,
-    language: document.documentElement.lang || 'en'
-  };
+  // Get metadata from universal detector (using global API)
+  const metadata = window.ArticleDetector.extractArticleMetadata();
 
-  // Extract title
-  data.title = document.querySelector('h1')?.textContent?.trim() ||
-               document.querySelector('meta[property="og:title"]')?.content ||
-               document.title;
-
-  // Extract published date
-  const dateSelectors = [
-    'meta[property="article:published_time"]',
-    'meta[name="pubdate"]',
-    'time[datetime]',
-    'time'
-  ];
-
-  for (const selector of dateSelectors) {
-    const element = document.querySelector(selector);
-    if (element) {
-      data.publishedDate = element.getAttribute('datetime') || 
-                          element.getAttribute('content') ||
-                          element.textContent;
-      break;
-    }
-  }
-
-  // Extract author
-  data.author = document.querySelector('meta[name="author"]')?.content ||
-                document.querySelector('[rel="author"]')?.textContent?.trim() ||
-                null;
-
-  // Extract main content
+  // Extract main content (language-agnostic)
   const contentSelectors = [
     'article',
     '[role="article"]',
+    'main',
+    '[role="main"]',
     '.article-content',
     '.post-content',
-    'main'
+    '.content',
+    '#content',
+    '.entry-content'
   ];
 
   let contentElement = null;
@@ -205,16 +175,45 @@ function extractArticleData() {
     if (contentElement) break;
   }
 
+  // Fallback: find largest text container
+  if (!contentElement) {
+    const candidates = document.querySelectorAll('div[class*="content"], div[class*="article"], div[id*="content"], div[id*="article"]');
+    let maxTextLength = 0;
+
+    for (const candidate of candidates) {
+      const textLength = candidate.innerText?.length || 0;
+      if (textLength > maxTextLength) {
+        maxTextLength = textLength;
+        contentElement = candidate;
+      }
+    }
+  }
+
+  let content = '';
   if (contentElement) {
     const paragraphs = Array.from(contentElement.querySelectorAll('p'))
       .map(p => p.textContent.trim())
       .filter(text => text.length > 50);
 
-    data.content = paragraphs.join('\n\n');
-    console.log(`[PerspectiveLens] Extracted ${paragraphs.length} paragraphs (${data.content.length} chars)`);
+    content = paragraphs.join('\n\n');
+    console.log(`[PerspectiveLens] Extracted ${paragraphs.length} paragraphs (${content.length} chars)`);
   } else {
     console.log('[PerspectiveLens] Article content not found');
   }
+
+  // Combine metadata with content
+  const data = {
+    url: metadata.url,
+    title: metadata.title,
+    source: metadata.domain,
+    content: content,
+    publishedDate: metadata.publishedDate,
+    modifiedDate: metadata.modifiedDate,
+    author: metadata.author,
+    language: metadata.language || document.documentElement.lang || 'en',
+    description: metadata.description,
+    image: metadata.image
+  };
 
   return data;
 }
@@ -227,85 +226,46 @@ let analysisInProgress = false;
 let dependenciesLoaded = false;
 
 /**
- * Passive detection - only detects and shows toast, doesn't start analysis
+ * Universal article detection using multi-layer system
+ * Language-agnostic detection that works worldwide
  */
 function detectNewsArticle() {
-  let score = 0;
-  const domain = window.location.hostname;
+  console.log('[PerspectiveLens] Starting universal article detection...');
 
-  // Whitelisted domains
-  const whitelistedDomains = [
-    'g1.globo.com',
-    'folha.uol.com.br',
-    'estadao.com.br',
-    'uol.com.br',
-    'noticias.uol.com.br',
-    'nytimes.com',
-    'cnn.com',
-    'washingtonpost.com',
-    'reuters.com',
-    'bbc.com',
-    'theguardian.com',
-    'aljazeera.com',
-    'apnews.com',
-    'lemonde.fr',
-    'elpais.com',
-    'spiegel.de',
-    'xinhuanet.com',
-    'chinadaily.com.cn',
-    'globaltimes.cn',
-    'peopledaily.com.cn',
-    'scmp.com',
-    'straitstimes.com',
-    'japantimes.co.jp',
-    'clarin.com',
-    'lanacion.com.ar'
-  ];
+  // Use new universal detector (from global API)
+  const detection = window.ArticleDetector.detectArticle();
 
-  // +2 points for domain
-  if (whitelistedDomains.some(d => domain.includes(d))) {
-    score += 2;
-  }
+  // Log detailed report for debugging
+  console.log(window.ArticleDetector.getDetectionReport());
 
-  // +2 points for meta tags
-  if (document.querySelector("meta[property='article:published_time']") ||
-      document.querySelector("meta[name='pubdate']")) {
-    score += 2;
-  }
+  if (detection.isArticle) {
+    console.log(`[PerspectiveLens] Article detected! Score: ${detection.score}/${detection.threshold} (${detection.confidence} confidence)`);
 
-  // +1 point for article structure
-  if (document.querySelector('article') && document.querySelector('h1')) {
-    score += 1;
-  }
-
-  // +1 point for content patterns
-  const bodyText = document.body.innerText.toLowerCase();
-  if (bodyText.includes('reported') || bodyText.includes('announced')) {
-    score += 1;
-  }
-
-  console.log(`[PerspectiveLens] Detection score: ${score}/6`);
-
-  if (score >= 3) {
-    console.log('[PerspectiveLens] News article detected!');
-
+    // Extract article data
     detectedArticleData = extractArticleData();
     console.log('[PerspectiveLens] Article data extracted:', {
       title: detectedArticleData.title,
       source: detectedArticleData.source,
-      contentLength: detectedArticleData.content?.length || 0
+      language: detectedArticleData.language,
+      contentLength: detectedArticleData.content?.length || 0,
+      hasPublishedDate: !!detectedArticleData.publishedDate,
+      hasAuthor: !!detectedArticleData.author
     });
 
-    showDetectionToast();
+    // Show detection toast
+    showDetectionToast(detection);
   } else {
-    console.log('[PerspectiveLens] Not a news article (score too low)');
+    console.log(`[PerspectiveLens] Not an article. Score: ${detection.score}/${detection.threshold} (below threshold)`);
   }
+
+  return detection;
 }
 
 /**
  * Show toast notification when article is detected
+ * @param {Object} detection - Detection result from universal detector
  */
-function showDetectionToast() {
+function showDetectionToast(detection) {
   if (!dependenciesLoaded || !singleToast) {
     console.log('[PerspectiveLens] SingleToast not available, skipping notification');
     return;
@@ -348,7 +308,7 @@ function startAnalysis() {
   if (!detectedArticleData) {
     console.error('[PerspectiveLens] No article data to analyze');
     if (singleToast) {
-      singleToast.show('❌ No article data available. Please refresh the page.');
+      singleToast.show('No article data available. Please refresh the page.');
       setTimeout(() => singleToast.dismiss(), 3000);
     }
     return;
@@ -377,7 +337,7 @@ function startAnalysis() {
         analysisInProgress = false;
 
         if (singleToast) {
-          singleToast.show('❌ Could not communicate with background service');
+          singleToast.show('Could not communicate with background service');
           setTimeout(() => singleToast.dismiss(), 4000);
         }
 
@@ -396,7 +356,7 @@ function startAnalysis() {
         analysisInProgress = false;
 
         if (singleToast) {
-          singleToast.show(`❌ Analysis failed: ${response?.error || 'Unknown error occurred'}`);
+          singleToast.show(`Analysis failed: ${response?.error || 'Unknown error occurred'}`);
           setTimeout(() => singleToast.dismiss(), 4000);
         }
 
@@ -620,9 +580,9 @@ async function initialize() {
   dependenciesLoaded = await waitForDependencies();
 
   if (dependenciesLoaded) {
-    console.log('[PerspectiveLens] ✓ All modules ready');
+    console.log('[PerspectiveLens] All modules ready');
   } else {
-    console.log('[PerspectiveLens] ⚠ Running with partial dependencies');
+    console.log('[PerspectiveLens] Running with partial dependencies');
   }
 
   // Run detection

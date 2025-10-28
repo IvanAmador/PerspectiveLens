@@ -51,6 +51,7 @@
         "config/pipeline.js",
         "config/apiKeyManager.js",
         "api/gemini-2-5-pro.js",
+        "utils/articleDetector.js",
         "images/*.png",
         "icons/flags/*.svg",
         "fonts/*.ttf"
@@ -72,36 +73,22 @@
         "ui/theme-manager.js",
         "ui/components/toast/single-toast.js",
         "ui/components/panel/panel-loader.js",
+        "utils/articleDetector.js",
         "scripts/content.js"
       ],
       "css": [
         "ui/isolation.css"
       ],
       "matches": [
-        "https://*.g1.globo.com/*",
-        "https://*.folha.uol.com.br/*",
-        "https://*.estadao.com.br/*",
-        "https://*.uol.com.br/*",
-        "https://*.nytimes.com/*",
-        "https://*.cnn.com/*",
-        "https://*.washingtonpost.com/*",
-        "https://*.reuters.com/*",
-        "https://*.bbc.com/*",
-        "https://*.theguardian.com/*",
-        "https://*.aljazeera.com/*",
-        "https://*.apnews.com/*",
-        "https://*.lemonde.fr/*",
-        "https://*.elpais.com/*",
-        "https://*.spiegel.de/*",
-        "https://*.xinhuanet.com/*",
-        "https://*.chinadaily.com.cn/*",
-        "https://*.globaltimes.cn/*",
-        "https://*.peopledaily.com.cn/*",
-        "https://*.scmp.com/*",
-        "https://*.straitstimes.com/*",
-        "https://*.japantimes.co.jp/*",
-        "https://*.clarin.com/*",
-        "https://*.lanacion.com.ar/*"
+        "http://*/*",
+        "https://*/*"
+      ],
+      "exclude_matches": [
+        "https://mail.google.com/*",
+        "https://docs.google.com/*",
+        "https://drive.google.com/*",
+        "https://calendar.google.com/*",
+        "https://meet.google.com/*"
       ],
       "run_at": "document_idle",
       "all_frames": false
