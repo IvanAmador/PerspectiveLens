@@ -1408,95 +1408,221 @@ html, body {
   box-shadow: none;
 }
 
-/* ===== API Models Info ===== */
-.api-models-info {
+/* ===== API Models Configuration ===== */
+.api-models-config {
   margin-top: 20px;
-  padding: 16px 18px;
+  padding: 18px 20px;
   background: var(--color-background-tertiary);
   border: 1px solid var(--border-color-subtle);
   border-radius: var(--radius-md);
 }
 
-.info-header {
+.config-header {
+  margin-bottom: 16px;
+}
+
+.config-header-content {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-
-.info-header svg {
-  color: var(--accent-icon-color);
-  flex-shrink: 0;
-}
-
-.info-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text-title);
-}
-
-.models-grid {
-  display: flex;
-  flex-direction: column;
+  align-items: flex-start;
   gap: 10px;
 }
 
-.model-info-item {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto;
-  gap: 4px 12px;
-  align-items: center;
-  padding: 10px 12px;
-  background: var(--color-background-primary);
-  border: 1px solid var(--border-color-subtle);
-  border-radius: var(--radius-sm);
-  transition: all var(--duration-base) ease;
+.config-header-content svg {
+  color: var(--accent-icon-color);
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
-.model-info-item:hover {
+.config-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.config-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-title);
+  line-height: 1.3;
+}
+
+.config-subtitle {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.3;
+}
+
+.models-config-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+}
+
+.model-config-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--color-background-primary);
+  border: 1px solid var(--border-color-subtle);
+  border-radius: var(--radius-md);
+  transition: all var(--duration-base) ease;
+  cursor: move;
+  position: relative;
+}
+
+.model-config-item:hover {
   border-color: var(--border-color-default);
   box-shadow: var(--shadow-01);
 }
 
-.model-info-name {
-  font-size: 13px;
+.model-config-item.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.model-config-item.drag-over {
+  border-top: 3px solid var(--accent-icon-color);
+  margin-top: 8px;
+}
+
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-tertiary);
+  cursor: grab;
+  flex-shrink: 0;
+  transition: color var(--duration-base) ease;
+}
+
+.drag-handle:hover {
+  color: var(--accent-icon-color);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.model-config-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.model-config-name {
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-text-title);
-  grid-column: 1;
-  grid-row: 1;
+  line-height: 1.3;
 }
 
-.model-info-badge {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  grid-column: 2;
-  grid-row: 1;
-  white-space: nowrap;
-}
-
-.model-info-badge.primary {
-  background: var(--accent-background);
-  color: var(--accent-text-color);
-  border: 1px solid var(--accent-border);
-}
-
-.model-info-badge.fallback {
-  background: var(--color-background-tertiary);
-  color: var(--color-text-secondary);
-  border: 1px solid var(--border-color-subtle);
-}
-
-.model-info-desc {
+.model-config-desc {
   font-size: 12px;
   color: var(--color-text-secondary);
-  grid-column: 1 / -1;
-  grid-row: 2;
   line-height: 1.4;
+}
+
+.model-priority-badge {
+  padding: 5px 14px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  border: 1px solid;
+  flex-shrink: 0;
+  min-width: 75px;
+  text-align: center;
+  transition: all var(--duration-base) ease;
+}
+
+.model-config-item[data-position="0"] .model-priority-badge {
+  background: var(--accent-background);
+  color: var(--accent-text-color);
+  border-color: var(--accent-icon-color);
+}
+
+.model-config-item[data-position="1"] .model-priority-badge,
+.model-config-item[data-position="2"] .model-priority-badge {
+  background: var(--color-background-secondary);
+  color: var(--color-text-secondary);
+  border-color: var(--border-color-default);
+}
+
+.model-config-item.disabled .model-priority-badge {
+  opacity: 0.5;
+}
+
+.model-toggle {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.model-toggle-input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.model-toggle-slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--color-background-tertiary);
+  border: 2px solid var(--border-color-default);
+  border-radius: 11px;
+  transition: all 0.3s ease;
+}
+
+.model-toggle-slider:before {
+  content: "";
+  position: absolute;
+  height: 14px;
+  width: 14px;
+  left: 2px;
+  bottom: 2px;
+  background-color: var(--color-background-primary);
+  border-radius: 50%;
+  transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+  box-shadow: var(--shadow-02);
+}
+
+.model-toggle-input:checked + .model-toggle-slider {
+  background-color: var(--accent-icon-color);
+  border-color: var(--accent-icon-color);
+}
+
+.model-toggle-input:checked + .model-toggle-slider:before {
+  transform: translateX(18px);
+}
+
+.model-toggle:hover .model-toggle-slider {
+  border-color: var(--accent-icon-color);
+}
+
+.model-config-item.disabled {
+  opacity: 0.6;
+}
+
+.model-config-item.disabled .model-config-name,
+.model-config-item.disabled .model-config-desc {
+  color: var(--color-text-tertiary);
+}
+
+/* Hide toggle for primary model */
+.model-config-item.is-primary .model-toggle {
+  display: none;
 }
 
 /* ===== Thinking Budget Select ===== */
@@ -1689,24 +1815,33 @@ html, body {
     align-self: flex-start;
   }
 
-  /* API Models Info responsive */
-  .api-models-info {
+  /* API Models Config responsive */
+  .api-models-config {
     padding: 14px 16px;
   }
 
-  .model-info-item {
-    grid-template-columns: 1fr;
-    gap: 6px;
+  .model-config-item {
+    flex-wrap: wrap;
+    gap: 10px;
   }
 
-  .model-info-badge {
-    grid-column: 1;
-    grid-row: 2;
-    justify-self: flex-start;
+  .drag-handle {
+    order: -1;
   }
 
-  .model-info-desc {
-    grid-row: 3;
+  .model-config-info {
+    flex: 1 1 100%;
+    order: 1;
+  }
+
+  .model-priority-badge {
+    order: 2;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .model-toggle {
+    order: 3;
   }
 
   /* Thinking budget select responsive */

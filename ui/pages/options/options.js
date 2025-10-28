@@ -148,6 +148,19 @@ class OptionsPage {
       });
     });
 
+    // Setup toggle switches for fallback models
+    document.querySelectorAll('.model-toggle-input').forEach(toggle => {
+      toggle.addEventListener('change', (e) => {
+        const item = e.target.closest('.model-config-item');
+        if (e.target.checked) {
+          item.classList.remove('disabled');
+        } else {
+          item.classList.add('disabled');
+        }
+        this.markDirty();
+      });
+    });
+
     // Modal buttons
     this.elements.btnManageCountries?.addEventListener('click', () => this.openModal());
     this.elements.modalClose?.addEventListener('click', () => this.closeModal());
@@ -357,6 +370,66 @@ class OptionsPage {
 
     // API Key Status
     await this.updateApiKeyStatus();
+
+    // Model Priorities - Load first to reorder DOM
+    this.loadModelPriorities();
+
+    // Setup drag and drop AFTER DOM is reordered
+    this.setupDragAndDrop();
+  }
+
+  loadModelPriorities() {
+    const preferredModels = this.currentConfig.analysis?.preferredModels || [
+      'gemini-2.5-pro',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite'
+    ];
+
+    const container = document.getElementById('models-sortable-list');
+    const items = Array.from(container.querySelectorAll('.model-config-item'));
+
+    // Reorder items based on preferredModels
+    const sortedItems = [];
+
+    // Add items in preferredModels order
+    preferredModels.forEach((modelId, index) => {
+      const item = items.find(i => i.dataset.model === modelId);
+      if (item) {
+        sortedItems.push(item);
+
+        // Set toggle state based on whether it's enabled
+        const toggle = item.querySelector('.model-toggle-input');
+        if (toggle) {
+          // Primary (first item) is always enabled, no toggle needed
+          if (index === 0) {
+            item.classList.remove('disabled');
+          } else {
+            // Fallback items are enabled by being in preferredModels
+            toggle.checked = true;
+            item.classList.remove('disabled');
+          }
+        }
+      }
+    });
+
+    // Add remaining items as disabled
+    items.forEach(item => {
+      if (!sortedItems.includes(item)) {
+        sortedItems.push(item);
+        // Disable items not in preferredModels
+        const toggle = item.querySelector('.model-toggle-input');
+        if (toggle) {
+          toggle.checked = false;
+          item.classList.add('disabled');
+        }
+      }
+    });
+
+    // Reorder DOM
+    sortedItems.forEach(item => container.appendChild(item));
+
+    // Update positions and badges (this will also handle toggle visibility)
+    this.updateModelPositions();
   }
 
   renderSelectedCountries() {
@@ -589,6 +662,9 @@ class OptionsPage {
     const proTopP = parseFloat(this.elements.proTopP.value ?? 0.95);
     const thinkingBudget = parseInt(this.elements.proThinkingBudget.value ?? -1);
 
+    // Get model priorities
+    const modelPriorities = this.getModelPriorities();
+
     return {
       articleSelection: {
         perCountry,
@@ -609,12 +685,8 @@ class OptionsPage {
       analysis: {
         modelProvider,
         compressionLevel,
-        // Preserve preferredModels from current config (or use defaults)
-        preferredModels: this.currentConfig.analysis?.preferredModels || [
-          'gemini-2.5-pro',
-          'gemini-2.5-flash',
-          'gemini-2.5-flash-lite'
-        ],
+        // Use configured model priorities
+        preferredModels: modelPriorities,
         // New models structure with per-model configs
         models: {
           'gemini-nano': {
@@ -786,6 +858,105 @@ class OptionsPage {
       iconShow.style.display = 'block';
       iconHide.style.display = 'none';
     }
+  }
+
+  setupDragAndDrop() {
+    const items = document.querySelectorAll('.model-config-item');
+    let draggedItem = null;
+
+    items.forEach(item => {
+      item.addEventListener('dragstart', (e) => {
+        draggedItem = item;
+        item.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', item.innerHTML);
+      });
+
+      item.addEventListener('dragend', (e) => {
+        item.classList.remove('dragging');
+        items.forEach(i => i.classList.remove('drag-over'));
+      });
+
+      item.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+
+        if (draggedItem !== item) {
+          // Remove drag-over from all items
+          items.forEach(i => i.classList.remove('drag-over'));
+
+          // Add drag-over to current item
+          item.classList.add('drag-over');
+        }
+      });
+
+      item.addEventListener('dragleave', (e) => {
+        item.classList.remove('drag-over');
+      });
+
+      item.addEventListener('drop', (e) => {
+        e.preventDefault();
+
+        if (draggedItem !== item) {
+          const container = document.getElementById('models-sortable-list');
+          const allItems = Array.from(container.children);
+          const draggedIndex = allItems.indexOf(draggedItem);
+          const targetIndex = allItems.indexOf(item);
+
+          if (draggedIndex < targetIndex) {
+            container.insertBefore(draggedItem, item.nextSibling);
+          } else {
+            container.insertBefore(draggedItem, item);
+          }
+
+          // Update positions and badges
+          this.updateModelPositions();
+          this.markDirty();
+        }
+
+        items.forEach(i => i.classList.remove('drag-over'));
+      });
+    });
+  }
+
+  updateModelPositions() {
+    const items = document.querySelectorAll('.model-config-item');
+    items.forEach((item, index) => {
+      item.dataset.position = index;
+
+      const badge = item.querySelector('.model-priority-badge');
+
+      if (index === 0) {
+        // Primary model
+        badge.textContent = 'Primary';
+        // Always enable primary and remove disabled class
+        item.classList.remove('disabled');
+        // Add is-primary class to hide toggle via CSS
+        item.classList.add('is-primary');
+      } else {
+        // Fallback models
+        badge.textContent = 'Fallback';
+        // Remove is-primary class to show toggle via CSS
+        item.classList.remove('is-primary');
+      }
+    });
+  }
+
+  getModelPriorities() {
+    const items = document.querySelectorAll('.model-config-item');
+    const modelStates = Array.from(items).map(item => ({
+      model: item.dataset.model,
+      position: parseInt(item.dataset.position),
+      disabled: item.classList.contains('disabled')
+    }));
+
+    // Sort by position
+    modelStates.sort((a, b) => a.position - b.position);
+
+    // Return only enabled models
+    return modelStates
+      .filter(state => !state.disabled)
+      .map(state => state.model);
   }
 
   async save() {
