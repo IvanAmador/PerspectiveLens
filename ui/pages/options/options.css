@@ -1128,9 +1128,9 @@ html, body {
 }
 
 .model-badge.local {
-  background: var(--state-success-background);
-  color: var(--state-success-text);
-  border: 1px solid var(--state-success-border);
+  background: var(--state-info-background);
+  color: var(--state-info-text);
+  border: 1px solid var(--state-info-border);
 }
 
 .model-badge.api {
