@@ -39,6 +39,7 @@
         this.renderer = new PanelRenderer();
         this.initialized = false;
         this.initPromise = null;
+        this.scrollButtonDismissed = false; // Track if user dismissed the scroll button
       }
 
       /**
@@ -150,6 +151,13 @@
 
               <!-- Analysis Content -->
               <div id="pl-content" class="pl-content" style="display: none;"></div>
+
+              <!-- Scroll to Bottom Button -->
+              <button id="pl-scroll-to-bottom" class="pl-scroll-to-bottom" aria-label="Scroll to bottom" title="Scroll to bottom">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                </svg>
+              </button>
             </div>
           </div>
         `;
@@ -182,6 +190,78 @@
         const retryBtn = shadowContainer.querySelector('#pl-retry-btn');
         if (retryBtn) {
           retryBtn.addEventListener('click', () => this.retry());
+        }
+
+        // Scroll to bottom button
+        const scrollBtn = shadowContainer.querySelector('#pl-scroll-to-bottom');
+        const panelBody = shadowContainer.querySelector('.pl-panel-body');
+
+        if (scrollBtn && panelBody) {
+          // Handle scroll to bottom click
+          scrollBtn.addEventListener('click', () => {
+            // Mark as permanently dismissed
+            this.scrollButtonDismissed = true;
+
+            // Hide button immediately
+            scrollBtn.classList.remove('visible');
+
+            // Scroll to bottom
+            panelBody.scrollTo({
+              top: panelBody.scrollHeight,
+              behavior: 'smooth'
+            });
+          });
+
+          // Handle manual scroll - dismiss button permanently
+          let userScrollTimeout;
+          panelBody.addEventListener('scroll', () => {
+            // Clear previous timeout
+            clearTimeout(userScrollTimeout);
+
+            // Wait a bit to see if it's user-initiated scroll
+            userScrollTimeout = setTimeout(() => {
+              // If user scrolls manually, dismiss the button permanently
+              if (!this.scrollButtonDismissed) {
+                const scrollTop = panelBody.scrollTop;
+                // Only dismiss if user scrolled more than 50px from top
+                if (scrollTop > 50) {
+                  this.scrollButtonDismissed = true;
+                  scrollBtn.classList.remove('visible');
+                  console.log('[Panel] Scroll button dismissed by user scroll');
+                }
+              }
+            }, 150);
+          });
+
+          // Show/hide button based on scroll position (only if not dismissed)
+          const updateScrollButtonVisibility = () => {
+            // Never show again if dismissed
+            if (this.scrollButtonDismissed) {
+              scrollBtn.classList.remove('visible');
+              return;
+            }
+
+            const isScrollable = panelBody.scrollHeight > panelBody.clientHeight;
+            const isNearBottom = panelBody.scrollHeight - panelBody.scrollTop - panelBody.clientHeight < 100;
+
+            if (isScrollable && !isNearBottom) {
+              scrollBtn.classList.add('visible');
+            } else {
+              scrollBtn.classList.remove('visible');
+            }
+          };
+
+          // Trigger initial check and on content changes
+          const observer = new MutationObserver(() => {
+            setTimeout(updateScrollButtonVisibility, 100);
+          });
+
+          observer.observe(panelBody, {
+            childList: true,
+            subtree: true
+          });
+
+          setTimeout(updateScrollButtonVisibility, 500);
         }
       }
       
