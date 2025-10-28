@@ -22,7 +22,7 @@
    * Configuration for detection thresholds
    */
   const DETECTION_CONFIG = {
-    THRESHOLD_SCORE: 50,
+    THRESHOLD_SCORE: 40,        // Lowered from 50 to catch more Asian sites
     MIN_CONTENT_LENGTH: 300,
     MIN_PARAGRAPH_COUNT: 3,
     MIN_TEXT_DENSITY: 0.1, // text length / HTML length ratio
@@ -79,6 +79,70 @@ function detectSchemaOrgData() {
         continue;
       }
     }
+
+    // Check for embedded JSON data (Next.js, React apps, Asian news sites)
+    // Look for script tags containing article data
+    const allScripts = document.querySelectorAll('script:not([type="application/ld+json"])');
+
+    for (const script of allScripts) {
+      try {
+        const scriptText = script.textContent || '';
+
+        // Skip very large scripts (>500KB)
+        if (scriptText.length > 500000) continue;
+
+        // Look for common article data patterns in JSON
+        // Chinese/Asian sites often embed article data in __NEXT_DATA__ or similar
+        if (scriptText.includes('aid') || scriptText.includes('articleId') ||
+            scriptText.includes('pubdate') || scriptText.includes('publishTime') ||
+            scriptText.includes('isNews') || scriptText.includes('newsDetail')) {
+
+          // Try to extract JSON objects
+          const jsonMatches = scriptText.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g);
+
+          if (jsonMatches) {
+            for (const jsonStr of jsonMatches) {
+              try {
+                const data = JSON.parse(jsonStr);
+
+                // Check for article indicators
+                const hasArticleId = data.aid || data.articleId || data.article_id;
+                const hasPubDate = data.pubdate || data.publishTime || data.publish_time || data.datePublished;
+                const hasIsNews = data.isNews || data.is_news;
+                const hasContent = data.content || data.article_content;
+
+                // If has multiple article indicators, score it
+                let indicators = 0;
+                if (hasArticleId) indicators++;
+                if (hasPubDate) indicators++;
+                if (hasIsNews) indicators++;
+                if (hasContent && typeof hasContent === 'string' && hasContent.length > 200) indicators++;
+
+                if (indicators >= 2) {
+                  result.detected = true;
+                  result.score = Math.min(indicators * 10, 30); // Up to 30 points
+                  result.data = {
+                    type: 'EmbeddedJSON',
+                    hasArticleId: !!hasArticleId,
+                    hasPubDate: !!hasPubDate,
+                    hasIsNews: !!hasIsNews,
+                    indicators
+                  };
+                  return result;
+                }
+              } catch (e) {
+                // Skip invalid JSON
+                continue;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // Skip script processing errors
+        continue;
+      }
+    }
+
   } catch (error) {
     console.debug('[ArticleDetector] Schema.org detection error:', error);
   }
@@ -129,6 +193,37 @@ function detectOpenGraphTags() {
     const twitterCard = document.querySelector('meta[name="twitter:card"]')?.content;
     if (twitterCard === 'summary_large_image' || twitterCard === 'summary') {
       result.score += 5;
+    }
+
+    // Asian news sites often use custom meta tags or data attributes
+    // Check for common patterns
+    const hasDescription = document.querySelector('meta[name="description"]')?.content;
+    const hasKeywords = document.querySelector('meta[name="keywords"]')?.content;
+
+    // If has detailed meta description (often indicates article)
+    if (hasDescription && hasDescription.length > 100) {
+      result.score += 3;
+      result.data.hasDetailedDescription = true;
+    }
+
+    // Check for author meta tag (various formats)
+    const authorMeta = document.querySelector('meta[name="author"]')?.content ||
+                       document.querySelector('meta[property="author"]')?.content ||
+                       document.querySelector('meta[name="article:author"]')?.content;
+
+    if (authorMeta) {
+      result.score += 5;
+      result.data.author = authorMeta;
+    }
+
+    // Check for publication date in various formats
+    const pubDate = document.querySelector('meta[name="pubdate"]')?.content ||
+                   document.querySelector('meta[name="publishdate"]')?.content ||
+                   document.querySelector('meta[property="pubdate"]')?.content;
+
+    if (pubDate) {
+      result.score += 5;
+      result.data.pubDate = pubDate;
     }
 
     // Cap at 35 points
@@ -185,6 +280,54 @@ function detectSemanticHTML() {
       result.data.hasArticleHeader = true;
     }
 
+    // Chinese/Asian news sites often use data attributes for article metadata
+    // Check for common patterns
+    const hasArticleId = document.querySelector('[data-aid]') ||
+                        document.querySelector('[aid]') ||
+                        document.querySelector('[data-article-id]') ||
+                        document.querySelector('[articleid]');
+
+    if (hasArticleId) {
+      result.score += 8;
+      result.detected = true;
+      result.data.hasArticleIdAttr = true;
+    }
+
+    // Check for pubdate/timestamp attributes
+    const hasPubDate = document.querySelector('[pubdate]') ||
+                      document.querySelector('[data-pubdate]') ||
+                      document.querySelector('[data-publish-time]') ||
+                      document.querySelector('[publishtime]');
+
+    if (hasPubDate) {
+      result.score += 7;
+      result.detected = true;
+      result.data.hasPubDateAttr = true;
+    }
+
+    // Check for isNews flag (common in Asian sites)
+    const hasNewsFlag = document.querySelector('[isNews]') ||
+                       document.querySelector('[data-is-news]') ||
+                       document.querySelector('[is-news]') ||
+                       document.querySelector('[data-news]');
+
+    if (hasNewsFlag) {
+      result.score += 7;
+      result.detected = true;
+      result.data.hasNewsFlag = true;
+    }
+
+    // Check for author/owner attributes
+    const hasAuthor = document.querySelector('[owner_name]') ||
+                     document.querySelector('[data-owner]') ||
+                     document.querySelector('[data-author]') ||
+                     document.querySelector('[author]');
+
+    if (hasAuthor) {
+      result.score += 3;
+      result.data.hasAuthorAttr = true;
+    }
+
     // Cap at 25 points
     result.score = Math.min(result.score, 25);
   } catch (error) {
@@ -208,9 +351,33 @@ function detectContentHeuristics() {
                         document.querySelector('main') ||
                         document.querySelector('[role="main"]');
 
-    // Fallback: find largest text container
+    // Fallback 1: Common Asian news site patterns
     if (!contentElement) {
-      const candidates = document.querySelectorAll('div[class*="content"], div[class*="article"], div[id*="content"], div[id*="article"]');
+      const asianPatterns = [
+        '.initDiv',           // yeeyi.com pattern
+        '.article-body',
+        '.article-content',
+        '.post-body',
+        '.post-content',
+        '.content-body',
+        '.detail-content',
+        '[class*="articleBody"]',
+        '[class*="postBody"]',
+        '[class*="newsContent"]',
+        '[class*="detailContent"]'
+      ];
+
+      for (const selector of asianPatterns) {
+        contentElement = document.querySelector(selector);
+        if (contentElement && (contentElement.innerText?.length || 0) > 200) {
+          break;
+        }
+      }
+    }
+
+    // Fallback 2: Find largest text container
+    if (!contentElement) {
+      const candidates = document.querySelectorAll('div[class*="content"], div[class*="article"], div[id*="content"], div[id*="article"], div[class*="body"], div[class*="post"]');
       let maxTextLength = 0;
 
       for (const candidate of candidates) {
@@ -218,6 +385,20 @@ function detectContentHeuristics() {
         if (textLength > maxTextLength) {
           maxTextLength = textLength;
           contentElement = candidate;
+        }
+      }
+    }
+
+    // Fallback 3: Find div with most paragraphs
+    if (!contentElement || (contentElement.innerText?.length || 0) < 200) {
+      const allDivs = document.querySelectorAll('div');
+      let maxParagraphs = 0;
+
+      for (const div of allDivs) {
+        const pCount = div.querySelectorAll('p').length;
+        if (pCount > maxParagraphs && (div.innerText?.length || 0) > 200) {
+          maxParagraphs = pCount;
+          contentElement = div;
         }
       }
     }
@@ -306,9 +487,12 @@ function detectURLPatterns() {
       '/news/', '/noticia/', '/noticias/', '/notícia/', '/notícias/',
       '/story/', '/stories/',
       '/post/', '/posts/',
-      '/blog/',
+      '/blog/', '/blogs/',
       '/reportage/', '/reportagem/',
-      '/analysis/', '/analise/', '/análise/'
+      '/analysis/', '/analise/', '/análise/',
+      '/detail/', '/details/',    // Common in Asian sites
+      '/content/', '/contents/',
+      '/read/'
     ];
 
     // Asian language patterns

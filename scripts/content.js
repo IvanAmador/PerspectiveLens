@@ -235,8 +235,33 @@ function detectNewsArticle() {
   // Use new universal detector (from global API)
   const detection = window.ArticleDetector.detectArticle();
 
-  // Log detailed report for debugging
-  console.log(window.ArticleDetector.getDetectionReport());
+  // Log detailed breakdown (without re-running detection)
+  console.log(`[Article Detection Report]
+==========================================
+
+Result: ${detection.isArticle ? 'ARTICLE DETECTED' : 'NOT AN ARTICLE'}
+Score: ${detection.score}/${detection.threshold} (${detection.confidence} confidence)
+
+Layer Breakdown:
+- Schema.org JSON-LD: ${detection.details.schemaOrg.score}/40
+  ${detection.details.schemaOrg.detected ? 'Found: ' + (detection.details.schemaOrg.data.type || 'EmbeddedJSON') : 'Not found'}
+
+- Open Graph Tags: ${detection.details.openGraph.score}/35
+  ${detection.details.openGraph.detected ? 'Detected' : 'Not found'}
+
+- Semantic HTML5: ${detection.details.semanticHTML.score}/25
+  ${detection.details.semanticHTML.detected ? 'Detected' : 'Not found'}
+
+- Content Heuristics: ${detection.details.contentHeuristics.score}/20
+  Content length: ${detection.details.contentHeuristics.data.contentLength || 0} chars
+  Paragraphs: ${detection.details.contentHeuristics.data.paragraphCount || 0}
+  Text density: ${detection.details.contentHeuristics.data.textDensity || 0}
+
+- URL Patterns: ${detection.details.urlPatterns.score}/15
+  ${detection.details.urlPatterns.detected ? 'Matched: ' + (detection.details.urlPatterns.data.matchedPattern || 'date/id pattern') : 'No match'}
+
+URL: ${detection.url}
+==========================================`);
 
   if (detection.isArticle) {
     console.log(`[PerspectiveLens] Article detected! Score: ${detection.score}/${detection.threshold} (${detection.confidence} confidence)`);
