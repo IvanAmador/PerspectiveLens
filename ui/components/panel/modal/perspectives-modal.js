@@ -166,6 +166,44 @@ class PerspectivesModal {
   }
 
   /**
+   * Get country flag icon path from availableCountries
+   * @param {string} countryCode - ISO country code (e.g., "US")
+   * @returns {string|null} Flag icon path or null
+   */
+  getCountryFlagIcon(countryCode) {
+    if (!countryCode) return null;
+
+    // Import availableCountries dynamically
+    // For now, construct the path directly
+    const countryName = this.getCountryNameFromCode(countryCode);
+    if (!countryName) return null;
+
+    return `icons/flags/${countryName.toLowerCase()}.svg`;
+  }
+
+  /**
+   * Get country name from code (simplified mapping)
+   * @param {string} code - ISO country code
+   * @returns {string|null} Country name for icon path
+   */
+  getCountryNameFromCode(code) {
+    const countryMap = {
+      'US': 'united states', 'GB': 'united kingdom', 'AU': 'australia',
+      'CA': 'canada', 'NZ': 'new zealand', 'IE': 'ireland',
+      'ZA': 'south africa', 'SG': 'singapore', 'IN': 'india',
+      'BR': 'brazil', 'PT': 'portugal', 'AO': 'angola',
+      'ES': 'spain', 'MX': 'mexico', 'AR': 'argentina',
+      'FR': 'france', 'BE': 'belgium', 'DE': 'germany',
+      'IT': 'italy', 'NL': 'netherlands', 'RU': 'russia',
+      'JP': 'japan', 'KR': 'south korea', 'CN': 'china',
+      'SA': 'saudi arabia', 'EG': 'egypt', 'DZ': 'algeria',
+      'TR': 'turkey', 'VN': 'vietnam', 'ID': 'indonesia',
+      'TH': 'thailand', 'PL': 'poland', 'UA': 'ukraine'
+    };
+    return countryMap[code] || null;
+  }
+
+  /**
    * Render individual perspective card
    * @param {Object} perspective - Perspective data
    * @returns {string} HTML for perspective card
@@ -184,22 +222,18 @@ class PerspectivesModal {
     const {
       domain,
       featuredImage,
-      favicon,
-      excerpt,
-      byline
+      favicon
     } = extractedContent;
 
     // Format date
     const timeAgo = this.formatTimeAgo(pubDate);
 
-    // Get country flag emoji
-    const countryFlag = this.getCountryFlag(countryCode);
+    // Get country flag icon path
+    const flagIconPath = this.getCountryFlagIcon(countryCode);
 
     // Escape HTML
     const safeTitle = this.escapeHtml(title);
     const safeSource = this.escapeHtml(source);
-    const safeExcerpt = this.escapeHtml(excerpt || 'No preview available');
-    const safeByline = byline ? this.escapeHtml(byline) : null;
     const safeCountry = this.escapeHtml(country || 'Unknown');
     const safeDomain = this.escapeHtml(domain || new URL(finalUrl).hostname);
 
@@ -236,16 +270,18 @@ class PerspectivesModal {
             <span class="pl-card-source" title="${safeDomain}">${safeSource}</span>
           </div>
 
-          <h3 class="pl-card-title">${safeTitle}</h3>
-
-          ${safeByline ? `
-            <p class="pl-card-byline">By ${safeByline}</p>
-          ` : ''}
-
-          <p class="pl-card-excerpt">${safeExcerpt}</p>
+          <h3 class="pl-card-title" title="${safeTitle}">${safeTitle}</h3>
 
           <div class="pl-card-footer">
             <span class="pl-card-country" title="${safeCountry}">
+              ${flagIconPath ? `
+                <img
+                  src="${chrome.runtime.getURL(flagIconPath)}"
+                  alt="${safeCountry} flag"
+                  class="pl-card-flag-icon"
+                  onerror="this.style.display='none'"
+                />
+              ` : ''}
               ${safeCountry}
             </span>
             ${timeAgo ? `
