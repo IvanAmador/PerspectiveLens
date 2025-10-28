@@ -46,8 +46,7 @@ class PopupManager {
       apiKeyField: document.getElementById('api-key'),
       toggleVisibility: document.getElementById('toggle-visibility'),
       saveKeyBtn: document.getElementById('save-key-btn'),
-      validationMsg: document.getElementById('validation-msg'),
-      removeKeyBtn: document.getElementById('remove-key-btn')
+      validationMsg: document.getElementById('validation-msg')
     };
   }
 
@@ -96,7 +95,6 @@ class PopupManager {
     // API key handlers
     this.elements.toggleVisibility?.addEventListener('click', () => this.toggleApiKeyVisibility());
     this.elements.saveKeyBtn?.addEventListener('click', () => this.saveApiKey());
-    this.elements.removeKeyBtn?.addEventListener('click', () => this.removeApiKey());
 
     // Enter key to save API key
     this.elements.apiKeyField?.addEventListener('keypress', (e) => {
@@ -260,9 +258,10 @@ class PopupManager {
 
     const config = types[type] || types.error;
 
+    // Icon on the right
     statusEl.innerHTML = `
-      <span class="status-icon ${config.class}">${config.icon}</span>
       <span>${message}</span>
+      <span class="status-icon ${config.class}">${config.icon}</span>
     `;
   }
 
@@ -328,10 +327,9 @@ class PopupManager {
       console.log('[Popup] API status - has API key:', !!apiKey);
 
       if (!apiKey) {
-        // No API key configured
+        // No API key configured - expand to show input
         this.setApiStatus('warning', 'Not Configured');
         this.elements.apiKeyInput.style.display = 'block';
-        this.elements.removeKeyBtn.style.display = 'none';
         return;
       }
 
@@ -355,8 +353,8 @@ class PopupManager {
         this.setApiStatus('success', 'Configured');
       }
 
+      // Keep card compact when API key is configured
       this.elements.apiKeyInput.style.display = 'none';
-      this.elements.removeKeyBtn.style.display = 'block';
 
     } catch (error) {
       console.error('[PerspectiveLens] Failed to update API status:', error);
@@ -387,9 +385,10 @@ class PopupManager {
 
     const config = types[type] || types.warning;
 
+    // Icon on the right
     statusEl.innerHTML = `
-      <span class="status-icon ${config.class}">${config.icon}</span>
       <span>${message}</span>
+      <span class="status-icon ${config.class}">${config.icon}</span>
     `;
   }
 
@@ -464,22 +463,6 @@ class PopupManager {
     }
   }
 
-  /**
-   * Remove API key
-   */
-  async removeApiKey() {
-    if (!confirm('Remove API key? You will need to enter it again to use API models.')) {
-      return;
-    }
-
-    try {
-      await APIKeyManager.remove();
-      await this.updateUI();
-      console.log('[PerspectiveLens] API key removed');
-    } catch (error) {
-      console.error('[PerspectiveLens] Failed to remove API key:', error);
-    }
-  }
 }
 
 // Initialize when DOM is ready

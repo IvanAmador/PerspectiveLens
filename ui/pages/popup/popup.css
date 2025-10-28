@@ -5,6 +5,15 @@
 
 @import url('./ui/design-system.css');
 
+/* ===== Lenteroos Font ===== */
+@font-face {
+  font-family: 'Lenteroos';
+  src: url('/fonts/Lenteroos.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ===== Base Styles ===== */
 body {
   width: 380px;
@@ -31,11 +40,13 @@ body {
 }
 
 .title {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-medium);
+  font-family: 'Lenteroos', var(--font-family-base);
+  font-size: 28px;
+  font-weight: normal;
   color: var(--color-text-title);
   margin: 0;
-  letter-spacing: var(--letter-spacing-normal);
+  letter-spacing: 0.5px;
+  line-height: 1;
 }
 
 .icon-btn {
@@ -255,6 +266,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  gap: var(--spacing-2);
   margin-top: auto;
 }
 
@@ -275,7 +287,8 @@ body {
   color: var(--accent-icon-color);
 }
 
-.footer-link svg {
+.footer-link svg,
+.footer-link .material-symbols-outlined {
   flex-shrink: 0;
 }
 
