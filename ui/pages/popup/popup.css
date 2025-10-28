@@ -34,7 +34,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-5) var(--spacing-4);
+  padding: var(--spacing-3) var(--spacing-4);
   border-bottom: 1px solid var(--border-color-subtle);
   position: relative;
 }
@@ -91,7 +91,7 @@ body {
 .section {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-3);
+  gap: var(--spacing-5);
   align-items: center;
   width: 100%;
   max-width: 340px;
@@ -262,7 +262,7 @@ body {
 /* ===== Footer ===== */
 .footer {
   border-top: 1px solid var(--border-color-subtle);
-  padding: var(--spacing-3) var(--spacing-4);
+  padding: var(--spacing-2) var(--spacing-4);
   display: flex;
   justify-content: center;
   align-items: center;

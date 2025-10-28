@@ -50,7 +50,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-6) var(--spacing-5);
+  padding: var(--spacing-4) var(--spacing-5);
   background: linear-gradient(135deg, var(--panel-header-gradient-start), var(--panel-header-gradient-end));
   border-bottom: 1px solid var(--panel-border-color);
   min-height: 48px;
@@ -794,7 +794,7 @@
    ============================================ */
 
 .pl-panel-body::-webkit-scrollbar {
-  width: 10px;
+  width: 12px;
 }
 
 .pl-panel-body::-webkit-scrollbar-track {
@@ -802,13 +802,13 @@
 }
 
 .pl-panel-body::-webkit-scrollbar-thumb {
-  background: var(--md-sys-color-surface-variant);
+  background: var(--md-sys-color-on-surface-variant);
   border-radius: var(--radius-md);
-  border: 2px solid var(--md-sys-color-surface-container);
+  border: 3px solid var(--md-sys-color-surface-container);
 }
 
 .pl-panel-body::-webkit-scrollbar-thumb:hover {
-  background: var(--md-sys-color-on-surface-variant);
+  background: var(--md-sys-color-primary);
 }
 
 /* ============================================
