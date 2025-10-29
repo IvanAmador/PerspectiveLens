@@ -22,7 +22,7 @@
    * Configuration for detection thresholds
    */
   const DETECTION_CONFIG = {
-    THRESHOLD_SCORE: 40,        // Lowered from 50 to catch more Asian sites
+    THRESHOLD_SCORE: 50,
     MIN_CONTENT_LENGTH: 300,
     MIN_PARAGRAPH_COUNT: 3,
     MIN_TEXT_DENSITY: 0.1, // text length / HTML length ratio
