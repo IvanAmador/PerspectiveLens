@@ -290,7 +290,12 @@ async function extractSingleArticleWithTab(article, timeout, windowManager = nul
     }
     tabId = tab.id;
 
-    logger.system.trace('Tab created', {
+    // Mark this tab as an extraction tab to prevent content script from running UI
+    await chrome.storage.session.set({
+      [`extractionTab_${tabId}`]: true
+    });
+
+    logger.system.trace('Tab created and marked as extraction tab', {
       category: logger.CATEGORIES.FETCH,
       data: { tabId, source: article.source }
     });
@@ -353,14 +358,17 @@ async function extractSingleArticleWithTab(article, timeout, windowManager = nul
       }
     });
 
-    // Step 7: Cleanup tab
+    // Step 7: Cleanup tab and remove extraction flag
     if (windowManager) {
       await windowManager.removeTab(tabId, true);
     } else {
       await chrome.tabs.remove(tabId);
     }
 
-    logger.system.trace('Tab closed', {
+    // Remove extraction flag from storage
+    await chrome.storage.session.remove(`extractionTab_${tabId}`);
+
+    logger.system.trace('Tab closed and extraction flag removed', {
       category: logger.CATEGORIES.FETCH,
       data: { tabId }
     });
@@ -406,7 +414,9 @@ async function extractSingleArticleWithTab(article, timeout, windowManager = nul
         } else {
           await chrome.tabs.remove(tabId);
         }
-        logger.system.trace('Tab cleaned up after error', {
+        // Remove extraction flag from storage
+        await chrome.storage.session.remove(`extractionTab_${tabId}`);
+        logger.system.trace('Tab cleaned up after error and extraction flag removed', {
           category: logger.CATEGORIES.FETCH,
           data: { tabId }
         });

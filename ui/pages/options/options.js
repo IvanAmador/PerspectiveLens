@@ -328,7 +328,7 @@ class OptionsPage {
     this.elements.minContentLength.value = this.currentConfig.extraction?.qualityThresholds?.minContentLength || 3000;
     this.elements.maxContentLength.value = this.currentConfig.extraction?.qualityThresholds?.maxContentLength || 10000;
     this.elements.minWordCount.value = this.currentConfig.extraction?.qualityThresholds?.minWordCount || 500;
-    this.elements.timeout.value = this.currentConfig.extraction?.timeout || 20000;
+    this.elements.timeout.value = this.currentConfig.extraction?.timeout || 30000;
 
     // Model Provider
     const modelProvider = this.currentConfig.analysis?.modelProvider || 'nano';

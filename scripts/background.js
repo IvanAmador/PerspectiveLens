@@ -162,9 +162,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // Handle async responses
   if (message.type === 'START_ANALYSIS') {
+    // Check if analysis is already in progress
+    if (activeAnalysis.inProgress) {
+      logger.system.warn('Analysis already in progress, rejecting new request', {
+        category: logger.CATEGORIES.GENERAL,
+        data: {
+          currentTabId: activeAnalysis.tabId,
+          requestedTabId: sender.tab?.id
+        }
+      });
+      sendResponse({
+        success: false,
+        error: 'Another analysis is already in progress. Please wait for it to complete.'
+      });
+      return true;
+    }
+
     // Store tab ID for progress updates and start request tracking
     const tabId = sender.tab?.id || null;
     activeAnalysis.tabId = tabId;
+    activeAnalysis.inProgress = true;
 
     // Start request with tabId context
     activeAnalysis.requestId = logger.startRequest('article_analysis', tabId);
@@ -194,6 +211,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       })
       .finally(() => {
         activeAnalysis.tabId = null;
+        activeAnalysis.inProgress = false;
         logger.clearRequest();
       });
 
@@ -202,8 +220,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // Legacy support for old message type
   if (message.type === 'NEW_ARTICLE_DETECTED') {
+    // Check if analysis is already in progress
+    if (activeAnalysis.inProgress) {
+      logger.system.warn('Analysis already in progress, rejecting legacy request', {
+        category: logger.CATEGORIES.GENERAL,
+        data: {
+          currentTabId: activeAnalysis.tabId,
+          requestedTabId: sender.tab?.id
+        }
+      });
+      sendResponse({
+        success: false,
+        error: 'Another analysis is already in progress. Please wait for it to complete.'
+      });
+      return true;
+    }
+
     const tabId = sender.tab?.id || null;
     activeAnalysis.tabId = tabId;
+    activeAnalysis.inProgress = true;
     activeAnalysis.requestId = logger.startRequest('article_analysis', tabId);
 
     handleNewArticle(message.data)
@@ -222,9 +257,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       })
       .finally(() => {
         activeAnalysis.tabId = null;
+        activeAnalysis.inProgress = false;
         logger.clearRequest();
       });
 
+    return true;
+  }
+
+  if (message.type === 'IS_EXTRACTION_TAB') {
+    // Check if the sender's tab is marked as an extraction tab
+    const tabId = sender.tab?.id;
+    if (!tabId) {
+      sendResponse({ success: true, isExtractionTab: false });
+      return true;
+    }
+
+    chrome.storage.session.get(`extractionTab_${tabId}`)
+      .then(result => {
+        const isExtractionTab = !!result[`extractionTab_${tabId}`];
+        sendResponse({ success: true, isExtractionTab });
+      })
+      .catch(error => {
+        logger.system.warn('Failed to check extraction tab status', {
+          category: logger.CATEGORIES.GENERAL,
+          error,
+          data: { tabId }
+        });
+        sendResponse({ success: true, isExtractionTab: false });
+      });
+
+    return true;
+  }
+
+  if (message.type === 'GET_TAB_ID') {
+    // Return the tab ID of the sender
+    const tabId = sender.tab?.id || null;
+    sendResponse({ success: true, tabId });
     return true;
   }
 
@@ -466,10 +534,17 @@ async function handleNewArticle(articleData) {
         });
 
         // Extract content from ALL articles (no limit here)
-        // Configuration from pipeline.js is used as defaults
+        // Pass user's extraction configuration
         perspectivesWithContent = await extractArticlesContentWithTabs(
           perspectives,
-          {}, // Use default options from pipeline.js
+          {
+            timeout: config.extraction?.timeout || 30000,
+            parallel: config.extraction?.parallel !== false,
+            batchSize: config.extraction?.batchSize || 10,
+            retryOnLowQuality: config.extraction?.retryLowQuality !== false,
+            useWindowManager: true,
+            windowManagerOptions: config.extraction?.windowManager || {}
+          },
           async (article, completedIndex, total) => {
             // Real-time progress callback for each extracted article
             const completedCount = completedIndex + 1;
@@ -676,8 +751,8 @@ async function handleNewArticle(articleData) {
         }
       });
 
-      // Validate coverage before selection
-      const coverageValidation = validateCoverage(uniqueDomainArticles);
+      // Validate coverage before selection (pass user targets to avoid using defaults)
+      const coverageValidation = validateCoverage(uniqueDomainArticles, selectionTargets);
 
       if (!coverageValidation.valid) {
         logger.user.warn('Insufficient articles from some countries', {

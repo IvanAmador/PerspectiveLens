@@ -291,20 +291,22 @@ function shouldBroadcast(level, context) {
 function formatConsoleOutput(entry) {
   const parts = [LOG_PREFIX, entry.message];
 
-  // Add error details if present
+  // Add error details if present - as separate console argument for proper object expansion
   if (entry.error) {
+    parts.push('\n  Error:');
     // Format error with stack trace
     const errorInfo = {
       message: entry.error.message || String(entry.error),
       name: entry.error.name,
       stack: entry.error.stack
     };
-    parts.push('\n  Error:', errorInfo);
+    parts.push(errorInfo);
   }
 
-  // Add data if present - with proper formatting
+  // Add data if present - as separate console argument for proper object expansion
   if (entry.data) {
-    parts.push('\n  Data:', entry.data);
+    parts.push('\n  Data:');
+    parts.push(entry.data);
   }
 
   return parts;

@@ -302,7 +302,7 @@ export class SettingsModal {
     this.elements.minContentLength.value = this.currentConfig.extraction?.qualityThresholds?.minContentLength || 3000;
     this.elements.maxContentLength.value = this.currentConfig.extraction?.qualityThresholds?.maxContentLength || 10000;
     this.elements.minWordCount.value = this.currentConfig.extraction?.qualityThresholds?.minWordCount || 500;
-    this.elements.timeout.value = this.currentConfig.extraction?.timeout || 20000;
+    this.elements.timeout.value = this.currentConfig.extraction?.timeout || 30000;
 
     // Analysis section
     const compression = this.currentConfig.analysis?.compressionLevel || 'long';

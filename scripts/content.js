@@ -296,7 +296,7 @@ URL: ${detection.url}
     });
 
     // Show detection toast
-    showDetectionToast(detection);
+    showDetectionToast();
   } else {
     console.log(`[PerspectiveLens] Not an article. Score: ${detection.score}/${detection.threshold} (below threshold)`);
   }
@@ -306,9 +306,8 @@ URL: ${detection.url}
 
 /**
  * Show toast notification when article is detected
- * @param {Object} detection - Detection result from universal detector
  */
-function showDetectionToast(detection) {
+function showDetectionToast() {
   if (!dependenciesLoaded || !singleToast) {
     console.log('[PerspectiveLens] SingleToast not available, skipping notification');
     return;
@@ -595,6 +594,23 @@ window.addEventListener('perspectivelens:retry', () => {
  */
 async function initialize() {
   console.log('[PerspectiveLens] Initializing content script...');
+
+  // Check if this is an extraction tab - if so, don't initialize UI
+  try {
+    const result = await chrome.runtime.sendMessage({ type: 'IS_EXTRACTION_TAB' });
+    if (result?.isExtractionTab) {
+      console.log('[PerspectiveLens] This is an extraction tab, skipping UI initialization');
+      return;
+    }
+  } catch (error) {
+    console.warn('[PerspectiveLens] Could not check extraction tab status:', error.message);
+  }
+
+  // Check if tab is visible - only initialize UI on visible tabs
+  if (document.hidden) {
+    console.log('[PerspectiveLens] Tab is not visible, skipping initialization');
+    return;
+  }
 
   // Wait for page to be fully loaded
   if (document.readyState === 'loading') {
