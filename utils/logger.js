@@ -299,12 +299,12 @@ function formatConsoleOutput(entry) {
       name: entry.error.name,
       stack: entry.error.stack
     };
-    parts.push(errorInfo);
+    parts.push('\n  Error:', errorInfo);
   }
 
-  // Add data if present
+  // Add data if present - with proper formatting
   if (entry.data) {
-    parts.push(entry.data);
+    parts.push('\n  Data:', entry.data);
   }
 
   return parts;

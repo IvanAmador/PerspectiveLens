@@ -64,29 +64,43 @@ async function createShadowDOM() {
 
     // Fetch and inject each CSS file
     for (const cssFile of cssFiles) {
-      const url = chrome.runtime.getURL(cssFile);
-      const response = await fetch(url);
-      let cssText = await response.text();
+      try {
+        const url = chrome.runtime.getURL(cssFile);
+        const response = await fetch(url);
 
-      // CRITICAL FIX: Shadow DOM CSS compatibility
-      // 1. :root doesn't work in Shadow DOM, must use :host
-      // 2. [data-theme='dark'] must become :host([data-theme='dark'])
-      if (cssFile === 'ui/design-system.css') {
-        // Replace :root with :host
-        cssText = cssText.replace(/:root/g, ':host');
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
 
-        // Replace [data-theme='dark'] with :host([data-theme='dark'])
-        cssText = cssText.replace(/\[data-theme='dark'\]/g, ":host([data-theme='dark'])");
+        let cssText = await response.text();
 
-        console.log('[PerspectiveLens] Converted CSS for Shadow DOM (:root → :host, theme selectors)');
+        // CRITICAL FIX: Shadow DOM CSS compatibility
+        // 1. :root doesn't work in Shadow DOM, must use :host
+        // 2. [data-theme='dark'] must become :host([data-theme='dark'])
+        if (cssFile === 'ui/design-system.css') {
+          // Replace :root with :host
+          cssText = cssText.replace(/:root/g, ':host');
+
+          // Replace [data-theme='dark'] with :host([data-theme='dark'])
+          cssText = cssText.replace(/\[data-theme='dark'\]/g, ":host([data-theme='dark'])");
+
+          console.log('[PerspectiveLens] Converted CSS for Shadow DOM (:root → :host, theme selectors)');
+        }
+
+        // Create style element
+        const styleEl = document.createElement('style');
+        styleEl.textContent = cssText;
+        shadowRoot.appendChild(styleEl);
+
+        console.log(`[PerspectiveLens] Loaded CSS: ${cssFile}`);
+      } catch (cssError) {
+        console.error(`[PerspectiveLens] Failed to load CSS file: ${cssFile}`, {
+          error: cssError.message,
+          type: cssError.name,
+          url: chrome.runtime.getURL(cssFile)
+        });
+        // Continue loading other CSS files even if one fails
       }
-
-      // Create style element
-      const styleEl = document.createElement('style');
-      styleEl.textContent = cssText;
-      shadowRoot.appendChild(styleEl);
-
-      console.log(`[PerspectiveLens] Loaded CSS: ${cssFile}`);
     }
 
     // Append to body
@@ -99,7 +113,11 @@ async function createShadowDOM() {
     console.log('[PerspectiveLens] Shadow DOM created successfully with all styles loaded');
     return { shadowRoot, container };
   } catch (error) {
-    console.error('[PerspectiveLens] Error loading CSS:', error);
+    console.error('[PerspectiveLens] Error creating Shadow DOM:', {
+      error: error.message,
+      type: error.name,
+      stack: error.stack
+    });
     throw error;
   }
 }

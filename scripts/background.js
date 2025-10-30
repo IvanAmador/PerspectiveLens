@@ -111,31 +111,43 @@ async function getConfig() {
  */
 let activeAnalysis = {
   tabId: null,
-  requestId: null
+  requestId: null,
+  inProgress: false
 };
 
 /**
  * Listen for configuration updates
  */
-chrome.runtime.onMessage.addListener((message) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'CONFIG_UPDATED') {
-    logger.system.info('Configuration updated, invalidating cache', {
-      category: logger.CATEGORIES.GENERAL
+    logger.system.info('Configuration updated, reloading cache immediately', {
+      category: logger.CATEGORIES.GENERAL,
+      data: {
+        receivedConfig: !!message.config,
+        timestamp: new Date().toISOString()
+      }
     });
 
-    // Reload config cache immediately
-    reloadConfigCache().then(() => {
+    // Reload config cache immediately and respond when done
+    reloadConfigCache().then((newConfig) => {
       logger.system.info('Configuration cache updated successfully', {
-        category: logger.CATEGORIES.GENERAL
+        category: logger.CATEGORIES.GENERAL,
+        data: {
+          modelProvider: newConfig?.analysis?.modelProvider,
+          countries: Object.keys(newConfig?.articleSelection?.perCountry || {}),
+          preferredModels: newConfig?.analysis?.preferredModels
+        }
       });
+      sendResponse({ success: true });
     }).catch(error => {
       logger.system.error('Failed to update config cache', {
         category: logger.CATEGORIES.GENERAL,
         error
       });
+      sendResponse({ success: false, error: error.message });
     });
 
-    return;
+    return true; // Keep channel open for async response
   }
 });
 

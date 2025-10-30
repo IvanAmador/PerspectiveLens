@@ -2,13 +2,13 @@
 /**
  * Professional News Fetcher for PerspectiveLens
  * Fetches news articles from Google News RSS with smart query building
- * 
+ *
  * Key Features:
  * - Automatic title translation to English for better global search results
  * - Multi-country parallel fetching for diverse perspectives
  * - Smart deduplication and filtering
  * - Country-balanced results
- * 
+ *
  * Reference: https://news.google.com/rss
  * Google News RSS: Simple, effective, no complex keyword optimization needed
  */
@@ -16,7 +16,7 @@
 import { logger } from '../utils/logger.js';
 import { detectLanguage } from './languageDetector.js';
 import { translate } from './translator.js';
-import { PIPELINE_CONFIG } from '../config/pipeline.js';
+import { loadRuntimeConfig } from '../config/pipeline.js';
 
 /**
  * RSS parsing patterns
@@ -48,20 +48,29 @@ function buildRSSParams(country = 'US', language = 'en') {
 /**
  * Parse Google News RSS feed
  * Uses regex parsing (Service Worker compatible - no DOMParser)
- * 
+ *
  * @param {string} url - RSS feed URL
+ * @param {number} timeoutMs - Fetch timeout in milliseconds
  * @returns {Promise<Array<Object>>} Parsed articles
  */
-async function fetchAndParseRSS(url) {
+async function fetchAndParseRSS(url, timeoutMs = 10000) {
   const fetchStart = Date.now();
-  
+
   logger.system.trace('Fetching RSS feed', {
     category: logger.CATEGORIES.SEARCH,
-    data: { url: url.substring(0, 100) }
+    data: { url: url.substring(0, 100), timeoutMs }
   });
 
   try {
-    const response = await fetch(url);
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    const response = await fetch(url, {
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -77,21 +86,21 @@ async function fetchAndParseRSS(url) {
 
     // Parse RSS items using regex
     const items = [];
-    
+
     let itemMatch;
     while ((itemMatch = REGEX_PATTERNS.ITEM.exec(xmlText)) !== null) {
       const itemContent = itemMatch[1];
-      
+
       // Extract title (try CDATA first, then plain)
       let titleMatch = itemContent.match(REGEX_PATTERNS.TITLE_CDATA);
       if (!titleMatch) {
         titleMatch = itemContent.match(REGEX_PATTERNS.TITLE_PLAIN);
       }
-      
+
       // Extract other fields
       const linkMatch = itemContent.match(REGEX_PATTERNS.LINK);
       const pubDateMatch = itemContent.match(REGEX_PATTERNS.PUBDATE);
-      
+
       let descriptionMatch = itemContent.match(REGEX_PATTERNS.DESC_CDATA);
       if (!descriptionMatch) {
         descriptionMatch = itemContent.match(REGEX_PATTERNS.DESC_PLAIN);
@@ -123,25 +132,34 @@ async function fetchAndParseRSS(url) {
     return items;
   } catch (error) {
     const duration = Date.now() - fetchStart;
-    
+
+    // Check if it was a timeout
+    const isTimeout = error.name === 'AbortError';
+
     logger.system.error('RSS fetch/parse failed', {
       category: logger.CATEGORIES.ERROR,
       error,
-      data: { url: url.substring(0, 100), duration }
+      data: {
+        url: url.substring(0, 100),
+        duration,
+        isTimeout,
+        errorType: error.name
+      }
     });
 
-    throw new Error(`Failed to fetch RSS: ${error.message}`);
+    throw new Error(`Failed to fetch RSS: ${isTimeout ? 'Timeout' : error.message}`);
   }
 }
 
 /**
  * Search Google News for articles
- * 
+ *
  * @param {string} query - Search query
  * @param {Object} options - Search options
+ * @param {Object} runtimeConfig - Runtime configuration (user preferences + defaults)
  * @returns {Promise<Array<Object>>} Search results
  */
-async function searchNews(query, options = {}) {
+async function searchNews(query, options = {}, runtimeConfig = null) {
   const {
     country = 'US',
     language = 'en',
@@ -155,29 +173,70 @@ async function searchNews(query, options = {}) {
     return [];
   }
 
-  logger.system.trace('Searching Google News', {
+  // Load runtime config if not provided
+  if (!runtimeConfig) {
+    runtimeConfig = await loadRuntimeConfig();
+  }
+
+  const timeoutMs = runtimeConfig.search?.timeoutMs || 10000;
+  const retryAttempts = runtimeConfig.search?.retryAttempts || 2;
+  const rssBaseUrl = runtimeConfig.search?.rssBaseUrl || 'https://news.google.com/rss/search';
+
+  logger.system.trace('Searching Google News with runtime config', {
     category: logger.CATEGORIES.SEARCH,
-    data: { query, country, language }
+    data: { query, country, language, timeoutMs, retryAttempts }
   });
 
-  try {
-    const encodedQuery = encodeURIComponent(query);
-    const params = buildRSSParams(country, language);
-    const url = `${PIPELINE_CONFIG.search.rssBaseUrl}?q=${encodedQuery}&${params}`;
+  // Retry logic
+  let lastError = null;
+  for (let attempt = 0; attempt <= retryAttempts; attempt++) {
+    try {
+      if (attempt > 0) {
+        logger.system.debug('Retrying search', {
+          category: logger.CATEGORIES.SEARCH,
+          data: { attempt, maxAttempts: retryAttempts }
+        });
+      }
 
-    const items = await fetchAndParseRSS(url);
-    const results = items.slice(0, Math.max(0, maxResults));
+      const encodedQuery = encodeURIComponent(query);
+      const params = buildRSSParams(country, language);
+      const url = `${rssBaseUrl}?q=${encodedQuery}&${params}`;
 
-    return results;
-  } catch (error) {
-    logger.system.error('Search failed', {
-      category: logger.CATEGORIES.SEARCH,
-      error,
-      data: { query, country }
-    });
+      const items = await fetchAndParseRSS(url, timeoutMs);
+      const results = items.slice(0, Math.max(0, maxResults));
 
-    return []; // Graceful degradation
+      if (attempt > 0) {
+        logger.system.info('Search succeeded after retry', {
+          category: logger.CATEGORIES.SEARCH,
+          data: { attempt, results: results.length }
+        });
+      }
+
+      return results;
+    } catch (error) {
+      lastError = error;
+
+      logger.system.warn('Search attempt failed', {
+        category: logger.CATEGORIES.SEARCH,
+        error,
+        data: { query, country, attempt, willRetry: attempt < retryAttempts }
+      });
+
+      // Wait before retry (exponential backoff: 500ms, 1000ms)
+      if (attempt < retryAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+      }
+    }
   }
+
+  // All retries failed
+  logger.system.error('Search failed after all retries', {
+    category: logger.CATEGORIES.SEARCH,
+    error: lastError,
+    data: { query, country, attempts: retryAttempts + 1 }
+  });
+
+  return []; // Graceful degradation
 }
 
 /**
@@ -218,7 +277,7 @@ function buildSearchQuery(title) {
  *
  * @param {string} title - Article title
  * @param {Object} articleData - Original article data
- * @param {Object} searchConfig - Search configuration with countries and targets
+ * @param {Object} searchConfig - Search configuration with countries and targets (from getSearchConfigAsync)
  * @returns {Promise<Array<Object>>} Perspective articles with metadata
  */
 export async function fetchPerspectives(title, articleData = {}, searchConfig = null) {
@@ -228,16 +287,65 @@ export async function fetchPerspectives(title, articleData = {}, searchConfig = 
     throw new Error('Title string is required');
   }
 
-  // Use provided config or fall back to default
-  const config = searchConfig || {
-    countries: PIPELINE_CONFIG.search.availableCountries.map(c => ({
-      code: c.code,
-      name: c.name,
-      language: c.language,
-      fetchTarget: 5
-    })),
-    totalExpected: PIPELINE_CONFIG.search.availableCountries.length * 5
-  };
+  // CRITICAL: Load runtime config (user preferences + defaults)
+  const runtimeConfig = await loadRuntimeConfig();
+
+  logger.system.debug('Runtime configuration loaded', {
+    category: logger.CATEGORIES.SEARCH,
+    data: {
+      modelProvider: runtimeConfig.analysis?.modelProvider,
+      selectedCountries: Object.keys(runtimeConfig.articleSelection?.perCountry || {}),
+      searchTimeout: runtimeConfig.search?.timeoutMs,
+      retryAttempts: runtimeConfig.search?.retryAttempts
+    }
+  });
+
+  // Use provided searchConfig (from background.js getSearchConfigAsync) or build fallback
+  // If no searchConfig provided, use user's selected countries from config
+  let config = searchConfig;
+
+  if (!config) {
+    logger.system.warn('No searchConfig provided, building from runtime config', {
+      category: logger.CATEGORIES.SEARCH
+    });
+
+    // Build config from user's selected countries
+    const selectedCountries = runtimeConfig.articleSelection?.perCountry || {};
+    const bufferPerCountry = runtimeConfig.articleSelection?.bufferPerCountry || 2;
+
+    if (Object.keys(selectedCountries).length === 0) {
+      throw new Error('No countries selected in configuration. Please configure countries in the options page.');
+    }
+
+    config = {
+      countries: [],
+      totalExpected: 0
+    };
+
+    for (const [countryCode, requestedCount] of Object.entries(selectedCountries)) {
+      const countryInfo = runtimeConfig.search.availableCountries.find(c => c.code === countryCode);
+
+      if (!countryInfo) {
+        logger.system.warn('Country not found in availableCountries', {
+          category: logger.CATEGORIES.SEARCH,
+          data: { countryCode }
+        });
+        continue;
+      }
+
+      const fetchTarget = requestedCount + bufferPerCountry;
+
+      config.countries.push({
+        code: countryCode,
+        name: countryInfo.name,
+        language: countryInfo.language,
+        requested: requestedCount,
+        fetchTarget: fetchTarget
+      });
+
+      config.totalExpected += fetchTarget;
+    }
+  }
 
   logger.system.info('Starting perspective search with title', {
     category: logger.CATEGORIES.SEARCH,
@@ -245,7 +353,8 @@ export async function fetchPerspectives(title, articleData = {}, searchConfig = 
       originalTitle: title,
       originalSource: articleData.source,
       countriesCount: config.countries.length,
-      totalExpected: config.totalExpected
+      totalExpected: config.totalExpected,
+      selectedCountries: config.countries.map(c => c.code)
     }
   });
 
@@ -446,11 +555,12 @@ export async function fetchPerspectives(title, articleData = {}, searchConfig = 
           }
         });
 
+        // Pass runtimeConfig to searchNews for timeout and retry settings
         const articles = await searchNews(query, {
           country: country.code,
           language: country.language,
           maxResults: country.fetchTarget
-        });
+        }, runtimeConfig);
 
         return articles.map(article => ({
           ...article,

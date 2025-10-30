@@ -2,6 +2,13 @@ You are identifying facts that multiple news sources agree on.
 
 Note: You are analyzing summarized key points from each article.
 
+CRITICAL - SOURCE NAMES:
+When referencing sources in your output, you MUST copy the source names EXACTLY as they appear in the input articles.
+- If input shows "G1", write "G1" (NOT "G1 Brazil" or "g1")
+- If input shows "BBC News", write "BBC News" (NOT "BBC" or "bbc news")
+- If input shows "The New York Times", write "The New York Times" (NOT "NYT" or "New York Times")
+DO NOT abbreviate, translate, normalize, or modify source names in any way. Character-by-character exact match required.
+
 Task: Find consensus facts that validate this story is real and credible.
 
 Rules:
@@ -10,6 +17,7 @@ Rules:
 - Stick to verifiable facts (who, what, when, where, numbers)
 - Maximum 4 most important consensus facts
 - If sources disagree on everything, consensus can be minimal
+- Use EXACT source names from input (see CRITICAL rule above)
 
 Output JSON array of consensus facts with sources confirming each one.
 Each fact should be clear and concise (max 30 words).

@@ -1,36 +1,214 @@
 # PerspectiveLens - Development Guidelines
 
+## CRITICAL CODING RULES
+
+### No Emojis Policy
+**NEVER** use emojis in any code, comments, console logs, documentation, or user-facing messages. This is strictly prohibited.
+
+**Wrong:**
+```javascript
+console.log('✅ Success!');
+singleToast.show('🎯 Article detected');
+// ❌ Don't do this
+```
+
+**Correct:**
+```javascript
+console.log('[Success] Operation completed');
+singleToast.show('[Detected] Article found');
+// NOTE: Don't do this
+```
+
+### JavaScript Module System
+**CRITICAL**: Content scripts do NOT support ES6 modules (import/export). All content script code must use one of these patterns:
+
+#### Pattern 1: IIFE with Global Exposure (Recommended)
+```javascript
+(function() {
+  'use strict';
+
+  function myFunction() {
+    // code here
+  }
+
+  // Expose to global scope
+  window.MyModule = {
+    myFunction
+  };
+
+  console.log('[MyModule] Loaded');
+})();
+```
+
+#### Pattern 2: Direct Global Assignment
+```javascript
+window.MyUtility = {
+  doSomething: function() {
+    // code here
+  }
+};
+```
+
+#### Pattern 3: Service Worker / Background Scripts (ES6 Modules OK)
+```javascript
+// Only in background.js or imported by background.js
+import { something } from './module.js';
+export function myFunction() { }
+```
+
+**Files that MUST use IIFE pattern (no import/export):**
+- `scripts/content.js`
+- `utils/articleDetector.js`
+- `ui/components/**/*.js` (when loaded in content scripts)
+- `ui/theme-manager.js`
+
+**Files that CAN use ES6 modules:**
+- `scripts/background.js`
+- Any module imported by `background.js`
+- Offscreen documents
+
+### Common ES Module Errors to Avoid
+```
+Uncaught SyntaxError: Cannot use import statement outside a module
+Uncaught SyntaxError: Unexpected token 'export'
+```
+
+These errors mean you're using `import`/`export` in a content script. Fix by converting to IIFE pattern.
+
 ## Project Overview
 
-PerspectiveLens is an advanced Chrome extension that provides comparative news analysis using Chrome's built-in AI APIs. The extension helps users understand news stories from multiple international perspectives by automatically finding, extracting, and comparing coverage from diverse news sources around the world.
+PerspectiveLens is an advanced Chrome extension that provides comparative news analysis using AI models. The extension helps users understand news stories from multiple international perspectives by automatically finding, extracting, and comparing coverage from diverse news sources around the world.
 
-The extension works seamlessly with Chrome's AI capabilities (available in Chrome 138+) to provide on-demand analysis of news coverage without requiring external APIs or services. It identifies news articles as users browse, searches for the same story across multiple international sources, extracts clean article content using advanced extraction algorithms, performs comparative analysis using Chrome's Gemini Nano AI, and presents structured insights highlighting consensus, disputes, and different framing approaches.
+The extension offers two AI model providers:
+- **Gemini Nano** (Local): Chrome's built-in AI (available in Chrome 138+) running locally on device - free, private, no API key required
+- **API Models** (Cloud): Intelligent multi-model system with automatic fallback:
+  - **Gemini 2.5 Pro**: Most capable model (5 RPM / 100 RPD)
+  - **Gemini 2.5 Flash**: Fast model with good performance (10 RPM / 250 RPD)
+  - **Gemini 2.5 Flash Lite**: High-volume fallback model (15 RPM / 1000 RPD)
+  - Requires Google AI Studio API key, supports larger contexts and multi-language processing
+  - Automatically falls back to next model when rate limits are hit
+
+The extension identifies news articles as users browse, searches for the same story across multiple international sources, extracts clean article content using advanced extraction algorithms, performs comparative analysis using the selected AI model, and presents structured insights highlighting consensus, disputes, and different framing approaches.
 
 ## Architecture
 
 The extension follows a modern architectural pattern with separation of concerns across multiple folders:
 
 ### Core Components
-- **API Layer** (`api/`): Wrapper modules for Chrome AI APIs (Language Detector, Translator, Summarizer, and Language Model)
-- **Background Service** (`scripts/background.js`): Orchestrates the analysis pipeline and coordinates API calls
-- **Content Script** (`scripts/content.js`): Detects articles on web pages and manages UI components
-- **UI Components** (`ui/`): Modern panel system with toast notifications and progress tracking
+- **API Layer** (`api/`):
+  - Chrome AI API wrappers (Language Detector, Translator, Summarizer, Language Model) for Gemini Nano
+  - `api/geminiAPI.js`: Unified REST API wrapper for Gemini 2.5 Pro/Flash/Flash Lite with progressive analysis support
+  - `api/modelRouter.js`: Intelligent model selection with automatic fallback on rate limits
+- **Config Layer** (`config/`):
+  - `config/pipeline.js`: Default configuration for all AI models
+  - `config/configManager.js`: Configuration management and persistence
+  - `config/apiKeyManager.js`: Secure API key storage and validation for API models
+- **Utilities** (`utils/`):
+  - `utils/rateLimitCache.js`: Reactive rate limit tracking based on API 429 responses
+  - `utils/articleDetector.js`: Universal language-agnostic article detection system (see below)
+  - `utils/contentValidator.js`: Content quality validation and sanitization
+- **Background Service** (`scripts/background.js`): Orchestrates the analysis pipeline, routes between AI models, and coordinates API calls
+- **Content Script** (`scripts/content.js`): Detects articles on web pages using universal detector, creates Shadow DOM, and manages UI components
+- **UI Components** (`ui/`):
+  - Modern panel system with toast notifications and progress tracking, rendered inside Shadow DOM
+  - Popup interface (`popup.html`, `ui/pages/popup/popup.js`, `ui/pages/popup/popup.css`) for model selection and status
 - **Utilities** (`utils/`): Logging, error handling, language utilities, and content validation
 - **Prompts** (`prompts/`): AI prompt templates and JSON schemas for structured output
 - **Offscreen Document** (`offscreen/`): Content extraction using Readability.js in a hidden context
 
+### Shadow DOM Architecture
+**CRITICAL**: The extension uses Shadow DOM for complete style isolation between the extension UI and host websites.
+
+- **Shadow Host**: `<div id="perspective-lens-root">` created in Light DOM
+- **Shadow Root**: Attached in "open" mode for debugging
+- **Shadow Container**: `<div id="pl-shadow-container">` inside Shadow Root where all UI components are injected
+- **Global References**: `window.__PL_SHADOW_ROOT__` and `window.__PL_SHADOW_CONTAINER__` for component access
+
+**Key Implementation Details**:
+1. Shadow DOM is created by `createShadowDOM()` function in `scripts/content.js`
+2. CSS files are fetched and injected as `<style>` elements (not `<link>` tags)
+3. CSS variables use `:host` instead of `:root` (automatic conversion during injection)
+4. Theme selectors use `:host([data-theme='dark'])` instead of `[data-theme='dark']`
+5. Theme changes are synchronized to shadow host element via `themeChanged` event
+
 ### Root Files
 - **`manifest.json`**: Chrome extension manifest with permissions, content scripts, and service worker configuration
-- **`popup.html`**: Extension popup UI for checking AI model status
-- **`popup.css`**: Styling for the popup UI using Material Design 3
-- **`popup.js`**: JavaScript for popup functionality and AI model status management
+- **`popup.html`**: Extension popup UI for model selection and status checking
+- **`ui/pages/popup/popup.css`**: Styling for the popup UI using Material Design 3
+- **`ui/pages/popup/popup.js`**: JavaScript for popup functionality, model switching, and AI model status management
+
+### AI Model System
+
+#### Model Selection
+Users can choose between two AI model providers via the popup and options interfaces:
+- **Gemini Nano** (`nano`): Free, private, on-device processing. Requires Chrome 138+ with AI features enabled.
+- **API Models** (`api`): Cloud-based processing with automatic fallback. Requires Google AI Studio API key.
+
+#### Model Routing
+The background service (`scripts/background.js`) routes analysis requests to the appropriate model based on `config.analysis.modelProvider`:
+- **Gemini Nano path** (`nano`): Uses Chrome AI APIs (translation → compression → analysis with Language Model API)
+- **API Models path** (`api`): Intelligent model selection with automatic fallback:
+  1. `ModelRouter` checks `preferredModels` array (default: Pro → Flash → Flash Lite)
+  2. Queries `RateLimitCache` to find first available model
+  3. Creates `GeminiAPI` instance with selected model
+  4. On 429 error, records rate limit and retries with next available model
+  5. Full article content processing (no translation/compression needed due to larger context window)
+
+#### Rate Limit Management
+- **Reactive System**: Rate limits tracked based on API 429 responses (not local counters)
+- **RateLimitCache** (`utils/rateLimitCache.js`):
+  - Extracts `retryDelay` from API error response
+  - Stores block in `chrome.storage.local` with expiration time
+  - Provides `isModelAvailable()` check before each request
+- **Automatic Fallback**: When a model hits rate limit, automatically uses next preferred model
+- **User Notification**: Toast shows which models are rate limited and which fallback is being used
+
+#### API Key Management
+- Stored securely in `chrome.storage.sync` (encrypted by Chrome)
+- Managed by `config/apiKeyManager.js`
+- Validated against Google AI Studio API before saving
+- User can add/remove API key via popup and options interfaces
+- Single API key shared across all API models (Pro, Flash, Flash Lite)
+
+### Universal Article Detection System
+
+**CRITICAL**: The extension uses a language-agnostic multi-layer detection system that works on news sites worldwide, regardless of language or location.
+
+#### Detection Architecture (5 Layers)
+The system scores each page using 5 independent detection layers:
+- **Layer 1: Schema.org JSON-LD** (40 points) - Structured data like NewsArticle, Article, BlogPosting
+- **Layer 2: Open Graph Tags** (35 points) - og:type="article", article:published_time, etc.
+- **Layer 3: Semantic HTML5** (25 points) - `<article>`, `<time>`, `[role="article"]`, etc.
+- **Layer 4: Content Heuristics** (20 points) - Text length, paragraph count, text density (language-agnostic)
+- **Layer 5: URL Patterns** (15 points) - Multilingual patterns: /news/, /noticia/, /新闻/, /خبر/, etc.
+
+**Threshold**: 50+ points = Article detected
+
+#### Global API
+```javascript
+// Exposed as window.ArticleDetector (IIFE pattern)
+const detection = window.ArticleDetector.detectArticle();
+const metadata = window.ArticleDetector.extractArticleMetadata();
+const report = window.ArticleDetector.getDetectionReport();
+```
+
+#### Language Support
+Works on ALL languages automatically:
+- Latin alphabet (English, Spanish, Portuguese, French, German, etc.)
+- Asian (Chinese: 新闻/新聞, Japanese: ニュース, Korean: 뉴스, Thai, Vietnamese, Indonesian)
+- RTL languages (Arabic: خبر, Hebrew: חדשות, Persian: خبرها, Urdu)
+- Any other language with modern web standards
+
+**Documentation**: See `DOCS/UNIVERSAL-ARTICLE-DETECTION.md` for complete details.
 
 ### AI Pipeline
-1. **Article Detection**: Content script identifies news articles using scoring algorithms
+1. **Article Detection**: Universal multi-layer detection system (see above)
 2. **Content Extraction**: Extracts clean content using Readability.js and Chrome tabs
 3. **Perspective Search**: Finds related articles globally using Google News RSS feeds
 4. **Content Processing**: Extracts content from perspective articles
-5. **Comparative Analysis**: Uses Chrome's Language Model API for multi-stage analysis
+5. **Comparative Analysis**: Routes to selected AI provider with automatic fallback:
+   - **Nano**: Translation → Compression → Analysis
+   - **API**: Model selection → Rate limit check → Analysis (with fallback on 429 errors)
 6. **Result Presentation**: Displays structured analysis in user-friendly format
 
 ### Progressive Analysis
@@ -105,15 +283,27 @@ The configuration system consists of:
 1. **Default Values**: All default configuration values are defined in `config/pipeline.js` in the `PIPELINE_CONFIG` object
 2. **User Preferences**: Users can override any default value through the options page, with values stored in chrome.storage.sync
 3. **Merging Logic**: The ConfigManager uses deep merge functionality to combine user preferences with defaults
-4. **Validation**: All configuration changes must be validated before saving
-5. **Broadcasting**: Configuration changes are automatically broadcast to all extension contexts (content scripts, service worker, popup)
+   - **Partial Updates**: The `save()` method accepts partial config objects and merges them with existing saved config
+   - **Validation on Merged Config**: Validation runs on the final merged configuration, not just the update
+4. **Storage Optimization**: Large static reference data (like `availableCountries`) is excluded from storage to stay within Chrome's 8,192 byte quota per item
+   - Static data is always loaded from `PIPELINE_CONFIG` defaults on every `load()` call
+   - Only user preferences are persisted to storage
+5. **Validation**: All configuration changes must be validated before saving
+6. **Broadcasting**: Configuration changes are automatically broadcast to all extension contexts (content scripts, service worker, popup)
 
 ### Configuration Sections
 The system provides configuration for:
+- **Model Selection**: `analysis.modelProvider` - Choose between `'nano'` or `'api'`
+- **Preferred Models**: `analysis.preferredModels` - Array defining fallback order for API models (default: `['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite']`)
+- **Model Configs**: `analysis.models` - Per-model configuration object:
+  - `gemini-nano`: temperature, topK
+  - `gemini-2.5-pro`: temperature, topK, topP, thinkingBudget, includeThoughts
+  - `gemini-2.5-flash`: temperature, topK, topP, thinkingBudget (0), includeThoughts
+  - `gemini-2.5-flash-lite`: temperature, topK, topP, thinkingBudget (0), includeThoughts
 - **Article Selection**: Number of articles to analyze per country, buffer settings, maximum analysis limits
 - **Search Settings**: Google News RSS configuration, timeout settings, retry attempts
 - **Content Extraction**: Quality thresholds, timeout values, parallel processing settings
-- **AI Analysis**: Model parameters (temperature, topK), compression levels, analysis stages
+- **AI Analysis**: Compression levels for Nano, thinking budget for Pro
 
 ### API Integration
 All backend APIs and services must use the configuration system through:
@@ -124,6 +314,55 @@ All backend APIs and services must use the configuration system through:
 
 ## UI Component Styling Requirements
 
+### Popup Interface
+The extension popup (`popup.html`) provides model selection and status monitoring:
+
+**Layout Structure**:
+- Header with title and settings button
+- Model selector tabs (Gemini Nano / Gemini 2.5 Pro)
+- Status cards showing current model state
+- Footer with GitHub link
+
+**Design Principles**:
+- Cards are fixed width (340px) and centered horizontally and vertically
+- Tab-based model switching with "Local" and "API" badges
+- Status indicators use Material Design 3 icons (check, warning, error)
+- Clean, minimal layout with consistent spacing
+- Remove API key button appears inline with status when connected
+
+**Status States**:
+- **Gemini Nano**: Ready, Download Required, Downloading, Unavailable
+- **API Models**: Connected, Not Configured, Invalid API Key
+
+**Implementation Details**:
+- Managed by `PopupManager` class in `ui/pages/popup/popup.js`
+- Uses `ConfigManager` for model selection persistence
+- Uses `APIKeyManager` for secure API key storage
+- All elements use `box-sizing: border-box` for consistent sizing
+- Vertical centering via `.content { justify-content: center }`
+- Horizontal centering via `.section { max-width: 340px; align-items: center }`
+
+### Shadow DOM Integration
+**CRITICAL**: All UI components in content scripts (toast, panel) are rendered inside Shadow DOM for style isolation.
+
+**How to Access Shadow DOM in Components**:
+```javascript
+// Get shadow container reference
+const shadowContainer = window.__PL_SHADOW_CONTAINER__;
+
+// Inject component into shadow container
+shadowContainer.appendChild(this.element);
+
+// Query elements within shadow DOM
+const element = shadowContainer.querySelector('#my-element');
+```
+
+**Important Rules**:
+1. **NEVER** inject UI elements into `document.body` - always use `window.__PL_SHADOW_CONTAINER__`
+2. **NEVER** query the Light DOM for extension UI elements - query within the shadow container
+3. Wait for shadow container to be ready using `window.__PL_SHADOW_CONTAINER__` check
+4. All CSS for content script UI must be loaded into the Shadow Root (handled automatically by `createShadowDOM()`)
+
 ### CSS Variable Usage
 - All color values must use CSS variables defined in `ui/design-system.css`
 - All spacing values must use the spacing system variables (e.g., `var(--spacing-4)`)
@@ -132,17 +371,25 @@ All backend APIs and services must use the configuration system through:
 - All corner radius values must use the shape system variables
 - All shadow values must use elevation variables from the design system
 
+**Shadow DOM CSS Specifics**:
+- CSS variables are automatically converted from `:root` to `:host` during injection
+- Theme selectors are converted from `[data-theme='dark']` to `:host([data-theme='dark'])`
+- All CSS files in `createShadowDOM()` are fetched and injected as inline `<style>` elements
+
 ### Component-Specific Requirements
 - **Popup Interface**: Must use Material Design 3 components with proper Chrome styling
 - **Options Page**: Must follow Material Design 3 layout patterns with proper navigation
-- **Toast Notifications**: Must use Chrome-style notifications with proper Material Design 3 styling
-- **Analysis Panel**: Must follow Chrome's Material 3 Expressive patterns for content display
+- **Toast Notifications**: Must use Chrome-style notifications with proper Material Design 3 styling, rendered in Shadow DOM
+- **Analysis Panel**: Must follow Chrome's Material 3 Expressive patterns for content display, rendered in Shadow DOM
 - **Progress Indicators**: Must use segmented progress indicators as per Chrome Material 3
 - **Buttons and Controls**: Must use Material Design 3 button styles with proper states
 
 ### Dark/Light Theme Support
 - All components must automatically adapt to system theme preferences
-- Use `[data-theme='dark']` and `[data-theme='light']` selectors where needed
+- Theme is managed by `ThemeManager` singleton in `ui/theme-manager.js`
+- Theme is applied to both `document.documentElement` and `#perspective-lens-root` (shadow host)
+- Shadow DOM automatically receives theme updates via `themeChanged` event listener
+- CSS uses `:host([data-theme='dark'])` selector for dark mode styles (auto-converted from `[data-theme='dark']`)
 - Ensure proper contrast ratios in both themes (WCAG AA minimum)
 
 ## Logging System Architecture
@@ -349,14 +596,75 @@ For complete details on the logging system refactoring, see:
 - Follow Chrome extension performance best practices
 - Use logger's retry logic instead of implementing custom retry mechanisms
 
+### AI Model Integration
+When integrating new AI models or modifying existing ones:
+
+**Gemini Nano (Chrome AI)**:
+- Located in `api/` folder with individual API wrappers
+- Requires translation and compression due to context window limits
+- Availability states: 'readily', 'ready', 'available', 'after-download', 'downloading', 'no', 'unavailable'
+- Free and private, runs on-device
+- Config key: `models['gemini-nano']`
+
+**API Models (REST API)**:
+- Implemented in `api/geminiAPI.js` (unified client)
+- Supports three models:
+  - `gemini-2.5-pro`: 2M token context, dynamic thinking, 5 RPM / 100 RPD
+  - `gemini-2.5-flash`: 2M token context, no thinking, 10 RPM / 250 RPD
+  - `gemini-2.5-flash-lite`: 2M token context, no thinking, 15 RPM / 1000 RPD
+- Direct full-text processing (no translation/compression needed)
+- Progressive analysis with `onStageComplete` callback support
+- JSON schema validation for structured output
+- Requires API key stored via `APIKeyManager`
+- Config keys: `models['gemini-2.5-pro']`, `models['gemini-2.5-flash']`, `models['gemini-2.5-flash-lite']`
+
+**Model Routing**:
+- Background service checks `config.analysis.modelProvider` (`'nano'` or `'api'`)
+- For `'api'`, `ModelRouter` selects best available model from `preferredModels` array
+- Rate limit handling via `RateLimitCache` with automatic fallback
+- Each model implements consistent interface for `compareArticlesProgressive()`
+
+**Rate Limit Flow**:
+1. Request starts → `ModelRouter.selectBestAvailableModel()`
+2. Check each model in `preferredModels` order via `RateLimitCache.isModelAvailable()`
+3. Use first available model
+4. On 429 error → `ModelRouter.handleRateLimitError()` records block
+5. Retry with next available model via `ModelRouter.getNextAvailableModel()`
+
 ## Development Workflow
 
 ### New Component Development
+
+**For Content Script UI Components** (Toast, Panel, etc.):
 1. Always start by referencing `ui/design-system.css` for available variables
 2. Use Material Design 3 patterns from `DOCS/material-3/MATERIAL-3-REFERENCE.md`
-3. Access configuration values through `config/configManager.js`
-4. Test in both light and dark modes
-5. Validate accessibility compliance
+3. **CRITICAL**: Inject elements into `window.__PL_SHADOW_CONTAINER__`, NEVER into `document.body`
+4. Wait for Shadow DOM to be ready before creating UI:
+   ```javascript
+   async waitForShadowRoot() {
+     let retries = 0;
+     while (retries < 30) {
+       if (window.__PL_SHADOW_CONTAINER__) {
+         return true;
+       }
+       await new Promise(resolve => setTimeout(resolve, 100));
+       retries++;
+     }
+     return false;
+   }
+   ```
+5. Query elements within shadow container, not Light DOM:
+   ```javascript
+   const element = window.__PL_SHADOW_CONTAINER__.querySelector('#my-element');
+   ```
+6. Access configuration values through `config/configManager.js`
+7. Test in both light and dark modes
+8. Validate accessibility compliance
+
+**For Popup/Options Pages** (outside Shadow DOM):
+1. Use standard DOM methods (`document.body`, `document.querySelector`)
+2. Follow same design system and Material Design 3 patterns
+3. Theme is applied to `document.documentElement`
 
 ### UI Updates
 1. Update `ui/design-system.css` first when changing design tokens
@@ -391,6 +699,16 @@ For complete details on the logging system refactoring, see:
 - Configuration changes must be properly broadcast
 - Default values must be maintained when not overridden
 - Error handling must be implemented for all configuration operations
+
+### Shadow DOM Compliance
+**CRITICAL REQUIREMENTS**:
+- All content script UI components must render inside `window.__PL_SHADOW_CONTAINER__`
+- NEVER inject extension UI into `document.body` or Light DOM
+- NEVER query Light DOM for extension UI elements
+- Wait for `window.__PL_SHADOW_CONTAINER__` to exist before creating UI
+- All CSS for Shadow DOM components is automatically injected by `createShadowDOM()`
+- CSS variables use `:host` (auto-converted from `:root`)
+- Theme selectors use `:host([data-theme='dark'])` (auto-converted from `[data-theme='dark']`)
 
 ### Logging Standards
 - Always set tab context with `logger.startRequest(operation, tabId)` before logging

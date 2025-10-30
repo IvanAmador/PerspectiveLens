@@ -28,6 +28,19 @@ export class ConfigManager {
       // This ensures availableCountries is always present from PIPELINE_CONFIG
       const merged = this.deepMerge(PIPELINE_CONFIG, userConfig);
 
+      // CRITICAL FIX: Replace perCountry entirely from userConfig (don't merge with defaults)
+      // deepMerge would add default countries back, preventing country removal
+      // If user has saved perCountry, use it exclusively (ignore defaults)
+      if (userConfig.articleSelection?.perCountry !== undefined) {
+        merged.articleSelection.perCountry = { ...userConfig.articleSelection.perCountry };
+
+        console.log('[ConfigManager] perCountry replaced from userConfig (not merged with defaults)', {
+          defaultCountries: Object.keys(PIPELINE_CONFIG.articleSelection?.perCountry || {}),
+          userCountries: Object.keys(userConfig.articleSelection.perCountry),
+          finalCountries: Object.keys(merged.articleSelection.perCountry)
+        });
+      }
+
       console.log('[ConfigManager] Config loaded and merged', {
         hasUserConfig: !!userConfig,
         version: userConfig?.version || 'none',
@@ -60,6 +73,22 @@ export class ConfigManager {
       // This preserves existing user customizations while adding new ones
       const mergedUserConfig = this.deepMerge(existingUserConfig, config);
 
+      // CRITICAL FIX: For perCountry, replace entirely (don't merge) to allow country removal
+      // deepMerge only adds/updates keys, it never removes them
+      // When user removes a country, we need to completely replace perCountry object
+      if (config.articleSelection?.perCountry !== undefined) {
+        if (!mergedUserConfig.articleSelection) {
+          mergedUserConfig.articleSelection = {};
+        }
+        mergedUserConfig.articleSelection.perCountry = { ...config.articleSelection.perCountry };
+
+        console.log('[ConfigManager] perCountry replaced (not merged) to allow country removal', {
+          existing: Object.keys(existingUserConfig.articleSelection?.perCountry || {}),
+          incoming: Object.keys(config.articleSelection.perCountry),
+          result: Object.keys(mergedUserConfig.articleSelection.perCountry)
+        });
+      }
+
       // Step 3: Create FINAL config by merging with defaults FOR VALIDATION ONLY
       // This temporary config is used to validate completeness but NOT saved
       const finalConfig = this.deepMerge(PIPELINE_CONFIG, mergedUserConfig);
@@ -67,13 +96,46 @@ export class ConfigManager {
       // Step 4: Validate the FINAL merged config (must be complete and valid)
       const errors = [];
 
-      if (!finalConfig.articleSelection?.perCountry ||
-          Object.keys(finalConfig.articleSelection.perCountry).length === 0) {
-        errors.push('At least one country must be selected');
+      // Validate articleSelection structure exists
+      if (!finalConfig.articleSelection) {
+        errors.push('Article selection configuration is required');
+      } else {
+        // Validate perCountry exists and is an object
+        if (!finalConfig.articleSelection.perCountry ||
+            typeof finalConfig.articleSelection.perCountry !== 'object') {
+          errors.push('Article selection per country must be an object');
+        } else if (Object.keys(finalConfig.articleSelection.perCountry).length === 0) {
+          // Allow empty perCountry temporarily - just warn
+          console.warn('[ConfigManager] No countries selected - analysis will not work until countries are added');
+        }
+
+        // Validate maxForAnalysis
+        if (typeof finalConfig.articleSelection.maxForAnalysis !== 'number' ||
+            finalConfig.articleSelection.maxForAnalysis < 1) {
+          errors.push('Maximum articles for analysis must be at least 1');
+        }
+
+        // Validate bufferPerCountry
+        if (typeof finalConfig.articleSelection.bufferPerCountry !== 'number' ||
+            finalConfig.articleSelection.bufferPerCountry < 0) {
+          errors.push('Buffer per country must be a non-negative number');
+        }
       }
 
-      if (finalConfig.articleSelection?.maxForAnalysis < 1) {
-        errors.push('Maximum articles for analysis must be at least 1');
+      // Validate analysis structure
+      if (!finalConfig.analysis) {
+        errors.push('Analysis configuration is required');
+      } else {
+        // Validate modelProvider
+        if (!['nano', 'api'].includes(finalConfig.analysis.modelProvider)) {
+          errors.push('Model provider must be "nano" or "api"');
+        }
+
+        // Validate preferredModels array exists
+        if (!Array.isArray(finalConfig.analysis.preferredModels) ||
+            finalConfig.analysis.preferredModels.length === 0) {
+          errors.push('Preferred models array must contain at least one model');
+        }
       }
 
       if (errors.length > 0) {
@@ -106,11 +168,45 @@ export class ConfigManager {
         userConfigSize: savedSize,
         quotaUsage: `${savedSize}/8192 bytes`,
         hasDefaultsInStorage: false, // Should always be false
-        hasCountriesInStorage: !!configToSave.search?.availableCountries // Should always be false
+        hasCountriesInStorage: !!configToSave.search?.availableCountries, // Should always be false
+        savedKeys: Object.keys(configToSave),
+        timestamp: new Date().toISOString()
+      });
+
+      // Log what was actually saved for debugging
+      console.log('[ConfigManager] Saved configuration structure:', {
+        articleSelection: configToSave.articleSelection ? {
+          perCountry: Object.keys(configToSave.articleSelection.perCountry || {}),
+          perCountryValues: configToSave.articleSelection.perCountry,
+          bufferPerCountry: configToSave.articleSelection.bufferPerCountry,
+          maxForAnalysis: configToSave.articleSelection.maxForAnalysis,
+          allowFallback: configToSave.articleSelection.allowFallback
+        } : 'missing',
+        analysis: configToSave.analysis ? {
+          modelProvider: configToSave.analysis.modelProvider,
+          preferredModels: configToSave.analysis.preferredModels,
+          compressionLevel: configToSave.analysis.compressionLevel,
+          hasModelsConfig: !!configToSave.analysis.models
+        } : 'missing',
+        extraction: configToSave.extraction ? 'present' : 'missing'
+      });
+
+      // VERIFICATION: Immediately read back from storage to confirm it was saved
+      const verifyResult = await chrome.storage.sync.get(STORAGE_KEY);
+      const verifiedConfig = verifyResult[STORAGE_KEY];
+      console.log('[ConfigManager] IMMEDIATE VERIFICATION after save:', {
+        saved: !!verifiedConfig,
+        perCountry: verifiedConfig?.articleSelection?.perCountry,
+        bufferPerCountry: verifiedConfig?.articleSelection?.bufferPerCountry,
+        maxForAnalysis: verifiedConfig?.articleSelection?.maxForAnalysis,
+        matchesWhatWeSaved: JSON.stringify(verifiedConfig) === JSON.stringify(configToSave)
       });
 
       // Step 8: Notify all contexts with FINAL config (includes defaults + availableCountries)
+      // CRITICAL: Pass finalConfig (merged with defaults), not configToSave (user overrides only)
       await this.notifyConfigChange(finalConfig);
+
+      console.log('[ConfigManager] Config change notification sent to all contexts');
 
       return { success: true };
     } catch (error) {
@@ -272,14 +368,30 @@ export class ConfigManager {
 
 /**
  * Listen for storage changes and broadcast updates
+ * CRITICAL: This listener fires when storage changes from ANY context
+ * We need to merge with defaults before broadcasting
  */
-chrome.storage.onChanged.addListener((changes, areaName) => {
+chrome.storage.onChanged.addListener(async (changes, areaName) => {
   if (areaName === 'sync' && changes[STORAGE_KEY]) {
-    console.log('[ConfigManager] Config changed in storage');
+    console.log('[ConfigManager] Config changed in storage', {
+      hasOldValue: !!changes[STORAGE_KEY].oldValue,
+      hasNewValue: !!changes[STORAGE_KEY].newValue,
+      timestamp: new Date().toISOString()
+    });
 
-    const newConfig = changes[STORAGE_KEY].newValue;
-    if (newConfig) {
-      ConfigManager.notifyConfigChange(newConfig);
+    const newUserConfig = changes[STORAGE_KEY].newValue;
+    if (newUserConfig) {
+      // Merge with defaults before broadcasting
+      // This ensures all contexts receive complete config
+      const mergedConfig = ConfigManager.deepMerge(PIPELINE_CONFIG, newUserConfig);
+
+      console.log('[ConfigManager] Broadcasting merged config to all contexts', {
+        modelProvider: mergedConfig.analysis?.modelProvider,
+        countries: Object.keys(mergedConfig.articleSelection?.perCountry || {}),
+        hasAvailableCountries: !!mergedConfig.search?.availableCountries
+      });
+
+      await ConfigManager.notifyConfigChange(mergedConfig);
     }
   }
 });

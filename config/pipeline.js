@@ -419,6 +419,19 @@ export async function loadRuntimeConfig() {
     // Deep merge user config with defaults
     const merged = deepMerge(PIPELINE_CONFIG, userConfig);
 
+    // CRITICAL FIX: Replace perCountry entirely from userConfig (don't merge with defaults)
+    // deepMerge would add default countries back, preventing country removal
+    // Same fix as in ConfigManager.load()
+    if (userConfig.articleSelection?.perCountry !== undefined) {
+      merged.articleSelection.perCountry = { ...userConfig.articleSelection.perCountry };
+
+      console.log('[Pipeline] perCountry replaced from userConfig (not merged with defaults)', {
+        defaultCountries: Object.keys(PIPELINE_CONFIG.articleSelection?.perCountry || {}),
+        userCountries: Object.keys(userConfig.articleSelection.perCountry),
+        finalCountries: Object.keys(merged.articleSelection.perCountry)
+      });
+    }
+
     console.log('[Pipeline] User config loaded successfully');
     return merged;
   } catch (error) {
@@ -437,12 +450,20 @@ export async function getSearchConfigAsync() {
   const config = await loadRuntimeConfig();
   const { perCountry, bufferPerCountry } = config.articleSelection;
 
+  console.log('[Pipeline] getSearchConfigAsync() - loaded config:', {
+    perCountry: perCountry,
+    perCountryKeys: Object.keys(perCountry),
+    bufferPerCountry: bufferPerCountry
+  });
+
   const searchConfig = {
     countries: [],
     totalExpected: 0,
   };
 
   const selectedCountries = Object.keys(perCountry);
+
+  console.log('[Pipeline] getSearchConfigAsync() - building search config for countries:', selectedCountries);
 
   selectedCountries.forEach(countryCode => {
     const requested = perCountry[countryCode];
@@ -467,6 +488,12 @@ export async function getSearchConfigAsync() {
     });
 
     searchConfig.totalExpected += fetchTarget;
+  });
+
+  console.log('[Pipeline] getSearchConfigAsync() - final search config:', {
+    countryCodes: searchConfig.countries.map(c => c.code),
+    totalCountries: searchConfig.countries.length,
+    totalExpected: searchConfig.totalExpected
   });
 
   return searchConfig;

@@ -638,6 +638,11 @@ class OptionsPage {
     // DO NOT try to read from countryList - it's only populated when modal is open
     const perCountry = this.currentConfig.articleSelection?.perCountry || {};
 
+    console.log('[Options] gatherConfig() - perCountry from currentConfig:', {
+      perCountry: Object.keys(perCountry),
+      counts: perCountry
+    });
+
     // Get selected model provider (new values: 'nano' or 'api')
     let modelProvider = 'nano';
     this.elements.modelOptions.forEach(option => {
@@ -665,12 +670,26 @@ class OptionsPage {
     // Get model priorities
     const modelPriorities = this.getModelPriorities();
 
+    // Read bufferPerCountry and maxForAnalysis from UI elements
+    const bufferPerCountryValue = parseInt(this.elements.bufferPerCountry?.value ?? 2);
+    const maxForAnalysisValue = parseInt(this.elements.maxForAnalysis?.value ?? 10);
+    const allowFallbackValue = this.elements.allowFallback?.checked ?? true;
+
+    console.log('[Options] gatherConfig() - articleSelection values:', {
+      perCountryKeys: Object.keys(perCountry),
+      bufferPerCountry: bufferPerCountryValue,
+      bufferElement: this.elements.bufferPerCountry ? 'exists' : 'null',
+      bufferElementValue: this.elements.bufferPerCountry?.value,
+      maxForAnalysis: maxForAnalysisValue,
+      allowFallback: allowFallbackValue
+    });
+
     return {
       articleSelection: {
         perCountry,
-        bufferPerCountry: parseInt(this.elements.bufferPerCountry.value ?? 2),
-        maxForAnalysis: parseInt(this.elements.maxForAnalysis.value ?? 10),
-        allowFallback: this.elements.allowFallback.checked
+        bufferPerCountry: bufferPerCountryValue,
+        maxForAnalysis: maxForAnalysisValue,
+        allowFallback: allowFallbackValue
       },
       extraction: {
         timeout: parseInt(this.elements.timeout.value ?? 20000),
@@ -963,11 +982,24 @@ class OptionsPage {
     try {
       const config = this.gatherConfig();
 
-      // Validate if Gemini 2.5 Pro is selected but no API key
-      if (config.analysis.modelProvider === 'gemini-2.5-pro') {
+      console.log('[Options] Saving configuration', {
+        articleSelection: config.articleSelection ? {
+          perCountry: Object.keys(config.articleSelection.perCountry || {}),
+          bufferPerCountry: config.articleSelection.bufferPerCountry,
+          maxForAnalysis: config.articleSelection.maxForAnalysis
+        } : 'missing',
+        analysis: config.analysis ? {
+          modelProvider: config.analysis.modelProvider,
+          preferredModels: config.analysis.preferredModels,
+          compressionLevel: config.analysis.compressionLevel
+        } : 'missing'
+      });
+
+      // Validate if API models selected but no API key
+      if (config.analysis.modelProvider === 'api' || config.analysis.modelProvider === 'gemini-2.5-pro') {
         const hasKey = await APIKeyManager.exists();
         if (!hasKey) {
-          alert('Please configure an API key before using Gemini 2.5 Pro. Add your API key in the API Configuration section above.');
+          alert('Please configure an API key before using API models. Add your API key in the API Configuration section above.');
           return;
         }
       }
@@ -975,8 +1007,21 @@ class OptionsPage {
       const result = await ConfigManager.save(config);
 
       if (result.success) {
+        console.log('[Options] ConfigManager.save() completed successfully');
+
         // Reload config from storage to ensure currentConfig is in sync
         await this.loadConfiguration();
+        console.log('[Options] Configuration reloaded from storage');
+
+        // Verify the saved configuration
+        const verification = await ConfigManager.load();
+        console.log('[Options] Verification check:', {
+          modelProvider: verification.analysis?.modelProvider,
+          countries: Object.keys(verification.articleSelection?.perCountry || {}),
+          bufferPerCountry: verification.articleSelection?.bufferPerCountry,
+          maxForAnalysis: verification.articleSelection?.maxForAnalysis,
+          preferredModels: verification.analysis?.preferredModels
+        });
 
         this.isDirty = false;
         this.showSaveIndicator();

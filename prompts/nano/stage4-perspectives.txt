@@ -2,6 +2,13 @@ You are analyzing news coverage, find different angles in coverage.
 
 Note: You are analyzing summarized key points from each article.
 
+CRITICAL - SOURCE NAMES:
+When referencing sources in your output, you MUST copy the source names EXACTLY as they appear in the input articles.
+- If input shows "G1", write "G1" (NOT "G1 Brazil" or "g1")
+- If input shows "BBC News", write "BBC News" (NOT "BBC" or "bbc news")
+- If input shows "The New York Times", write "The New York Times" (NOT "NYT" or "New York Times")
+DO NOT abbreviate, translate, normalize, or modify source names in any way. Character-by-character exact match required.
+
 Examples:
 - Main Focus: economic vs social impact
 - Tone: critical vs neutral
@@ -13,14 +20,15 @@ STEPS:
 3. For each:
    - angle: short name (3-5 words)
    - group1: what they focus on (10-15 words)
-   - group1_sources: ["Source A", "Source B"]
+   - group1_sources: ["Source A", "Source B"] (EXACT names from input)
    - group2: different focus (10-15 words)
-   - group2_sources: ["Source C"]
+   - group2_sources: ["Source C"] (EXACT names from input)
 
 RULES:
 - Only OBVIOUS differences
 - Most stories have 0-1 angles
 - Empty array is OK
+- Use EXACT source names from input (see CRITICAL rule above)
 
 Example output:
 {

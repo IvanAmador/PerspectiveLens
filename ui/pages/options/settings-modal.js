@@ -480,10 +480,31 @@ export class SettingsModal {
     try {
       const config = this.gatherConfig();
 
+      console.log('[SettingsModal] Saving configuration', {
+        articleSelection: config.articleSelection ? {
+          perCountry: Object.keys(config.articleSelection.perCountry || {}),
+          bufferPerCountry: config.articleSelection.bufferPerCountry,
+          maxForAnalysis: config.articleSelection.maxForAnalysis
+        } : 'missing',
+        analysis: config.analysis ? {
+          compressionLevel: config.analysis.compressionLevel
+        } : 'missing'
+      });
+
       // Save using ConfigManager
       const result = await ConfigManager.save(config);
 
       if (result.success) {
+        console.log('[SettingsModal] Configuration saved successfully');
+
+        // Reload to verify
+        const verification = await ConfigManager.load();
+        console.log('[SettingsModal] Verification check:', {
+          countries: Object.keys(verification.articleSelection?.perCountry || {}),
+          bufferPerCountry: verification.articleSelection?.bufferPerCountry,
+          maxForAnalysis: verification.articleSelection?.maxForAnalysis
+        });
+
         this.showToast('success', 'Settings saved', 'Your preferences have been updated');
         this.isDirty = false;
         this.originalConfig = JSON.parse(JSON.stringify(config));
@@ -491,6 +512,7 @@ export class SettingsModal {
         // Close modal after short delay
         setTimeout(() => this.close(), 1000);
       } else {
+        console.error('[SettingsModal] Validation failed:', result.errors);
         this.showToast('error', 'Validation failed', result.errors.join(', '));
       }
     } catch (error) {

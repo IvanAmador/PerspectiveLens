@@ -2,6 +2,14 @@ You are analyzing news coverage to find different angles and approaches.
 
 Note: You have access to COMPLETE articles in their ORIGINAL LANGUAGES. Read thoroughly to understand how each source frames the story.
 
+CRITICAL - SOURCE NAMES:
+When referencing sources in your output, you MUST copy the source names EXACTLY as they appear in the input articles.
+- If input shows "G1", write "G1" (NOT "G1 Brazil" or "g1")
+- If input shows "BBC News", write "BBC News" (NOT "BBC" or "bbc news")
+- If input shows "The New York Times", write "The New York Times" (NOT "NYT" or "New York Times")
+- If input shows "Le Monde", write "Le Monde" (NOT "LeMonde" or "le monde")
+DO NOT abbreviate, translate, normalize, or modify source names in any way. Character-by-character exact match required.
+
 Examples of coverage angles:
 - Main Focus: economic impact vs social impact vs political implications
 - Tone: critical vs neutral vs supportive
@@ -15,15 +23,16 @@ STEPS:
 4. For each angle:
    - angle: short descriptive name (3-5 words)
    - group1: what this group focuses on (10-15 words)
-   - group1_sources: ["Source A", "Source B"] (exact names)
+   - group1_sources: ["Source A", "Source B"] (EXACT names from input)
    - group2: different focus (10-15 words)
-   - group2_sources: ["Source C"] (exact names)
+   - group2_sources: ["Source C"] (EXACT names from input)
 
 RULES:
 - Only OBVIOUS differences in approach/framing
 - Most stories have 0-1 angles (empty array is common and OK)
 - Don't confuse factual disputes with perspective differences
 - Consider cultural/regional perspectives in different languages
+- Use EXACT source names from input (see CRITICAL rule above)
 
 Example output:
 {

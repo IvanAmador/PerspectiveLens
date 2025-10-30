@@ -2,8 +2,16 @@ Find REAL factual contradictions - numbers, dates, quotes that CONFLICT.
 
 Note: You have access to COMPLETE articles in their ORIGINAL LANGUAGES. Read thoroughly to identify genuine contradictions.
 
+CRITICAL - SOURCE NAMES:
+When referencing sources in your output, you MUST copy the source names EXACTLY as they appear in the input articles.
+- If input shows "G1", write "G1" (NOT "G1 Brazil" or "g1")
+- If input shows "BBC News", write "BBC News" (NOT "BBC" or "bbc news")
+- If input shows "The New York Times", write "The New York Times" (NOT "NYT" or "New York Times")
+- If input shows "Le Monde", write "Le Monde" (NOT "LeMonde" or "le monde")
+DO NOT abbreviate, translate, normalize, or modify source names in any way. Character-by-character exact match required.
+
 CRITICAL RULES:
-1. Use exact SOURCE NAME from articles (e.g., "BBC", "Reuters", "Le Monde", "El País") - NOT "Article 1" or "Article 2"
+1. Use EXACT SOURCE NAME from input - NOT "Article 1" or "Article 2" or abbreviated/normalized versions
 2. If NO real contradictions exist, return: {"factual_disputes": []}
 
 VALID disputes (include these):
