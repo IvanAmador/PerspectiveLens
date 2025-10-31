@@ -421,65 +421,41 @@ export class NanoModelManager {
 
     try {
       console.log(`[NanoModelManager] Creating session with monitor for ${api.name}...`);
+      console.log(`[NanoModelManager] Current availability before create():`, availability);
 
       const self = this; // Capture this context
       let progressEventFired = false;
-      let downloadCheckInterval = null;
 
-      // Start a fallback progress simulation if no events fire
-      const startFallbackProgress = () => {
-        console.log(`[NanoModelManager] Starting fallback progress simulation (no downloadprogress events detected)`);
-        let simulatedProgress = 1;
-
-        downloadCheckInterval = setInterval(() => {
-          if (!progressEventFired && simulatedProgress < 95) {
-            simulatedProgress += 5;
-            self.downloadState.progress = simulatedProgress;
-
-            console.log(`[NanoModelManager] Simulated progress:`, simulatedProgress);
-
-            if (onProgress) {
-              onProgress({
-                progress: simulatedProgress,
-                apiKey,
-                apiName: api.displayName,
-                loaded: simulatedProgress / 100,
-                estimatedSize: self.downloadState.estimatedSize,
-                simulated: true
-              });
-            }
-          }
-        }, 500); // Update every 500ms
-      };
-
-      // Wait 2 seconds, if no progress event fires, start fallback
-      const fallbackTimeout = setTimeout(() => {
+      // Diagnostic timeout to check if event fires
+      const diagnosticTimeout = setTimeout(() => {
         if (!progressEventFired) {
-          startFallbackProgress();
+          console.warn(`[NanoModelManager] WARNING: No downloadprogress events fired after 3 seconds`);
+          console.warn(`[NanoModelManager] This may indicate:`);
+          console.warn(`  - Model already cached/downloaded`);
+          console.warn(`  - Download completing too quickly`);
+          console.warn(`  - Chrome bug with downloadprogress event`);
+          console.warn(`[NanoModelManager] Check chrome://on-device-internals for model status`);
         }
-      }, 2000);
+      }, 3000);
 
       const session = await api.createFn({
         monitor(m) {
           console.log(`[NanoModelManager] Monitor function called for ${api.name}`);
+          console.log(`[NanoModelManager] Monitor object:`, m);
+          console.log(`[NanoModelManager] Monitor addEventListener exists:`, typeof m.addEventListener === 'function');
 
           m.addEventListener('downloadprogress', (e) => {
             progressEventFired = true;
-
-            // Clear fallback if real event fires
-            if (downloadCheckInterval) {
-              clearInterval(downloadCheckInterval);
-              downloadCheckInterval = null;
-            }
-            clearTimeout(fallbackTimeout);
+            clearTimeout(diagnosticTimeout);
 
             const progress = e.loaded === 0 ? 0 : Math.max(1, Math.round(e.loaded * 100));
 
             console.log(`[NanoModelManager] *** DOWNLOAD PROGRESS EVENT FIRED ***`, {
               api: api.name,
               loaded: e.loaded,
-              progress: progress + '%',
               total: e.total,
+              progress: progress + '%',
+              rawEvent: e,
               timestamp: new Date().toISOString()
             });
 
@@ -488,31 +464,36 @@ export class NanoModelManager {
 
             // Call progress callback
             if (onProgress) {
-              console.log(`[NanoModelManager] Calling onProgress with:`, progress);
+              console.log(`[NanoModelManager] Calling onProgress callback with:`, {
+                progress,
+                apiName: api.displayName,
+                loaded: e.loaded
+              });
+
               onProgress({
                 progress,
                 apiKey,
                 apiName: api.displayName,
                 loaded: e.loaded,
-                estimatedSize: self.downloadState.estimatedSize,
-                simulated: false
+                estimatedSize: self.downloadState.estimatedSize
               });
             } else {
-              console.error(`[NanoModelManager] onProgress is NULL - callback not provided!`);
+              console.error(`[NanoModelManager] onProgress callback is NULL!`);
             }
           });
 
-          console.log(`[NanoModelManager] downloadprogress listener registered successfully`);
+          console.log(`[NanoModelManager] downloadprogress event listener registered successfully`);
         }
       });
 
-      // Clean up fallback
-      clearTimeout(fallbackTimeout);
-      if (downloadCheckInterval) {
-        clearInterval(downloadCheckInterval);
-      }
+      // Clean up diagnostic timeout
+      clearTimeout(diagnosticTimeout);
 
-      console.log(`[NanoModelManager] ${api.name} session created, download completed`);
+      console.log(`[NanoModelManager] ${api.name} session created successfully`, {
+        sessionExists: !!session,
+        progressEventFired,
+        finalProgress: self.downloadState.progress
+      });
 
       this.downloadState.inProgress = false;
       this.downloadState.progress = 100;
