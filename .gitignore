@@ -47,3 +47,8 @@ coverage/
 # Backup files
 *.bak
 *.backup
+
+# Documentation folder
+DOCS/
+.claude/
+CLAUDE.md
