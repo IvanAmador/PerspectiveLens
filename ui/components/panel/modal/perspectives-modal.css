@@ -326,13 +326,14 @@
   line-height: var(--line-height-tight);
   letter-spacing: var(--letter-spacing-tight);
 
-  /* Truncate to 1 line with ellipsis */
+  /* Truncate to 2 lines with ellipsis */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-word;
   width: 100%;
   max-width: 100%;
-  display: block;
 }
 
 /* Remove blue dot from modal cards */
