@@ -372,12 +372,41 @@ export class NanoModelManager {
     try {
       console.log(`[NanoModelManager] Creating session with monitor for ${api.name}...`);
 
+      let progressEventFired = false;
+      let lastProgress = 0;
+
+      // Set up a progress simulator in case events don't fire (for fast/cached downloads)
+      const progressSimulator = setInterval(() => {
+        if (!progressEventFired && this.downloadState.inProgress) {
+          // Simulate gradual progress if no real events
+          lastProgress = Math.min(lastProgress + 5, 95);
+          this.downloadState.progress = lastProgress;
+
+          if (onProgress) {
+            onProgress({
+              progress: lastProgress,
+              apiKey,
+              apiName: api.displayName,
+              loaded: lastProgress / 100,
+              estimatedSize: this.downloadState.estimatedSize,
+              simulated: true
+            });
+          }
+          console.log(`[NanoModelManager] Simulated progress: ${lastProgress}% (no events received yet)`);
+        }
+      }, 500);
+
       const session = await api.createFn({
         monitor: (m) => {
           console.log(`[NanoModelManager] Monitor callback called for ${api.name}`, m);
 
           m.addEventListener('downloadprogress', (e) => {
+            progressEventFired = true;
+            clearInterval(progressSimulator); // Stop simulation once real events arrive
+
             const progress = Math.round(e.loaded * 100);
+            lastProgress = progress;
+
             console.log(`[NanoModelManager] ${api.name} download progress event:`, {
               loaded: e.loaded,
               progress: progress + '%',
@@ -394,7 +423,8 @@ export class NanoModelManager {
                 apiKey,
                 apiName: api.displayName,
                 loaded: e.loaded,
-                estimatedSize: this.downloadState.estimatedSize
+                estimatedSize: this.downloadState.estimatedSize,
+                simulated: false
               });
             }
           });
@@ -403,7 +433,11 @@ export class NanoModelManager {
         }
       });
 
-      console.log(`[NanoModelManager] ${api.name} session created, checking if download completed...`);
+      // Clear progress simulator
+      clearInterval(progressSimulator);
+
+      console.log(`[NanoModelManager] ${api.name} session created, download completed`);
+      console.log(`[NanoModelManager] Progress events fired: ${progressEventFired}, last progress: ${lastProgress}%`);
 
       this.downloadState.inProgress = false;
       this.downloadState.progress = 100;
