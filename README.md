@@ -102,20 +102,13 @@ The analysis pipeline is divided into 4 stages for optimal user experience:
    ```bash
    git clone https://github.com/your-username/PerspectiveLens.git
    ```
+2. Open Chrome and navigate to `chrome://extensions/`
 
-2. Install dependencies for content extraction:
-   ```bash
-   # Download Readability.js to the offscreen folder
-   curl -o offscreen/readability.js https://cdn.jsdelivr.net/npm/@mozilla/readability@0.5.0/Readability.js
-   ```
+3. Enable "Developer mode"
 
-3. Open Chrome and navigate to `chrome://extensions/`
+4. Click "Load unpacked" and select the PerspectiveLens folder
 
-4. Enable "Developer mode"
-
-5. Click "Load unpacked" and select the PerspectiveLens folder
-
-6. Enable the extension
+5. Enable the extension
 
 ## Usage
 
