@@ -342,8 +342,10 @@ class PopupManager {
    * Update Nano download progress
    */
   updateNanoProgress(percent) {
+    console.log('[Popup] updateNanoProgress called with:', percent);
     this.elements.nanoProgressFill.style.width = `${percent}%`;
     this.elements.nanoProgressPercent.textContent = `${percent}%`;
+    console.log('[Popup] Progress bar updated - fillWidth:', this.elements.nanoProgressFill.style.width);
   }
 
   /**
