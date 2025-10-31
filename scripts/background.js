@@ -54,6 +54,7 @@ logger.system.info('Background service worker started', {
 let downloadState = {
   inProgress: false,
   progress: 0,
+  loaded: 0, // Fraction of model downloaded (0.0 to 1.0)
   session: null
 };
 
@@ -1511,16 +1512,19 @@ async function getExtensionStatus() {
 
         if (nanoStatus.download.inProgress) {
           aiStatus.downloadProgress = nanoStatus.download.progress;
+          aiStatus.downloadLoaded = nanoStatus.download.loaded || 0;
           aiStatus.downloadingAPI = nanoStatus.download.currentAPI;
           aiStatus.downloadInProgress = true;
-          console.log('[Background] Using nano download progress:', aiStatus.downloadProgress);
+          console.log('[Background] Using nano download progress:', aiStatus.downloadProgress, 'loaded:', aiStatus.downloadLoaded);
         } else if (downloadState.inProgress) {
           // Fallback to local download state
           aiStatus.downloadProgress = downloadState.progress;
+          aiStatus.downloadLoaded = downloadState.loaded || 0;
           aiStatus.downloadInProgress = true;
-          console.log('[Background] Using local download progress:', aiStatus.downloadProgress);
+          console.log('[Background] Using local download progress:', aiStatus.downloadProgress, 'loaded:', aiStatus.downloadLoaded);
         } else {
           aiStatus.downloadProgress = 0;
+          aiStatus.downloadLoaded = 0;
           aiStatus.downloadInProgress = false;
         }
 
@@ -1648,10 +1652,12 @@ async function startModelDownload() {
 
     downloadState.inProgress = true;
     downloadState.progress = 0;
+    downloadState.loaded = 0;
 
     console.log('[Background] Download starting - initial state:', {
       inProgress: downloadState.inProgress,
       progress: downloadState.progress,
+      loaded: downloadState.loaded,
       timestamp: new Date().toISOString()
     });
 
@@ -1659,6 +1665,7 @@ async function startModelDownload() {
     await nanoModelManager.downloadAPI('prompt', (progressData) => {
       // Update BOTH local state and log
       downloadState.progress = progressData.progress;
+      downloadState.loaded = progressData.loaded || 0;
 
       console.log('[Background] *** PROGRESS CALLBACK FIRED ***', {
         progress: progressData.progress,
@@ -1683,6 +1690,7 @@ async function startModelDownload() {
 
     downloadState.inProgress = false;
     downloadState.progress = 100;
+    downloadState.loaded = 1.0;
 
     logger.both.info('Gemini Nano model download completed', {
       category: logger.CATEGORIES.GENERAL
@@ -1694,6 +1702,7 @@ async function startModelDownload() {
 
     downloadState.inProgress = false;
     downloadState.progress = 0;
+    downloadState.loaded = 0;
 
     logger.both.error('Model download failed', {
       category: logger.CATEGORIES.ERROR,

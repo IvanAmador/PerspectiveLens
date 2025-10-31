@@ -202,6 +202,7 @@ export class NanoModelManager {
       inProgress: false,
       currentAPI: null,
       progress: 0,
+      loaded: 0, // Fraction of model downloaded (0.0 to 1.0)
       startTime: null,
       estimatedSize: 0
     };
@@ -416,6 +417,7 @@ export class NanoModelManager {
     this.downloadState.inProgress = true;
     this.downloadState.currentAPI = apiKey;
     this.downloadState.progress = 0;
+    this.downloadState.loaded = 0;
     this.downloadState.startTime = Date.now();
     this.downloadState.estimatedSize = this.getEstimatedSize(apiKey);
 
@@ -461,6 +463,7 @@ export class NanoModelManager {
 
             // Update internal state using captured context
             self.downloadState.progress = progress;
+            self.downloadState.loaded = e.loaded || 0;
 
             // Call progress callback
             if (onProgress) {
@@ -497,6 +500,7 @@ export class NanoModelManager {
 
       this.downloadState.inProgress = false;
       this.downloadState.progress = 100;
+      this.downloadState.loaded = 1.0;
 
       // Invalidate cache to force refresh
       this.invalidateCache();
@@ -512,6 +516,7 @@ export class NanoModelManager {
       console.error(`[NanoModelManager] Download failed for ${api.name}:`, error);
       this.downloadState.inProgress = false;
       this.downloadState.progress = 0;
+      this.downloadState.loaded = 0;
       throw error;
     }
   }

@@ -194,7 +194,8 @@ export async function createSession(options = {}, onProgress = null) {
             category: logger.CATEGORIES.GENERAL,
             data: { progress, loaded: e.loaded }
           });
-          onProgress(progress);
+          // Pass both percentage and loaded fraction to callback
+          onProgress(progress, e.loaded);
         });
       };
     }

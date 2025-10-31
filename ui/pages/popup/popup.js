@@ -37,6 +37,7 @@ class PopupManager {
       nanoProgress: document.getElementById('nano-progress'),
       nanoProgressFill: document.getElementById('nano-progress-fill'),
       nanoProgressPercent: document.getElementById('nano-progress-percent'),
+      nanoProgressSize: document.getElementById('nano-progress-size'),
       nanoDownloadBtn: document.getElementById('nano-download-btn'),
 
       // API card
@@ -273,11 +274,12 @@ class PopupManager {
           console.log('[Popup] Downloading state detected:', {
             hasDownloadProgress: aiStatus.downloadProgress !== undefined,
             downloadProgress: aiStatus.downloadProgress,
+            downloadLoaded: aiStatus.downloadLoaded,
             downloadInProgress: aiStatus.downloadInProgress
           });
 
           if (aiStatus.downloadProgress !== undefined) {
-            this.updateNanoProgress(aiStatus.downloadProgress);
+            this.updateNanoProgress(aiStatus.downloadProgress, aiStatus.downloadLoaded || 0);
           } else {
             console.warn('[Popup] Downloading state but no downloadProgress value');
           }
@@ -350,13 +352,14 @@ class PopupManager {
   /**
    * Update Nano download progress
    */
-  updateNanoProgress(percent) {
-    console.log('[Popup] updateNanoProgress called with:', percent);
+  updateNanoProgress(percent, loaded = 0) {
+    console.log('[Popup] updateNanoProgress called with:', percent, 'loaded:', loaded);
 
     if (!this.elements.nanoProgressFill || !this.elements.nanoProgressPercent) {
       console.error('[Popup] Progress elements not found!', {
         hasFill: !!this.elements.nanoProgressFill,
-        hasPercent: !!this.elements.nanoProgressPercent
+        hasPercent: !!this.elements.nanoProgressPercent,
+        hasSize: !!this.elements.nanoProgressSize
       });
       return;
     }
@@ -365,12 +368,32 @@ class PopupManager {
     this.elements.nanoProgressFill.style.width = `${roundedPercent}%`;
     this.elements.nanoProgressPercent.textContent = `${roundedPercent}%`;
 
+    // Update size display (loaded is a fraction from 0.0 to 1.0)
+    // Gemini Nano model is approximately 1.7 GB
+    if (this.elements.nanoProgressSize) {
+      const totalSizeGB = 1.7;
+      const downloadedGB = loaded * totalSizeGB;
+
+      // Format based on size: use MB if less than 1 GB, otherwise GB
+      let sizeText;
+      if (downloadedGB < 1.0) {
+        const downloadedMB = Math.round(downloadedGB * 1024);
+        sizeText = `${downloadedMB} MB / 1.7 GB`;
+      } else {
+        const downloadedGBRounded = downloadedGB.toFixed(1);
+        sizeText = `${downloadedGBRounded} GB / 1.7 GB`;
+      }
+
+      this.elements.nanoProgressSize.textContent = sizeText;
+    }
+
     console.log('[Popup] Progress bar updated:', {
       percent: roundedPercent,
+      loaded,
+      downloadedSize: loaded * 1.7,
       fillWidth: this.elements.nanoProgressFill.style.width,
       textContent: this.elements.nanoProgressPercent.textContent,
-      fillElement: this.elements.nanoProgressFill,
-      percentElement: this.elements.nanoProgressPercent
+      sizeText: this.elements.nanoProgressSize?.textContent
     });
   }
 
@@ -401,6 +424,7 @@ class PopupManager {
           console.log('[Popup] Download poll - FULL STATUS:', {
             availability: aiStatus.availability,
             downloadProgress: aiStatus.downloadProgress,
+            downloadLoaded: aiStatus.downloadLoaded,
             downloadInProgress: aiStatus.downloadInProgress,
             downloadingAPI: aiStatus.downloadingAPI,
             fullAiStatus: aiStatus
@@ -408,11 +432,11 @@ class PopupManager {
 
           // Update progress if downloading OR if downloadProgress is available
           if (aiStatus.downloadInProgress && aiStatus.downloadProgress !== undefined) {
-            console.log('[Popup] Updating progress bar to:', aiStatus.downloadProgress);
-            this.updateNanoProgress(aiStatus.downloadProgress);
+            console.log('[Popup] Updating progress bar to:', aiStatus.downloadProgress, 'loaded:', aiStatus.downloadLoaded);
+            this.updateNanoProgress(aiStatus.downloadProgress, aiStatus.downloadLoaded || 0);
           } else if (aiStatus.availability === 'downloading' && aiStatus.downloadProgress !== undefined) {
-            console.log('[Popup] Updating progress bar to (via availability):', aiStatus.downloadProgress);
-            this.updateNanoProgress(aiStatus.downloadProgress);
+            console.log('[Popup] Updating progress bar to (via availability):', aiStatus.downloadProgress, 'loaded:', aiStatus.downloadLoaded);
+            this.updateNanoProgress(aiStatus.downloadProgress, aiStatus.downloadLoaded || 0);
           } else if (aiStatus.availability === 'ready' || aiStatus.availability === 'available') {
             console.log('[Popup] Download complete, clearing poll interval');
             clearInterval(pollInterval);
