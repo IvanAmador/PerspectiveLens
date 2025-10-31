@@ -46,7 +46,13 @@ class PopupManager {
       apiKeyField: document.getElementById('api-key'),
       toggleVisibility: document.getElementById('toggle-visibility'),
       saveKeyBtn: document.getElementById('save-key-btn'),
-      validationMsg: document.getElementById('validation-msg')
+      validationMsg: document.getElementById('validation-msg'),
+
+      // Setup Modal
+      setupModal: document.getElementById('setup-modal'),
+      closeModalBtn: document.getElementById('close-modal-btn'),
+      openFlagsBtn: document.getElementById('open-flags-btn'),
+      copyBtns: document.querySelectorAll('.copy-btn')
     };
   }
 
@@ -101,6 +107,20 @@ class PopupManager {
       if (e.key === 'Enter') {
         this.saveApiKey();
       }
+    });
+
+    // Modal handlers
+    this.elements.closeModalBtn?.addEventListener('click', () => this.closeModal());
+    this.elements.setupModal?.addEventListener('click', (e) => {
+      if (e.target === this.elements.setupModal) {
+        this.closeModal();
+      }
+    });
+    this.elements.openFlagsBtn?.addEventListener('click', () => this.openAllFlags());
+
+    // Copy button handlers
+    this.elements.copyBtns?.forEach(btn => {
+      btn.addEventListener('click', () => this.copyFlagUrl(btn.dataset.flagId));
     });
   }
 
@@ -186,6 +206,38 @@ class PopupManager {
 
       const { aiStatus } = response.status;
 
+      console.log('[Popup] aiStatus.flagsEnabled:', aiStatus.flagsEnabled, 'aiStatus.availability:', aiStatus.availability);
+
+      // Check if flags are disabled (show modal)
+      if (aiStatus.flagsEnabled === false || aiStatus.availability === 'flags-disabled') {
+        console.log('[Popup] Flags disabled - showing setup button');
+        this.setNanoStatus('warning', 'Chrome flags required');
+        this.elements.nanoDownloadBtn.style.display = 'none';
+        this.elements.nanoProgress.style.display = 'none';
+
+        // Add button to open setup modal
+        const statusEl = this.elements.nanoStatus.closest('.status-row');
+        console.log('[Popup] statusEl:', statusEl);
+        if (statusEl && !statusEl.querySelector('.setup-flags-btn')) {
+          const setupBtn = document.createElement('button');
+          setupBtn.className = 'btn-link setup-flags-btn';
+          setupBtn.textContent = 'Setup';
+          setupBtn.addEventListener('click', () => this.openModal());
+          statusEl.appendChild(setupBtn);
+          console.log('[Popup] Setup button added');
+        } else {
+          console.log('[Popup] Setup button already exists or statusEl not found');
+        }
+        return;
+      }
+
+      // Remove setup button if flags are enabled
+      const statusEl = this.elements.nanoStatus.closest('.status-row');
+      const setupBtn = statusEl?.querySelector('.setup-flags-btn');
+      if (setupBtn) {
+        setupBtn.remove();
+      }
+
       // Handle different availability states
       switch (aiStatus.availability) {
         case 'readily':
@@ -196,6 +248,15 @@ class PopupManager {
           this.elements.nanoProgress.style.display = 'none';
           break;
 
+        case 'flags-disabled':
+          // Should be caught by early return above, but handle just in case
+          console.warn('[Popup] flags-disabled reached switch statement (should have returned early)');
+          this.setNanoStatus('warning', 'Chrome flags required');
+          this.elements.nanoDownloadBtn.style.display = 'none';
+          this.elements.nanoProgress.style.display = 'none';
+          break;
+
+        case 'download-required':
         case 'after-download':
         case 'download':
         case 'downloadable':
@@ -213,15 +274,27 @@ class PopupManager {
           }
           break;
 
+        case 'partial-ready':
+          this.setNanoStatus('warning', 'Partially ready');
+          this.elements.nanoDownloadBtn.style.display = 'none';
+          this.elements.nanoProgress.style.display = 'none';
+          break;
+
         case 'no':
         case 'unavailable':
-          this.setNanoStatus('error', 'Unavailable');
+          // Check if hardware insufficient
+          if (aiStatus.hardware && !aiStatus.hardware.meetsRequirements) {
+            this.setNanoStatus('error', 'Hardware insufficient');
+          } else {
+            this.setNanoStatus('error', 'Unavailable');
+          }
           this.elements.nanoDownloadBtn.style.display = 'none';
           this.elements.nanoProgress.style.display = 'none';
           break;
 
         default:
-          this.setNanoStatus('error', `Unknown status: ${aiStatus.availability}`);
+          console.warn('[Popup] Unknown Nano status:', aiStatus.availability);
+          this.setNanoStatus('warning', aiStatus.message || 'Unknown status');
           this.elements.nanoDownloadBtn.style.display = 'none';
           this.elements.nanoProgress.style.display = 'none';
       }
@@ -461,6 +534,84 @@ class PopupManager {
         msgEl.style.display = 'none';
       }, 5000);
     }
+  }
+
+  /**
+   * Open setup modal
+   */
+  openModal() {
+    console.log('[Popup] Opening setup modal');
+    this.elements.setupModal.style.display = 'flex';
+  }
+
+  /**
+   * Close setup modal
+   */
+  closeModal() {
+    console.log('[Popup] Closing setup modal');
+    this.elements.setupModal.style.display = 'none';
+  }
+
+  /**
+   * Copy flag URL to clipboard
+   */
+  async copyFlagUrl(flagId) {
+    const flagUrls = {
+      '1': 'chrome://flags/#prompt-api-for-gemini-nano',
+      '2': 'chrome://flags/#optimization-guide-on-device-model',
+      '3': 'chrome://flags/#summarization-api-for-gemini-nano'
+    };
+
+    const url = flagUrls[flagId];
+    if (!url) {
+      console.error('[Popup] Invalid flag ID:', flagId);
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      console.log('[Popup] Copied flag URL:', url);
+
+      // Visual feedback
+      const btn = document.querySelector(`[data-flag-id="${flagId}"]`);
+      if (btn) {
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>';
+        setTimeout(() => {
+          btn.innerHTML = originalHTML;
+        }, 1500);
+      }
+    } catch (error) {
+      console.error('[Popup] Failed to copy flag URL:', error);
+    }
+  }
+
+  /**
+   * Open all Chrome flags pages in new tabs
+   */
+  openAllFlags() {
+    console.log('[Popup] Opening Chrome flags pages');
+
+    const flagUrls = [
+      'chrome://flags/#prompt-api-for-gemini-nano',
+      'chrome://flags/#optimization-guide-on-device-model',
+      'chrome://flags/#summarization-api-for-gemini-nano'
+    ];
+
+    // Open first tab and focus it
+    chrome.tabs.create({ url: flagUrls[0], active: true });
+
+    // Open remaining tabs in background
+    setTimeout(() => {
+      flagUrls.slice(1).forEach(url => {
+        chrome.tabs.create({ url, active: false });
+      });
+    }, 100);
+
+    // Close modal after short delay
+    setTimeout(() => {
+      this.closeModal();
+    }, 500);
   }
 
 }

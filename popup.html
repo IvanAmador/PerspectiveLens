@@ -141,6 +141,131 @@
       </a>
     </footer>
 
+    <!-- Setup Modal (shown when Chrome flags are disabled) -->
+    <div id="setup-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-card">
+        <!-- Modal Header -->
+        <div class="modal-header">
+          <h2 class="modal-title">Enable Chrome AI Features</h2>
+          <button id="close-modal-btn" class="icon-btn-small" title="Close" aria-label="Close modal">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="modal-content">
+          <p class="modal-description">
+            Enable these 3 Chrome flags to use Gemini Nano for on-device AI analysis:
+          </p>
+
+          <!-- Flag Cards -->
+          <div class="flags-container">
+            <!-- Flag 1: Prompt API -->
+            <div class="flag-card">
+              <div class="flag-header">
+                <div class="flag-number">1</div>
+                <div class="flag-info">
+                  <h3 class="flag-title">Prompt API</h3>
+                  <p class="flag-description">Enables Gemini Nano for comparative analysis</p>
+                </div>
+              </div>
+              <div class="flag-url-container">
+                <code class="flag-url" id="flag-url-1">#prompt-api-for-gemini-nano</code>
+                <button class="copy-btn" data-flag-id="1" title="Copy flag URL">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M8 4V16C8 16.5304 8.21071 17.0391 8.58579 17.4142C8.96086 17.7893 9.46957 18 10 18H18C18.5304 18 19.0391 17.7893 19.4142 17.4142C19.7893 17.0391 20 16.5304 20 16V7.242C20 6.97556 19.9467 6.71181 19.8433 6.46624C19.7399 6.22068 19.5885 5.99824 19.398 5.812L16.083 2.57C15.7094 2.20466 15.2076 2.00007 14.685 2H10C9.46957 2 8.96086 2.21071 8.58579 2.58579C8.21071 2.96086 8 3.46957 8 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M16 18V20C16 20.5304 15.7893 21.0391 15.4142 21.4142C15.0391 21.7893 14.5304 22 14 22H6C5.46957 22 4.96086 21.7893 4.58579 21.4142C4.21071 21.0391 4 20.5304 4 20V9C4 8.46957 4.21071 7.96086 4.58579 7.58579C4.96086 7.21071 5.46957 7 6 7H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="flag-value">Set to: <strong>Enabled</strong></div>
+            </div>
+
+            <!-- Flag 2: Optimization Guide -->
+            <div class="flag-card">
+              <div class="flag-header">
+                <div class="flag-number">2</div>
+                <div class="flag-info">
+                  <h3 class="flag-title">Optimization Guide</h3>
+                  <p class="flag-description">Enables model download (bypass performance requirements)</p>
+                </div>
+              </div>
+              <div class="flag-url-container">
+                <code class="flag-url" id="flag-url-2">#optimization-guide-on-device-model</code>
+                <button class="copy-btn" data-flag-id="2" title="Copy flag URL">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M8 4V16C8 16.5304 8.21071 17.0391 8.58579 17.4142C8.96086 17.7893 9.46957 18 10 18H18C18.5304 18 19.0391 17.7893 19.4142 17.4142C19.7893 17.0391 20 16.5304 20 16V7.242C20 6.97556 19.9467 6.71181 19.8433 6.46624C19.7399 6.22068 19.5885 5.99824 19.398 5.812L16.083 2.57C15.7094 2.20466 15.2076 2.00007 14.685 2H10C9.46957 2 8.96086 2.21071 8.58579 2.58579C8.21071 2.96086 8 3.46957 8 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M16 18V20C16 20.5304 15.7893 21.0391 15.4142 21.4142C15.0391 21.7893 14.5304 22 14 22H6C5.46957 22 4.96086 21.7893 4.58579 21.4142C4.21071 21.0391 4 20.5304 4 20V9C4 8.46957 4.21071 7.96086 4.58579 7.58579C4.96086 7.21071 5.46957 7 6 7H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="flag-value">Set to: <strong>Enabled BypassPerfRequirement</strong></div>
+            </div>
+
+            <!-- Flag 3: Summarization API -->
+            <div class="flag-card">
+              <div class="flag-header">
+                <div class="flag-number">3</div>
+                <div class="flag-info">
+                  <h3 class="flag-title">Summarization API</h3>
+                  <p class="flag-description">Enables article compression</p>
+                </div>
+              </div>
+              <div class="flag-url-container">
+                <code class="flag-url" id="flag-url-3">#summarization-api-for-gemini-nano</code>
+                <button class="copy-btn" data-flag-id="3" title="Copy flag URL">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M8 4V16C8 16.5304 8.21071 17.0391 8.58579 17.4142C8.96086 17.7893 9.46957 18 10 18H18C18.5304 18 19.0391 17.7893 19.4142 17.4142C19.7893 17.0391 20 16.5304 20 16V7.242C20 6.97556 19.9467 6.71181 19.8433 6.46624C19.7399 6.22068 19.5885 5.99824 19.398 5.812L16.083 2.57C15.7094 2.20466 15.2076 2.00007 14.685 2H10C9.46957 2 8.96086 2.21071 8.58579 2.58579C8.21071 2.96086 8 3.46957 8 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M16 18V20C16 20.5304 15.7893 21.0391 15.4142 21.4142C15.0391 21.7893 14.5304 22 14 22H6C5.46957 22 4.96086 21.7893 4.58579 21.4142C4.21071 21.0391 4 20.5304 4 20V9C4 8.46957 4.21071 7.96086 4.58579 7.58579C4.96086 7.21071 5.46957 7 6 7H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="flag-value">Set to: <strong>Enabled</strong></div>
+            </div>
+          </div>
+
+          <!-- Instructions -->
+          <div class="instructions-card">
+            <div class="instruction-step">
+              <div class="instruction-number">4</div>
+              <div class="instruction-text">
+                <strong>Restart Chrome</strong> after enabling all flags
+              </div>
+            </div>
+            <p class="instruction-note">
+              Gemini Nano will download automatically in the background (~1.7 GB). This may take 5-10 minutes.
+            </p>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="modal-actions">
+            <button id="open-flags-btn" class="btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z" fill="currentColor"/>
+              </svg>
+              Open Chrome Flags
+            </button>
+          </div>
+
+          <!-- Troubleshooting -->
+          <details class="troubleshooting">
+            <summary class="troubleshooting-title">Troubleshooting</summary>
+            <div class="troubleshooting-content">
+              <p>If models do not download automatically:</p>
+              <ul>
+                <li>Wait 1-2 minutes after restart for download to start</li>
+                <li>Check status at <a href="chrome://on-device-internals/" target="_blank">chrome://on-device-internals/</a></li>
+                <li>Ensure you have 22GB+ free storage and unmetered connection</li>
+                <li>Try disabling and re-enabling the flags</li>
+              </ul>
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>
+
     <script src="ui/theme-manager.js"></script>
     <script src="ui/pages/popup/popup.js" type="module"></script>
   </body>

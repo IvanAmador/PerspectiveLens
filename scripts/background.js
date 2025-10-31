@@ -22,6 +22,7 @@ import { getSearchConfigAsync, getSelectionTargetsAsync } from '../config/pipeli
 import { selectArticlesByCountry, validateCoverage } from '../api/articleSelector.js';
 import { ConfigManager } from '../config/configManager.js';
 import { rateLimitCache } from '../utils/rateLimitCache.js';
+import { nanoModelManager } from '../utils/nanoModelManager.js';
 
 // Initialize background service
 logger.system.info('Background service worker started', {
@@ -320,10 +321,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'START_MODEL_DOWNLOAD') {
     startModelDownload()
-      .then(() => sendResponse({ success: true }))
+      .then(result => sendResponse(result))
       .catch(error => {
         const errorInfo = handleError(error, 'startModelDownload');
-        sendResponse({ success: false, error: errorInfo });
+        sendResponse({ success: false, error: errorInfo.message || errorInfo });
       });
 
     return true;
@@ -1426,7 +1427,7 @@ async function handleNewArticle(articleData) {
 
 /**
  * Get extension status for popup (with caching to reduce API calls)
- * Now supports Gemini Nano and multiple API models
+ * Now uses nanoModelManager for comprehensive Chrome AI status
  */
 async function getExtensionStatus() {
   try {
@@ -1480,66 +1481,49 @@ async function getExtensionStatus() {
         }
       }
     } else {
-      // Gemini Nano status (existing logic)
-      if (typeof self.LanguageModel !== 'undefined') {
-        try {
-          const now = Date.now();
-          const cacheValid = aiAvailabilityCache.status &&
-            aiAvailabilityCache.timestamp &&
-            (now - aiAvailabilityCache.timestamp) < aiAvailabilityCache.cacheDuration;
+      // Gemini Nano status - Use nanoModelManager for comprehensive status
+      try {
+        const nanoStatus = await nanoModelManager.getSystemStatus();
 
-          let availability;
-          if (cacheValid) {
-            availability = aiAvailabilityCache.status;
-            logger.system.trace('Using cached AI availability', {
-              category: logger.CATEGORIES.GENERAL,
-              data: { availability }
-            });
-          } else {
-            availability = await checkAvailability();
-            aiAvailabilityCache.status = availability;
-            aiAvailabilityCache.timestamp = now;
-            logger.system.debug('AI availability checked', {
-              category: logger.CATEGORIES.GENERAL,
-              data: { availability }
-            });
-          }
+        // Extract overall status
+        aiStatus.availability = nanoStatus.overall.state;
+        aiStatus.message = nanoStatus.overall.message;
+        aiStatus.ready = nanoStatus.overall.ready;
+        aiStatus.flagsEnabled = nanoStatus.overall.flagsEnabled;
+        aiStatus.downloadInProgress = nanoStatus.overall.downloadInProgress;
 
-          aiStatus.availability = availability;
+        // Add detailed status
+        aiStatus.apis = nanoStatus.apis;
+        aiStatus.flags = nanoStatus.flags;
+        aiStatus.hardware = nanoStatus.hardware;
+        aiStatus.chromeVersion = nanoStatus.chromeVersion;
+        aiStatus.internals = nanoStatus.internals;
 
-          if (availability === 'downloading' && downloadState.inProgress) {
-            aiStatus.downloadProgress = downloadState.progress;
-          }
-
-          // Set message based on Nano status
-          if (availability === 'ready') {
-            aiStatus.message = 'Gemini Nano ready';
-          } else if (availability === 'download') {
-            aiStatus.message = 'Model download required';
-          } else if (availability === 'downloading') {
-            aiStatus.message = `Downloading model (${aiStatus.downloadProgress}%)`;
-          } else {
-            aiStatus.message = 'Gemini Nano unavailable';
-          }
-        } catch (error) {
-          logger.system.error('Failed to check AI availability', {
-            category: logger.CATEGORIES.ERROR,
-            error
-          });
-          aiStatus.availability = 'error';
-          aiStatus.message = 'Error checking Gemini Nano';
+        // Handle download progress
+        if (nanoStatus.download.inProgress) {
+          aiStatus.downloadProgress = nanoStatus.download.progress;
+          aiStatus.downloadingAPI = nanoStatus.download.currentAPI;
+        } else if (downloadState.inProgress) {
+          // Fallback to local download state
+          aiStatus.downloadProgress = downloadState.progress;
         }
-      } else {
-        logger.system.warn('LanguageModel API not available in environment', {
+
+        logger.system.debug('Nano status retrieved from nanoModelManager', {
           category: logger.CATEGORIES.GENERAL,
           data: {
-            hasLanguageModel: typeof self.LanguageModel !== 'undefined',
-            chromeVersion: navigator.userAgent.match(/Chrome\/(\d+)/)?.[1] || 'unknown',
-            recommendation: 'Enable chrome://flags/#prompt-api-for-gemini-nano'
+            state: nanoStatus.overall.state,
+            ready: nanoStatus.overall.ready,
+            flagsEnabled: nanoStatus.overall.flagsEnabled
           }
         });
-        aiStatus.availability = 'unavailable';
-        aiStatus.message = 'Gemini Nano not available in this Chrome version';
+
+      } catch (error) {
+        logger.system.error('Failed to get Nano status from nanoModelManager', {
+          category: logger.CATEGORIES.ERROR,
+          error
+        });
+        aiStatus.availability = 'error';
+        aiStatus.message = 'Error checking Gemini Nano';
       }
     }
 
@@ -1562,7 +1546,11 @@ async function getExtensionStatus() {
 
     logger.system.debug('Extension status retrieved', {
       category: logger.CATEGORIES.GENERAL,
-      data: status
+      data: {
+        modelProvider: aiStatus.modelProvider,
+        availability: aiStatus.availability,
+        message: aiStatus.message
+      }
     });
 
     return status;
@@ -1575,7 +1563,7 @@ async function getExtensionStatus() {
     // Return fallback status instead of throwing
     return {
       aiStatus: {
-        modelProvider: 'gemini-nano',
+        modelProvider: 'nano',
         availability: 'unavailable',
         downloadProgress: 0,
         message: 'Error retrieving status'
@@ -1624,7 +1612,7 @@ async function validateApiKey(apiKey) {
 }
 
 /**
- * Start AI model download in background
+ * Start AI model download in background using nanoModelManager
  */
 async function startModelDownload() {
   if (downloadState.inProgress) {
@@ -1632,45 +1620,47 @@ async function startModelDownload() {
       category: logger.CATEGORIES.GENERAL,
       data: { progress: downloadState.progress }
     });
-    return;
+    return { success: false, message: 'Download already in progress' };
   }
 
   try {
-    logger.both.info('Starting AI model download', {
+    logger.both.info('Starting Gemini Nano model download', {
       category: logger.CATEGORIES.GENERAL
     });
 
-    downloadState.inProgress = true;
-    downloadState.progress = 0;
+    // Use nanoModelManager to start download for the prompt API (main model)
+    await nanoModelManager.startDownload('prompt', (progressData) => {
+      downloadState.inProgress = true;
+      downloadState.progress = progressData.progress;
 
-    const session = await createSession({}, (progress) => {
-      downloadState.progress = progress;
       logger.system.debug('Download progress update', {
         category: logger.CATEGORIES.GENERAL,
-        data: { progress }
+        data: {
+          progress: progressData.progress,
+          api: progressData.apiName,
+          loaded: progressData.loaded
+        }
       });
     });
 
     downloadState.inProgress = false;
     downloadState.progress = 100;
-    downloadState.session = session;
 
-    logger.both.info('AI model download completed', {
+    logger.both.info('Gemini Nano model download completed', {
       category: logger.CATEGORIES.GENERAL
     });
 
-    session.destroy();
-    downloadState.session = null;
+    return { success: true, message: 'Download completed' };
   } catch (error) {
     downloadState.inProgress = false;
     downloadState.progress = 0;
-    
+
     logger.both.error('Model download failed', {
       category: logger.CATEGORIES.ERROR,
       error
     });
-    
-    throw error;
+
+    return { success: false, message: error.message, error: error.name };
   }
 }
 
