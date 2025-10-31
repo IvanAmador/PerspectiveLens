@@ -422,36 +422,41 @@ export class NanoModelManager {
     try {
       console.log(`[NanoModelManager] Creating session with monitor for ${api.name}...`);
 
+      const self = this; // Capture this context
       const session = await api.createFn({
-        monitor: (m) => {
-          console.log(`[NanoModelManager] Monitor callback called for ${api.name}`);
+        monitor(m) {
+          console.log(`[NanoModelManager] Monitor function called for ${api.name}`);
 
           m.addEventListener('downloadprogress', (e) => {
-            // Use Math.max to ensure we show at least 1% when download starts (0.001 -> 1%)
             const progress = e.loaded === 0 ? 0 : Math.max(1, Math.round(e.loaded * 100));
 
-            console.log(`[NanoModelManager] ${api.name} download progress:`, {
+            console.log(`[NanoModelManager] *** DOWNLOAD PROGRESS EVENT FIRED ***`, {
+              api: api.name,
               loaded: e.loaded,
               progress: progress + '%',
-              total: e.total
+              total: e.total,
+              timestamp: new Date().toISOString()
             });
 
-            // Update internal state
-            this.downloadState.progress = progress;
+            // Update internal state using captured context
+            self.downloadState.progress = progress;
 
             // Call progress callback
             if (onProgress) {
+              console.log(`[NanoModelManager] Calling onProgress with:`, progress);
               onProgress({
                 progress,
                 apiKey,
                 apiName: api.displayName,
                 loaded: e.loaded,
-                estimatedSize: this.downloadState.estimatedSize
+                estimatedSize: self.downloadState.estimatedSize
               });
+            } else {
+              console.error(`[NanoModelManager] onProgress is NULL - callback not provided!`);
             }
           });
 
-          console.log(`[NanoModelManager] Event listener registered for downloadprogress`);
+          console.log(`[NanoModelManager] downloadprogress listener registered successfully`);
         }
       });
 
