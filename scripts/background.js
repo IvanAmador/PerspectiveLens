@@ -1500,12 +1500,21 @@ async function getExtensionStatus() {
         aiStatus.internals = nanoStatus.internals;
 
         // Handle download progress
+        console.log('[Background] Download state check:', {
+          nanoDownloadInProgress: nanoStatus.download.inProgress,
+          nanoDownloadProgress: nanoStatus.download.progress,
+          localDownloadInProgress: downloadState.inProgress,
+          localDownloadProgress: downloadState.progress
+        });
+
         if (nanoStatus.download.inProgress) {
           aiStatus.downloadProgress = nanoStatus.download.progress;
           aiStatus.downloadingAPI = nanoStatus.download.currentAPI;
+          console.log('[Background] Using nano download progress:', aiStatus.downloadProgress);
         } else if (downloadState.inProgress) {
           // Fallback to local download state
           aiStatus.downloadProgress = downloadState.progress;
+          console.log('[Background] Using local download progress:', aiStatus.downloadProgress);
         }
 
         logger.system.debug('Nano status retrieved from nanoModelManager', {
