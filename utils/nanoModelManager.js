@@ -370,11 +370,19 @@ export class NanoModelManager {
     this.downloadState.estimatedSize = this.getEstimatedSize(apiKey);
 
     try {
+      console.log(`[NanoModelManager] Creating session with monitor for ${api.name}...`);
+
       const session = await api.createFn({
         monitor: (m) => {
+          console.log(`[NanoModelManager] Monitor callback called for ${api.name}`, m);
+
           m.addEventListener('downloadprogress', (e) => {
             const progress = Math.round(e.loaded * 100);
-            console.log(`[NanoModelManager] ${api.name} download: ${progress}%`);
+            console.log(`[NanoModelManager] ${api.name} download progress event:`, {
+              loaded: e.loaded,
+              progress: progress + '%',
+              total: e.total
+            });
 
             // Update internal state
             this.downloadState.progress = progress;
@@ -390,10 +398,12 @@ export class NanoModelManager {
               });
             }
           });
+
+          console.log(`[NanoModelManager] Event listener registered for downloadprogress`);
         }
       });
 
-      console.log(`[NanoModelManager] ${api.name} download complete`);
+      console.log(`[NanoModelManager] ${api.name} session created, checking if download completed...`);
 
       this.downloadState.inProgress = false;
       this.downloadState.progress = 100;
