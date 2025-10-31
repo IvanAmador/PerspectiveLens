@@ -1503,18 +1503,25 @@ async function getExtensionStatus() {
         console.log('[Background] Download state check:', {
           nanoDownloadInProgress: nanoStatus.download.inProgress,
           nanoDownloadProgress: nanoStatus.download.progress,
+          nanoDownloadCurrentAPI: nanoStatus.download.currentAPI,
           localDownloadInProgress: downloadState.inProgress,
-          localDownloadProgress: downloadState.progress
+          localDownloadProgress: downloadState.progress,
+          fullNanoDownloadState: nanoStatus.download
         });
 
         if (nanoStatus.download.inProgress) {
           aiStatus.downloadProgress = nanoStatus.download.progress;
           aiStatus.downloadingAPI = nanoStatus.download.currentAPI;
+          aiStatus.downloadInProgress = true;
           console.log('[Background] Using nano download progress:', aiStatus.downloadProgress);
         } else if (downloadState.inProgress) {
           // Fallback to local download state
           aiStatus.downloadProgress = downloadState.progress;
+          aiStatus.downloadInProgress = true;
           console.log('[Background] Using local download progress:', aiStatus.downloadProgress);
+        } else {
+          aiStatus.downloadProgress = 0;
+          aiStatus.downloadInProgress = false;
         }
 
         logger.system.debug('Nano status retrieved from nanoModelManager', {
@@ -1642,9 +1649,25 @@ async function startModelDownload() {
     downloadState.inProgress = true;
     downloadState.progress = 0;
 
+    console.log('[Background] Download starting - initial state:', {
+      inProgress: downloadState.inProgress,
+      progress: downloadState.progress,
+      timestamp: new Date().toISOString()
+    });
+
     // Use nanoModelManager to download the prompt API (main model)
     await nanoModelManager.downloadAPI('prompt', (progressData) => {
+      // Update BOTH local state and log
       downloadState.progress = progressData.progress;
+
+      console.log('[Background] *** PROGRESS CALLBACK FIRED ***', {
+        progress: progressData.progress,
+        api: progressData.apiName,
+        loaded: progressData.loaded,
+        localStateProgress: downloadState.progress,
+        nanoStateProgress: nanoModelManager.downloadState.progress,
+        timestamp: new Date().toISOString()
+      });
 
       logger.system.debug('Download progress update', {
         category: logger.CATEGORIES.GENERAL,
@@ -1656,6 +1679,8 @@ async function startModelDownload() {
       });
     });
 
+    console.log('[Background] Download completed successfully');
+
     downloadState.inProgress = false;
     downloadState.progress = 100;
 
@@ -1665,6 +1690,8 @@ async function startModelDownload() {
 
     return { success: true, message: 'Download completed' };
   } catch (error) {
+    console.error('[Background] Download failed:', error);
+
     downloadState.inProgress = false;
     downloadState.progress = 0;
 

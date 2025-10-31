@@ -269,8 +269,17 @@ class PopupManager {
           this.setNanoStatus('info', 'Downloading...');
           this.elements.nanoDownloadBtn.style.display = 'none';
           this.elements.nanoProgress.style.display = 'flex';
-          if (aiStatus.downloadProgress) {
+
+          console.log('[Popup] Downloading state detected:', {
+            hasDownloadProgress: aiStatus.downloadProgress !== undefined,
+            downloadProgress: aiStatus.downloadProgress,
+            downloadInProgress: aiStatus.downloadInProgress
+          });
+
+          if (aiStatus.downloadProgress !== undefined) {
             this.updateNanoProgress(aiStatus.downloadProgress);
+          } else {
+            console.warn('[Popup] Downloading state but no downloadProgress value');
           }
           break;
 
@@ -343,9 +352,26 @@ class PopupManager {
    */
   updateNanoProgress(percent) {
     console.log('[Popup] updateNanoProgress called with:', percent);
-    this.elements.nanoProgressFill.style.width = `${percent}%`;
-    this.elements.nanoProgressPercent.textContent = `${percent}%`;
-    console.log('[Popup] Progress bar updated - fillWidth:', this.elements.nanoProgressFill.style.width);
+
+    if (!this.elements.nanoProgressFill || !this.elements.nanoProgressPercent) {
+      console.error('[Popup] Progress elements not found!', {
+        hasFill: !!this.elements.nanoProgressFill,
+        hasPercent: !!this.elements.nanoProgressPercent
+      });
+      return;
+    }
+
+    const roundedPercent = Math.round(percent);
+    this.elements.nanoProgressFill.style.width = `${roundedPercent}%`;
+    this.elements.nanoProgressPercent.textContent = `${roundedPercent}%`;
+
+    console.log('[Popup] Progress bar updated:', {
+      percent: roundedPercent,
+      fillWidth: this.elements.nanoProgressFill.style.width,
+      textContent: this.elements.nanoProgressPercent.textContent,
+      fillElement: this.elements.nanoProgressFill,
+      percentElement: this.elements.nanoProgressPercent
+    });
   }
 
   /**
@@ -372,17 +398,27 @@ class PopupManager {
         if (status && status.success) {
           const { aiStatus } = status.status;
 
-          console.log('[Popup] Download poll:', {
+          console.log('[Popup] Download poll - FULL STATUS:', {
             availability: aiStatus.availability,
             downloadProgress: aiStatus.downloadProgress,
-            downloadInProgress: aiStatus.downloadInProgress
+            downloadInProgress: aiStatus.downloadInProgress,
+            downloadingAPI: aiStatus.downloadingAPI,
+            fullAiStatus: aiStatus
           });
 
-          if (aiStatus.availability === 'downloading' && aiStatus.downloadProgress !== undefined) {
+          // Update progress if downloading OR if downloadProgress is available
+          if (aiStatus.downloadInProgress && aiStatus.downloadProgress !== undefined) {
+            console.log('[Popup] Updating progress bar to:', aiStatus.downloadProgress);
+            this.updateNanoProgress(aiStatus.downloadProgress);
+          } else if (aiStatus.availability === 'downloading' && aiStatus.downloadProgress !== undefined) {
+            console.log('[Popup] Updating progress bar to (via availability):', aiStatus.downloadProgress);
             this.updateNanoProgress(aiStatus.downloadProgress);
           } else if (aiStatus.availability === 'ready' || aiStatus.availability === 'available') {
+            console.log('[Popup] Download complete, clearing poll interval');
             clearInterval(pollInterval);
             await this.updateNanoStatus();
+          } else {
+            console.log('[Popup] No progress update - waiting for download to start');
           }
         }
       }, 1000);
