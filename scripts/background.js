@@ -1628,9 +1628,11 @@ async function startModelDownload() {
       category: logger.CATEGORIES.GENERAL
     });
 
-    // Use nanoModelManager to start download for the prompt API (main model)
-    await nanoModelManager.startDownload('prompt', (progressData) => {
-      downloadState.inProgress = true;
+    downloadState.inProgress = true;
+    downloadState.progress = 0;
+
+    // Use nanoModelManager to download the prompt API (main model)
+    await nanoModelManager.downloadAPI('prompt', (progressData) => {
       downloadState.progress = progressData.progress;
 
       logger.system.debug('Download progress update', {

@@ -303,7 +303,9 @@ export class NanoModelManager {
    * @returns {Promise<Object>} Unified status with overall state
    */
   async getSystemStatus() {
-    const apiStatuses = await this.checkAllAPIs();
+    // Don't use cache if download is in progress to get real-time status
+    const useCache = !this.downloadState.inProgress;
+    const apiStatuses = await this.checkAllAPIs(useCache);
     const hardware = await this.checkHardwareRequirements();
     const flags = await this.checkRequiredFlags();
     const chromeVersion = this.checkChromeVersion();
