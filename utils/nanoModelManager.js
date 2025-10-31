@@ -423,11 +423,56 @@ export class NanoModelManager {
       console.log(`[NanoModelManager] Creating session with monitor for ${api.name}...`);
 
       const self = this; // Capture this context
+      let progressEventFired = false;
+      let downloadCheckInterval = null;
+
+      // Start a fallback progress simulation if no events fire
+      const startFallbackProgress = () => {
+        console.log(`[NanoModelManager] Starting fallback progress simulation (no downloadprogress events detected)`);
+        let simulatedProgress = 1;
+
+        downloadCheckInterval = setInterval(() => {
+          if (!progressEventFired && simulatedProgress < 95) {
+            simulatedProgress += 5;
+            self.downloadState.progress = simulatedProgress;
+
+            console.log(`[NanoModelManager] Simulated progress:`, simulatedProgress);
+
+            if (onProgress) {
+              onProgress({
+                progress: simulatedProgress,
+                apiKey,
+                apiName: api.displayName,
+                loaded: simulatedProgress / 100,
+                estimatedSize: self.downloadState.estimatedSize,
+                simulated: true
+              });
+            }
+          }
+        }, 500); // Update every 500ms
+      };
+
+      // Wait 2 seconds, if no progress event fires, start fallback
+      const fallbackTimeout = setTimeout(() => {
+        if (!progressEventFired) {
+          startFallbackProgress();
+        }
+      }, 2000);
+
       const session = await api.createFn({
         monitor(m) {
           console.log(`[NanoModelManager] Monitor function called for ${api.name}`);
 
           m.addEventListener('downloadprogress', (e) => {
+            progressEventFired = true;
+
+            // Clear fallback if real event fires
+            if (downloadCheckInterval) {
+              clearInterval(downloadCheckInterval);
+              downloadCheckInterval = null;
+            }
+            clearTimeout(fallbackTimeout);
+
             const progress = e.loaded === 0 ? 0 : Math.max(1, Math.round(e.loaded * 100));
 
             console.log(`[NanoModelManager] *** DOWNLOAD PROGRESS EVENT FIRED ***`, {
@@ -449,7 +494,8 @@ export class NanoModelManager {
                 apiKey,
                 apiName: api.displayName,
                 loaded: e.loaded,
-                estimatedSize: self.downloadState.estimatedSize
+                estimatedSize: self.downloadState.estimatedSize,
+                simulated: false
               });
             } else {
               console.error(`[NanoModelManager] onProgress is NULL - callback not provided!`);
@@ -459,6 +505,12 @@ export class NanoModelManager {
           console.log(`[NanoModelManager] downloadprogress listener registered successfully`);
         }
       });
+
+      // Clean up fallback
+      clearTimeout(fallbackTimeout);
+      if (downloadCheckInterval) {
+        clearInterval(downloadCheckInterval);
+      }
 
       console.log(`[NanoModelManager] ${api.name} session created, download completed`);
 
