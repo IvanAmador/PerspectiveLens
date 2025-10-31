@@ -361,6 +361,38 @@ export class NanoModelManager {
       throw new Error(`Unknown API: ${apiKey}`);
     }
 
+    // Check if API exists in browser
+    if (!api.checkFn()) {
+      throw new Error(`${api.name} is not available in this browser. Make sure required Chrome flags are enabled.`);
+    }
+
+    // Check current availability status
+    console.log(`[NanoModelManager] Checking ${api.name} availability before download...`);
+    const availability = await api.availabilityFn();
+    console.log(`[NanoModelManager] ${api.name} availability: ${availability}`);
+
+    // Validate that download is needed and allowed
+    if (availability === AVAILABILITY_STATES.READILY ||
+        availability === AVAILABILITY_STATES.READY ||
+        availability === AVAILABILITY_STATES.AVAILABLE) {
+      throw new Error(`${api.name} is already available. No download needed.`);
+    }
+
+    if (availability === AVAILABILITY_STATES.UNAVAILABLE) {
+      throw new Error(`${api.name} is unavailable on this device. Check hardware requirements and Chrome flags.`);
+    }
+
+    if (availability === AVAILABILITY_STATES.NO) {
+      throw new Error(`${api.name} cannot be used on this device (hardware insufficient or flags disabled).`);
+    }
+
+    // Only proceed if downloadable, after-download, or downloading
+    if (availability !== AVAILABILITY_STATES.DOWNLOADABLE &&
+        availability !== AVAILABILITY_STATES.AFTER_DOWNLOAD &&
+        availability !== AVAILABILITY_STATES.DOWNLOADING) {
+      throw new Error(`${api.name} is not in a downloadable state (current: ${availability}). Enable required Chrome flags first.`);
+    }
+
     console.log(`[NanoModelManager] Starting download for ${api.name}...`);
 
     this.downloadState.inProgress = true;
@@ -579,21 +611,33 @@ export class NanoModelManager {
           continue;
         }
 
-        // Check if any affected API is available
+        // Check if any affected API is actually available (not just exists)
         let anyAPIAvailable = false;
         for (const apiKey of affectedAPIs) {
           const api = this.apis[apiKey];
           if (api && api.checkFn()) {
-            anyAPIAvailable = true;
-            break;
+            // API exists in browser, now check if it's actually usable
+            try {
+              const availability = await api.availabilityFn();
+
+              // If availability() works and returns anything except 'unavailable',
+              // the flag is likely enabled
+              if (availability && availability !== AVAILABILITY_STATES.UNAVAILABLE) {
+                anyAPIAvailable = true;
+                break;
+              }
+            } catch (error) {
+              // If availability() throws error, flag might be disabled
+              console.warn(`[NanoModelManager] Flag check for ${flagKey}: availability() failed`, error);
+            }
           }
         }
 
         results[flagKey].enabled = anyAPIAvailable;
         results[flagKey].checked = true;
         results[flagKey].message = anyAPIAvailable
-          ? 'Flag enabled (API detected)'
-          : `Flag may be disabled (${flagConfig.shortUrl})`;
+          ? 'Flag enabled (API functional)'
+          : `Flag disabled or not functional (${flagConfig.shortUrl})`;
 
       } catch (error) {
         results[flagKey].enabled = false;
