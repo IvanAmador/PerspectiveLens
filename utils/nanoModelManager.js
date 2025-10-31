@@ -233,6 +233,24 @@ export class NanoModelManager {
 
     for (const [apiKey, api] of Object.entries(this.apis)) {
       try {
+        // Check if this API is currently downloading
+        if (this.downloadState.inProgress && this.downloadState.currentAPI === apiKey) {
+          results[apiKey] = {
+            name: api.name,
+            displayName: api.displayName,
+            supported: true,
+            availability: AVAILABILITY_STATES.DOWNLOADING,
+            uiState: UI_STATES.DOWNLOADING,
+            requiresFlags: api.requiresFlags,
+            description: api.description,
+            modelSize: api.modelSize,
+            message: `Downloading... ${this.downloadState.progress}%`,
+            critical: api.critical
+          };
+          console.log(`[NanoModelManager] ${api.name}: downloading (${this.downloadState.progress}%)`);
+          continue;
+        }
+
         // Check if API exists in browser
         const isSupported = api.checkFn();
 
