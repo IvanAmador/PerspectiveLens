@@ -1513,7 +1513,9 @@ async function getExtensionStatus() {
           data: {
             state: nanoStatus.overall.state,
             ready: nanoStatus.overall.ready,
-            flagsEnabled: nanoStatus.overall.flagsEnabled
+            flagsEnabled: nanoStatus.overall.flagsEnabled,
+            downloadInProgress: nanoStatus.download.inProgress || downloadState.inProgress,
+            downloadProgress: aiStatus.downloadProgress
           }
         });
 

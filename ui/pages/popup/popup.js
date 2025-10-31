@@ -370,7 +370,13 @@ class PopupManager {
         if (status && status.success) {
           const { aiStatus } = status.status;
 
-          if (aiStatus.availability === 'downloading' && aiStatus.downloadProgress) {
+          console.log('[Popup] Download poll:', {
+            availability: aiStatus.availability,
+            downloadProgress: aiStatus.downloadProgress,
+            downloadInProgress: aiStatus.downloadInProgress
+          });
+
+          if (aiStatus.availability === 'downloading' && aiStatus.downloadProgress !== undefined) {
             this.updateNanoProgress(aiStatus.downloadProgress);
           } else if (aiStatus.availability === 'ready' || aiStatus.availability === 'available') {
             clearInterval(pollInterval);
